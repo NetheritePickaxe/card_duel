@@ -1,7 +1,7 @@
 import { $, show } from './util.js';
 import { state } from './state.js';
 import { t, initLocale, setLocale, getLang } from './i18n.js';
-import { initAudio, setVolume, updateBGM } from './audio.js';
+import { initAudio, setVolume, updateBGM } from './sound.js';
 import { startVsAI, startLocal, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice } from './pick.js';
 import { openEditor, setTab, editorActions } from './editor.js';
 import { playCardClick, endTurnClick } from './battle.js';

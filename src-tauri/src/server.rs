@@ -165,7 +165,10 @@ impl ServerState {
             path if path.starts_with("/locales/") && path.ends_with(".js") => {
                 self.serve_file(request, path, "application/javascript; charset=utf-8")
             }
-            "/audio/menu.ogg" => self.serve_file(request, "/audio/menu.ogg", "audio/ogg"),
+            "/sound/bgm/menu.ogg" => self.serve_file(request, "/sound/bgm/menu.ogg", "audio/ogg"),
+            "/sound/tracks.json" => {
+                self.serve_file(request, "/sound/tracks.json", "application/json")
+            }
             "/create" => self.handle_create(request),
             "/join" => self.handle_join(request, query),
             "/rooms" => self.handle_rooms(request),
@@ -638,7 +641,8 @@ fn static_file(path: &str) -> Option<&'static [u8]> {
         "/js/editor.js" => include_bytes!("../../app/js/editor.js"),
         "/locales/zh_cn.js" => include_bytes!("../../app/locales/zh_cn.js"),
         "/locales/en_us.js" => include_bytes!("../../app/locales/en_us.js"),
-        "/audio/menu.ogg" => include_bytes!("../../app/audio/menu.ogg"),
+        "/sound/bgm/menu.ogg" => include_bytes!("../../app/sound/bgm/menu.ogg"),
+        "/sound/tracks.json" => include_bytes!("../../app/sound/tracks.json"),
         _ => return None,
     })
 }
