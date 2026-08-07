@@ -1,2 +1,54 @@
-/server.log
-/__pycache__
+# Rust
+target/
+**/*.rs.bk
+*.pdb
+*.rlib
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+*.tgz
+dist/
+.output
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+*.aab
+*.apk
+*.exe
+
+# Gradle
+.gradle/
+build/
+local.properties
+
+# Android Studio
+captures/
+.externalNativeBuild/
+.cxx/
+*.iml
+.idea/
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+
+# Keystore
+*.jks
+*.keystore
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db

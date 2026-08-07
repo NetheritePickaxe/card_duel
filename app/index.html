@@ -261,6 +261,17 @@ try{
  $('lan-addr').innerHTML='http://'+pi+':'+(location.port||'8788');
  $('lan-url').value=location.origin||'http://'+pi+':8788';
 }catch(e){}
+// Tauri: override with native IP detection via IPC
+if(typeof window.__TAURI__ !== 'undefined' && window.__TAURI__.core) {
+ window.__TAURI__.core.invoke('get_lan_info').then(info => {
+  const ips = info.ips || [];
+  const ip = info.phone_ip || ips[0] || '127.0.0.1';
+  const port = info.port || 8788;
+  $('maddr').innerHTML='手机浏览器打开：<br><b style="font-size:17px">http://'+ip+':'+port+'</b>'+ (ips.length>1?'<br><span class="dim" style="font-size:11px">其他：'+ips.filter(x=>x!==ip).map(a=>'http://'+a+':'+port).join(' · ')+'</span>':'');
+  $('lan-addr').innerHTML='http://'+ip+':'+port;
+  $('lan-url').value='http://'+ip+':'+port;
+ }).catch(()=>{});
+}
 const IS_MOBILE=/Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent);
 
 /* ============ 数据 ============ */
