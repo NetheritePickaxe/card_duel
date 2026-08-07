@@ -206,7 +206,7 @@ impl ServerState {
             let ips = crate::net::local_ips();
             let ip = crate::net::lan_ip();
             let ip_list = serde_json::to_string(&ips).unwrap_or_else(|_| "[]".to_string());
-            let html = String::from_utf8_lossy(&content);
+            let html = String::from_utf8_lossy(content);
             html
                 .replace("const __IP_LIST__ = [];", &format!("const __IP_LIST__ = {};", ip_list))
                 .replace("const __PHONE_IP__ = \"\";", &format!("const __PHONE_IP__ = \"{}\";", ip))

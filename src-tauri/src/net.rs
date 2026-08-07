@@ -120,10 +120,9 @@ fn parse_ipconfig_for_best_ip() -> Option<String> {
 
     // Skip virtual network prefixes
     for ip in &cands {
-        if ip.starts_with("192.168.") || ip.starts_with("10.") || ip.starts_with("172.") {
-            if !VIRTUAL_NET_PREFIXES.iter().any(|b| ip.starts_with(b)) {
-                return Some(ip.clone());
-            }
+        let is_lan = ip.starts_with("192.168.") || ip.starts_with("10.") || ip.starts_with("172.");
+        if is_lan && !VIRTUAL_NET_PREFIXES.iter().any(|b| ip.starts_with(b)) {
+            return Some(ip.clone());
         }
     }
     cands.first().cloned()
