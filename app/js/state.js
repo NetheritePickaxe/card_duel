@@ -1,0 +1,15 @@
+export const state = {
+  MODE: 'ai',
+  PICK: [null, null],
+  BATTLE: null,
+  PHASE_BATTLE: false,
+  LAN: null,
+  EDIT: { tab: 'role', sel: null },
+  DECK_ROLE: null,
+  ROOM_TICKER: null,
+  PICK_OPTIONS: [[], []],
+  animBusy: false,
+  DICING: false,
+  _bannerShown: false,
+  HAND_MAX: 7,
+};

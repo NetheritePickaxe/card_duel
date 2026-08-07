@@ -243,7 +243,6 @@ dependencies = [
 name = "card-duel"
 version = "1.0.0"
 dependencies = [
- "crossbeam-channel",
  "rand",
  "serde",
  "serde_json",

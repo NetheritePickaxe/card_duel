@@ -3,25 +3,18 @@
 mod net;
 mod server;
 
-use std::sync::Arc;
-
 fn main() {
-    // Check for --server flag
     let args: Vec<String> = std::env::args().collect();
     if args.contains(&"--server".to_string()) {
         // Headless server mode for web hosting
-        let state = Arc::new(server::ServerState::new());
+        let state = std::sync::Arc::new(server::ServerState::default());
         state.start();
         std::thread::park();
         return;
     }
 
     // Desktop: start server in background + launch Tauri app
-    let state = Arc::new(server::ServerState::new());
-    let server_thread = std::thread::spawn(move || {
-        state.start();
-    });
-    std::mem::forget(server_thread);
+    server::start_background_server();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

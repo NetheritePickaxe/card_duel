@@ -3,22 +3,14 @@
 mod net;
 mod server;
 
-use std::sync::Arc;
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Start the LAN server in a background thread
+    server::start_background_server();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![get_lan_info])
-        .setup(|app| {
-            // Start the LAN server in a background thread
-            let state = Arc::new(server::ServerState::new());
-            let server_thread = std::thread::spawn(move || {
-                state.start();
-            });
-            std::mem::forget(server_thread);
-            Ok(())
-        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
