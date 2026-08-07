@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::net::{IpAddr, Ipv4Addr, UdpSocket};
+use std::net::{IpAddr, UdpSocket};
 
 /// Enumerate non-loopback IPv4 addresses
 pub fn local_ips() -> Vec<String> {
@@ -26,7 +26,7 @@ pub fn local_ips() -> Vec<String> {
             let text = String::from_utf8_lossy(&out.stdout);
             for line in text.lines() {
                 for part in line.split_whitespace() {
-                    if let Ok(ip) = part.parse::<Ipv4Addr>() {
+                    if let Ok(ip) = part.parse::<std::net::Ipv4Addr>() {
                         if !ip.is_loopback() && !ip.is_multicast() && !ip.is_unspecified() {
                             ips.insert(ip.to_string());
                         }
@@ -43,6 +43,7 @@ pub fn local_ips() -> Vec<String> {
 }
 
 /// Virtual network prefixes to skip when choosing the best LAN IP
+#[cfg(windows)]
 const VIRTUAL_NET_PREFIXES: &[&str] = &[
     "192.168.182.", "192.168.9.", "192.168.56.", "192.168.137.", "169.254.",
 ];
@@ -90,7 +91,7 @@ fn parse_ipconfig_for_best_ip() -> Option<String> {
         let mut has_gw = false;
         for ln in blk {
             for part in ln.split_whitespace() {
-                if let Ok(parsed) = part.parse::<Ipv4Addr>() {
+                if let Ok(parsed) = part.parse::<std::net::Ipv4Addr>() {
                     if !parsed.is_loopback() && !parsed.is_multicast() && ip.is_none() {
                         ip = Some(parsed.to_string());
                     }
@@ -143,6 +144,6 @@ mod tests {
     fn test_lan_ip_valid() {
         let ip = lan_ip();
         assert!(!ip.is_empty(), "Should return a valid IP");
-        assert!(ip.parse::<Ipv4Addr>().is_ok(), "IP should be valid: {}", ip);
+        assert!(ip.parse::<std::net::Ipv4Addr>().is_ok(), "IP should be valid: {}", ip);
     }
 }
