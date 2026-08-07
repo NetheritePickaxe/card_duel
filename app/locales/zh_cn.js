@@ -17,6 +17,7 @@ export default {
   'settings.lang': '语言',
   'settings.lang_zh': '中文',
   'settings.lang_en': 'English',
+  'settings.volume': '音乐音量',
 
   'back': '← 返回',
   'quit': '← 退出',

@@ -30,4 +30,5 @@ export function shuffle(a) {
 export function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
   $(id).classList.add('on');
+  window.dispatchEvent(new CustomEvent('screen-changed', { detail: { screen: id } }));
 }

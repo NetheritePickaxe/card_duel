@@ -165,6 +165,7 @@ impl ServerState {
             path if path.starts_with("/locales/") && path.ends_with(".js") => {
                 self.serve_file(request, path, "application/javascript; charset=utf-8")
             }
+            "/audio/menu.ogg" => self.serve_file(request, "/audio/menu.ogg", "audio/ogg"),
             "/create" => self.handle_create(request),
             "/join" => self.handle_join(request, query),
             "/rooms" => self.handle_rooms(request),
@@ -637,6 +638,7 @@ fn static_file(path: &str) -> Option<&'static [u8]> {
         "/js/editor.js" => include_bytes!("../../app/js/editor.js"),
         "/locales/zh_cn.js" => include_bytes!("../../app/locales/zh_cn.js"),
         "/locales/en_us.js" => include_bytes!("../../app/locales/en_us.js"),
+        "/audio/menu.ogg" => include_bytes!("../../app/audio/menu.ogg"),
         _ => return None,
     })
 }

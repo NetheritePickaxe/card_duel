@@ -1,6 +1,7 @@
 import { $, show } from './util.js';
 import { state } from './state.js';
 import { t, initLocale, setLocale, getLang } from './i18n.js';
+import { initAudio, setVolume, updateBGM } from './audio.js';
 import { startVsAI, startLocal, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice } from './pick.js';
 import { openEditor, setTab, editorActions } from './editor.js';
 import { playCardClick, endTurnClick } from './battle.js';
@@ -10,7 +11,9 @@ import { lanCreate, lanJoin, lanJoinRoom } from './lan.js';
 
 function updateI18nElements() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
-    el.textContent = t(el.dataset.i18n);
+    const key = el.dataset.i18n;
+    const val = t(key);
+    if (val !== key) el.textContent = val;
   });
   const sel = $('lang-select');
   if (sel) sel.value = getLang();
@@ -69,6 +72,14 @@ $('lang-select').addEventListener('change', (e) => {
   setLocale(e.target.value);
 });
 
+/* 音量切换 */
+$('volume-slider').addEventListener('input', (e) => {
+  setVolume(parseFloat(e.target.value));
+  updateBGM();
+});
+
+window.addEventListener('screen-changed', () => updateBGM());
+
 /* ============ IP 检测 ============ */
 
 const __IP_LIST__ = [];
@@ -98,6 +109,7 @@ if (typeof window.__TAURI__ !== 'undefined' && window.__TAURI__.core) {
 }
 
 /* ============ 启动 ============ */
+initAudio();
 initLocale().then(() => updateI18nElements());
 
 import { renderBattle, renderSlots } from './render.js';
