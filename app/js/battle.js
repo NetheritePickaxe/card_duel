@@ -1,8 +1,8 @@
 import { state } from './state.js';
 import { $, show } from './util.js';
-import { rollPair, rollOnce } from './util.js';
-import { DB } from './data.js';
-import { newBattle, log, cardCost, drawCards, resolveEffects, tickBuffs } from './core.js';
+import { rollPair } from './util.js';
+import { t } from './i18n.js';
+import { log, logT, cardCost, drawCards, resolveEffects, tickBuffs } from './core.js';
 import { renderBattle, showBattle, renderSlots, playCardAnim } from './render.js';
 import { lanPost } from './lan.js';
 
@@ -12,7 +12,7 @@ export function startTurn(b) {
   const sk = P.buffs.findIndex(x => x.type === 'skip_turn');
   if (sk >= 0) {
     P.buffs.splice(sk, 1);
-    log(b, `${P.role.name} 被禁行，本回合跳过`);
+    logT(b, 'log.blocked', { name: P.role.name });
     b.actor = 1 - pi;
     b.turn++;
     if (b.mode === 'lan') { lanPost(); return; }
@@ -22,7 +22,7 @@ export function startTurn(b) {
   tickBuffs(b, pi);
   P.energy = P.role.eng;
   drawCards(b, pi, b.turn === 1 ? 5 : 2);
-  log(b, `—— 第 ${b.turn} 回合 · ${P.role.name} ——`);
+  logT(b, 'log.turn', { n: b.turn, name: P.role.name });
   renderBattle();
   if (b.mode === 'ai' && b.actor === 0 && !b.winner) aiThink();
 }
@@ -38,7 +38,7 @@ export function playCard(b, pi, idx) {
   const events = resolveEffects(b, pi, card);
   b.lastPlay = { pi, card, events, atSeq: b.seq + 1 };
   P.discard.push(card);
-  if (!b.winner) log(b, `${P.role.name} 打出【${card.name}】`);
+  if (!b.winner) logT(b, 'log.play_card', { name: P.role.name, card: card.name });
   renderBattle();
   playCardAnim(pi, card, events, () => {
     state.animBusy = false;
@@ -53,7 +53,7 @@ export function endTurn(b, pi) {
   const ex = P.buffs.findIndex(x => x.type === 'extra_turn');
   if (ex >= 0) {
     P.buffs.splice(ex, 1);
-    log(b, `${P.role.name} 发动【时间裂隙】继续行动`);
+    logT(b, 'log.haste', { name: P.role.name });
     if (b.mode === 'lan') { const pre = b.seq; startTurn(b); if (b.seq === pre) lanPost(); return; }
     startTurn(b);
     return;
@@ -74,7 +74,6 @@ export function endTurnClick(pi) {
   endTurn(state.BATTLE, pi);
 }
 
-/* AI */
 function scoreCard(b, c) {
   let s = 0;
   for (const e of c.effects) {
@@ -99,7 +98,7 @@ function scoreCard(b, c) {
 function aiThink() {
   const b = state.BATTLE;
   if (!b || b.winner) return;
-  $('bt-turn').textContent = 'AI 思考中…';
+  $('bt-turn').textContent = t('battle.thinking');
   setTimeout(() => aiActOnce(b), 750);
 }
 

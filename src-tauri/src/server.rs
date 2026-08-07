@@ -39,7 +39,7 @@ pub struct State {
     pub phase: String,
     pub defs: serde_json::Value,
     pub p: Vec<PlayerState>,
-    pub log: Vec<String>,
+    pub log: Vec<serde_json::Value>,
     pub play: Option<PlayEvent>,
     pub fd: Option<ForceDiscardEvent>,
 }
@@ -161,6 +161,10 @@ impl ServerState {
             "/css/style.css" => self.serve_file(request, "/css/style.css", "text/css; charset=utf-8"),
             #[cfg(feature = "embed-frontend")]
             path if path.starts_with("/js/") && path.ends_with(".js") => {
+                self.serve_file(request, path, "application/javascript; charset=utf-8")
+            }
+            #[cfg(feature = "embed-frontend")]
+            path if path.starts_with("/locales/") && path.ends_with(".js") => {
                 self.serve_file(request, path, "application/javascript; charset=utf-8")
             }
             "/create" => self.handle_create(request),
@@ -515,6 +519,8 @@ fn static_file(path: &str) -> Option<&'static [u8]> {
         "/js/lan.js" => include_bytes!("../../app/js/lan.js"),
         "/js/pick.js" => include_bytes!("../../app/js/pick.js"),
         "/js/editor.js" => include_bytes!("../../app/js/editor.js"),
+        "/locales/zh_cn.js" => include_bytes!("../../app/locales/zh_cn.js"),
+        "/locales/en_us.js" => include_bytes!("../../app/locales/en_us.js"),
         _ => return None,
     })
 }

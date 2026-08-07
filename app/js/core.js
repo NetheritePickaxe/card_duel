@@ -2,6 +2,12 @@ import { state } from './state.js';
 import { shuffle } from './util.js';
 import { effFx } from './data.js';
 
+export const log = (b, msg) => b.log.push(msg);
+
+export function logT(b, key, params) {
+  b.log.push({ key, params });
+}
+
 export function newBattle(mode, defs) {
   const b = {
     mode, seq: 0, turn: 1, actor: 0, phase: 'awaiting', winner: null, defs, log: [],
@@ -22,8 +28,6 @@ export function newBattle(mode, defs) {
   };
   return b;
 }
-
-export const log = (b, s) => b.log.push(s);
 
 export function sumBuff(P, type) {
   return P.buffs.filter(x => x.type === type).reduce((s, x) => s + x.value, 0);
@@ -67,28 +71,29 @@ export function forceDiscard(b, t, n) {
 
 export function applyEffect(b, a, t, e) {
   const P = b.players;
+  const an = P[a].role.name, tn = P[t].role.name;
   switch (e.type) {
     case 'damage': {
       const dmg = calcDamage(P[a], P[t], e.value, !!e.pierce);
       P[t].hp -= dmg;
-      log(b, `${P[a].role.name} 对 ${P[t].role.name} 造成 ${dmg} 点伤害${e.pierce ? '（真伤）' : ''}`);
-      if (P[t].hp <= 0) { P[t].hp = 0; b.winner = a; log(b, `${P[t].role.name} 生命归零，${P[a].role.name} 获胜！`); }
+      logT(b, e.pierce ? 'log.damage_pierce' : 'log.damage', { attacker: an, target: tn, dmg });
+      if (P[t].hp <= 0) { P[t].hp = 0; b.winner = a; logT(b, 'log.win', { winner: an, loser: tn }); }
       break;
     }
-    case 'heal': P[t].hp = Math.min(P[t].role.hp, P[t].hp + e.value); log(b, `${P[t].role.name} 恢复 ${e.value} 点生命`); break;
-    case 'gain_def': P[t].def += e.value; P[t].buffs.push({ type: 'gain_def', value: e.value, duration: e.duration ?? 999 }); log(b, `${P[t].role.name} 防御+${e.value}`); break;
-    case 'gain_atk': P[t].buffs.push({ type: 'gain_atk', value: e.value, duration: e.duration ?? 999 }); log(b, `${P[t].role.name} 攻击+${e.value}`); break;
-    case 'weaken_def': P[t].buffs.push({ type: 'weaken_def', value: e.value, duration: e.duration ?? 3 }); log(b, `${P[t].role.name} 防御-${e.value}（${e.duration ?? 3}回合）`); break;
-    case 'cost_up': P[t].buffs.push({ type: 'cost_up', value: e.value, duration: e.duration ?? 2 }); log(b, `${P[t].role.name} 卡牌费用+${e.value}（${e.duration ?? 2}回合）`); break;
-    case 'dmg_reduce': P[t].buffs.push({ type: 'dmg_reduce', value: e.value, duration: e.duration ?? 3 }); log(b, `${P[t].role.name} 获得 ${e.value}% 减伤（${e.duration ?? 3}回合）`); break;
-    case 'skip_turn': P[t].buffs.push({ type: 'skip_turn' }); log(b, `${P[t].role.name} 下一回合被跳过`); break;
-    case 'extra_turn': P[a].buffs.push({ type: 'extra_turn' }); log(b, `${P[a].role.name} 获得额外回合`); break;
-    case 'draw': drawCards(b, a, e.value, true); log(b, `${P[a].role.name} 抽 ${e.value} 张牌`); break;
+    case 'heal': P[t].hp = Math.min(P[t].role.hp, P[t].hp + e.value); logT(b, 'log.heal', { target: tn, value: e.value }); break;
+    case 'gain_def': P[t].def += e.value; P[t].buffs.push({ type: 'gain_def', value: e.value, duration: e.duration ?? 999 }); logT(b, 'log.def_up', { target: tn, value: e.value }); break;
+    case 'gain_atk': P[t].buffs.push({ type: 'gain_atk', value: e.value, duration: e.duration ?? 999 }); logT(b, 'log.atk_up', { target: tn, value: e.value }); break;
+    case 'weaken_def': P[t].buffs.push({ type: 'weaken_def', value: e.value, duration: e.duration ?? 3 }); logT(b, 'log.def_down', { target: tn, value: e.value, dur: e.duration ?? 3 }); break;
+    case 'cost_up': P[t].buffs.push({ type: 'cost_up', value: e.value, duration: e.duration ?? 2 }); logT(b, 'log.cost_up', { target: tn, value: e.value, dur: e.duration ?? 2 }); break;
+    case 'dmg_reduce': P[t].buffs.push({ type: 'dmg_reduce', value: e.value, duration: e.duration ?? 3 }); logT(b, 'log.dmg_reduce', { target: tn, value: e.value, dur: e.duration ?? 3 }); break;
+    case 'skip_turn': P[t].buffs.push({ type: 'skip_turn' }); logT(b, 'log.skip_turn', { target: tn }); break;
+    case 'extra_turn': P[a].buffs.push({ type: 'extra_turn' }); logT(b, 'log.extra_turn', { target: an }); break;
+    case 'draw': drawCards(b, a, e.value, true); logT(b, 'log.draw', { target: an, value: e.value }); break;
     case 'force_discard':
       if (Array.isArray(P[t].hand)) forceDiscard(b, t, e.value);
       else b.pendingFD = { side: t, count: e.value, atSeq: b.seq + 1 };
-      log(b, `${P[t].role.name} 被迫弃置 ${e.value} 张手牌`); break;
-    case 'energy': P[a].energy = Math.max(0, P[a].energy + e.value); log(b, `${P[a].role.name} 能量${e.value >= 0 ? '+' : ''}${e.value}`); break;
+      logT(b, 'log.force_discard', { target: tn, value: e.value }); break;
+    case 'energy': P[a].energy = Math.max(0, P[a].energy + e.value); logT(b, 'log.energy', { target: an, sign: e.value >= 0 ? '+' : '', value: e.value }); break;
   }
 }
 
@@ -96,9 +101,9 @@ export function resolveEffects(b, pi, card) {
   const foe = 1 - pi, events = [];
   for (const e of card.effects) {
     if (b.winner) break;
-    const t = (e.target === 'self') ? pi : foe;
-    applyEffect(b, pi, t, e);
-    events.push({ target: t, fx: effFx(e) });
+    const tgt = (e.target === 'self') ? pi : foe;
+    applyEffect(b, pi, tgt, e);
+    events.push({ target: tgt, fx: effFx(e) });
   }
   return events;
 }

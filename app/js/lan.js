@@ -1,7 +1,8 @@
 import { $, show } from './util.js';
 import { state } from './state.js';
 import { DB } from './data.js';
-import { newBattle, log, forceDiscard } from './core.js';
+import { t } from './i18n.js';
+import { newBattle, logT, forceDiscard } from './core.js';
 import { renderBattle, showBattle, renderSlots, slotHTML, playCardAnim } from './render.js';
 import { startTurn } from './battle.js';
 import { goDice, openPick } from './pick.js';
@@ -13,7 +14,7 @@ export function lanBase() {
 
 export function lanCreate() {
   fetch(lanBase() + '/create', { cache: 'no-store' }).then(r => r.json()).then(d => {
-    if (!d.ok) { alert('创建失败'); return; }
+    if (!d.ok) { alert(t('lan.alert_create_fail')); return; }
     state.LAN = { base: lanBase(), room: d.room, side: 0, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
     state.MODE = 'lan';
     stopRoomList();
@@ -21,31 +22,31 @@ export function lanCreate() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ room: d.room, data: DB }), cache: 'no-store',
     }).catch(() => { });
-    $('lan-info').innerHTML = `房间号 <b style="color:var(--acc);font-size:18px">${d.room}</b><br>等待对方加入…`;
+    $('lan-info').innerHTML = `${t('pick.lan_room')} <b style="color:var(--acc);font-size:18px">${d.room}</b><br>${t('lan.waiting')}`;
     openPick();
-    $('pk-title').textContent = '选择角色 · 局域网（你是房主 P0）';
+    $('pk-title').textContent = t('pick.lan_p0_title');
     renderSlots();
     lanPoll();
-  }).catch(() => alert('无法连接服务器，请确认电脑端正在运行'));
+  }).catch(() => alert(t('lan.alert_conn_fail')));
 }
 
 export function lanJoinRoom(room) {
   room = (room || '').trim().toUpperCase();
-  if (!room) { alert('请输入房间号'); return; }
+  if (!room) { alert(t('lan.alert_room_required')); return; }
   fetch(lanBase() + '/join?room=' + room, { cache: 'no-store' }).then(r => r.json()).then(d => {
-    if (!d.ok) { alert('加入失败：' + d.err); return; }
+    if (!d.ok) { alert(t('lan.alert_join_fail', { err: d.err })); return; }
     state.LAN = { base: lanBase(), room, side: 1, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
     state.MODE = 'lan';
     stopRoomList();
     fetch(lanBase() + '/hostdata?room=' + room, { cache: 'no-store' }).then(r => r.json()).then(dd => {
       if (dd && dd.ok && dd.data) state.LAN.hostData = dd.data;
     }).catch(() => { });
-    $('lan-info').textContent = '已加入房间 ' + room + '，等待房主…';
+    $('lan-info').textContent = t('lan.joined', { room });
     openPick();
-    $('pk-title').textContent = '选择角色 · 局域网（你是 P1）';
+    $('pk-title').textContent = t('pick.lan_p1_title');
     renderSlots();
     lanPoll();
-  }).catch(() => alert('无法连接服务器'));
+  }).catch(() => alert(t('lan.alert_conn_fail2')));
 }
 
 export function lanJoin() {
@@ -58,7 +59,7 @@ export function lanPoll() {
   clearTimeout(state.LAN.timer);
   fetch(state.LAN.base + '/state?room=' + state.LAN.room, { cache: 'no-store' }).then(r => r.json()).then(d => {
     if (!d.ok) {
-      if (state.PHASE_BATTLE || $('sc-pick').classList.contains('on')) alert('房间已关闭（对方已退出）');
+      if (state.PHASE_BATTLE || $('sc-pick').classList.contains('on')) alert(t('lan.room_closed'));
       if (state.LAN && state.LAN.timer) { clearTimeout(state.LAN.timer); state.LAN.timer = null; }
       stopRoomList();
       state.LAN = null; state.BATTLE = null; state.PHASE_BATTLE = false;
@@ -79,14 +80,14 @@ export function lanPoll() {
 export function renderLanPick() {
   const mySide = state.LAN.side;
   const both = state.LAN.picks[0] && state.LAN.picks[1];
-  $('lan-hint').innerHTML = `房间号 <b style="color:var(--acc);font-size:18px">${state.LAN.room}</b> · ${mySide === 0 ? '你是房主(P0)' : '你是加入方(P1)'}<br><span style="font-size:12px">服务器状态：P0 ${state.LAN.picks[0] ? '已选' : '未选'} · P1 ${state.LAN.picks[1] ? '已选' : '未选'}${both ? ' · 即将开始' : ''}</span>`;
+  $('lan-hint').innerHTML = `${t('pick.lan_room')} <b style="color:var(--acc);font-size:18px">${state.LAN.room}</b> · ${mySide === 0 ? t('pick.lan_p0') : t('pick.lan_p1')}<br><span style="font-size:12px">${t('pick.lan_status')}P0 ${state.LAN.picks[0] ? t('pick.lan_ready') : t('pick.lan_pending')} · P1 ${state.LAN.picks[1] ? t('pick.lan_ready') : t('pick.lan_pending')}${both ? ` · ${t('pick.lan_ready2')}` : ''}</span>`;
   const p0 = mySide === 0 ? state.PICK[0] : (state.LAN.picks[0] ? state.LAN.picks[0].role : null);
-  $('slot-0').innerHTML = p0 ? slotHTML(p0) : `<div class="av" style="opacity:.4">?</div><div class="dim">${mySide === 0 ? '点击选择' : '等待房主选择…'}</div>`;
+  $('slot-0').innerHTML = p0 ? slotHTML(p0) : `<div class="av" style="opacity:.4">?</div><div class="dim">${mySide === 0 ? t('pick.slot_choose') : t('pick.slot_wait_host')}</div>`;
   const p1 = mySide === 1 ? state.PICK[1] : (state.LAN.picks[1] ? state.LAN.picks[1].role : null);
-  $('slot-1').innerHTML = p1 ? slotHTML(p1) : `<div class="av" style="opacity:.4">?</div><div class="dim">${mySide === 1 ? '点击选择' : '等待对方选择…'}</div>`;
+  $('slot-1').innerHTML = p1 ? slotHTML(p1) : `<div class="av" style="opacity:.4">?</div><div class="dim">${mySide === 1 ? t('pick.slot_choose') : t('pick.slot_wait_guest')}</div>`;
   if (mySide === 0 && both) {
     $('pk-go').style.display = '';
-    $('pk-go').textContent = '双方已就绪，即将开始…';
+    $('pk-go').textContent = t('pick.lan_both_ready');
     if (!state.LAN._auto) { state.LAN._auto = true; setTimeout(() => { if (state.LAN && state.LAN.picks && state.LAN.picks[0] && state.LAN.picks[1] && !state.BATTLE) goDice(); }, 1500); }
   } else {
     $('pk-go').style.display = 'none';
@@ -98,8 +99,8 @@ export function lanPickPost(side, role) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ room: state.LAN.room, side, role, cards: DB.cards }),
   }).then(r => r.json()).then(d => {
-    if (d && !d.ok) alert('上传角色选择失败：' + (d.err || ''));
-  }).catch(() => alert('上传角色选择失败，请检查网络连接'));
+    if (d && !d.ok) alert(t('lan.alert_upload_fail', { err: d.err }));
+  }).catch(() => alert(t('lan.alert_upload_fail2')));
 }
 
 function publicState(b) {
@@ -120,7 +121,7 @@ export function lanPost() {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ room: state.LAN.room, state: publicState(state.BATTLE) }),
   }).then(r => r.json()).then(d => {
-    if (d && !d.ok && d.err) log(state.BATTLE, '[同步] ' + d.err);
+    if (d && !d.ok && d.err) logT(state.BATTLE, 'lan.sync_prefix', { err: d.err });
   }).catch(() => { });
 }
 
@@ -169,15 +170,15 @@ function roomListTick() {
     if (!d.ok) return;
     const list = $('room-list');
     if (!d.rooms || !d.rooms.length) {
-      list.innerHTML = '<div class="dim" style="padding:12px;text-align:center">暂无房间，点击上方「创建房间」</div>';
+      list.innerHTML = `<div class="dim" style="padding:12px;text-align:center">${t('lan.no_rooms')}</div>`;
       return;
     }
     list.innerHTML = d.rooms.map(r => `
       <div class="room-row">
-        <div><b style="letter-spacing:1px">${r.room}</b><span class="dim" style="font-size:11px"> · ${r.picks}/2 已就绪</span></div>
+        <div><b style="letter-spacing:1px">${r.room}</b><span class="dim" style="font-size:11px"> · ${r.picks}/2 ${t('lan.ready')}</span></div>
         <span style="display:flex;align-items:center;gap:8px">
-          <span class="dim" style="font-size:11px">${r.playing ? '对战中' : '等待加入'}</span>
-          ${r.playing ? '' : `<button class="primary" data-action="lan-join-room" data-room="${r.room}">加入</button>`}
+          <span class="dim" style="font-size:11px">${r.playing ? t('lan.playing') : t('lan.wait_join')}</span>
+          ${r.playing ? '' : `<button class="primary" data-action="lan-join-room" data-room="${r.room}">${t('lan.join')}</button>`}
         </span>
       </div>`).join('');
   }).catch(() => { });

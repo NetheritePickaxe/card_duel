@@ -11,21 +11,35 @@
 
 <div class="screen on" id="sc-menu">
   <div class="menu">
-    <h1>卡牌<em>对决</em></h1>
-    <div class="mbtn" data-action="start-ai">单人对战 · AI<small>与电脑对战</small></div>
-    <div class="mbtn" data-action="start-local">本地对战<small>同屏轮流操作</small></div>
-    <div class="mbtn" data-action="open-lan">局域网对战<small>电脑与手机联机</small></div>
-    <div class="mbtn" data-action="open-editor">角色与卡牌编辑<small>自定义数据，自动保存</small></div>
-    <div class="mfoot">先手由真随机骰子决定 · 抽牌堆/弃牌堆参考杀戮尖塔 · 每个角色独立牌组 · 出牌带特效动画</div>
+    <h1><span data-i18n="menu.title">卡牌对决</span></h1>
+    <div class="mbtn" data-action="start-ai"><span data-i18n="menu.ai">单人对战 · AI</span><small data-i18n="menu.ai_hint">与电脑对战</small></div>
+    <div class="mbtn" data-action="start-local"><span data-i18n="menu.local">本地对战</span><small data-i18n="menu.local_hint">同屏轮流操作</small></div>
+    <div class="mbtn" data-action="open-lan"><span data-i18n="menu.lan">局域网对战</span><small data-i18n="menu.lan_hint">电脑与手机联机</small></div>
+    <div class="mbtn" data-action="open-editor"><span data-i18n="menu.edit">角色与卡牌编辑</span><small data-i18n="menu.edit_hint">自定义数据，自动保存</small></div>
+    <div class="mbtn" data-action="open-settings"><span data-i18n="menu.settings">设置</span><small></small></div>
+    <div class="mfoot" data-i18n="menu.foot">先手由掷骰子决定 · 抽牌堆/弃牌堆参考杀戮尖塔 · 每个角色独立牌组 · 出牌带特效动画</div>
     <div class="maddr" id="maddr"></div>
   </div>
 </div>
 
+<div class="screen" id="sc-settings">
+  <div class="hd"><button data-action="back-menu">← 返回</button><h1 data-i18n="settings.title">设置</h1></div>
+  <div style="max-width:400px;margin:30px auto">
+    <div class="frow">
+      <label data-i18n="settings.lang">语言</label>
+      <select id="lang-select">
+        <option value="zh_cn" data-i18n="settings.lang_zh">中文</option>
+        <option value="en_us" data-i18n="settings.lang_en">English</option>
+      </select>
+    </div>
+  </div>
+</div>
+
 <div class="screen" id="sc-edit">
-  <div class="hd"><button data-action="back-menu">← 返回</button><h1>数据编辑</h1><span class="sp"></span><span class="dim">自动保存</span></div>
+  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="edit.title">数据编辑</h1><span class="sp"></span><span class="dim" data-i18n="auto_save">自动保存</span></div>
   <div class="tabs">
-    <button class="tab on" data-action="tab-role">角色</button>
-    <button class="tab" data-action="tab-card">技能卡牌</button>
+    <button class="tab on" data-action="tab-role"><span data-i18n="edit.tab_role">角色</span></button>
+    <button class="tab" data-action="tab-card"><span data-i18n="edit.tab_card">技能卡牌</span></button>
   </div>
   <div class="edit-wrap" id="edit-role">
     <div class="list" id="role-list"></div>
@@ -38,46 +52,46 @@
 </div>
 
 <div class="screen" id="sc-pick">
-  <div class="hd"><button data-action="back-menu">← 返回</button><h1 id="pk-title">选择角色</h1></div>
+  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 id="pk-title">选择角色</h1></div>
   <div class="dim" style="text-align:center;margin-bottom:12px;font-size:14px" id="lan-hint"></div>
   <div class="pick-wrap">
     <div class="slot" data-action="pick-role" data-slot="0" id="slot-0"></div>
     <div class="slot" data-action="pick-role" data-slot="1" id="slot-1"></div>
   </div>
-  <div style="text-align:center"><button class="primary" id="pk-go" style="display:none" data-action="go-dice">掷骰子决定先手</button></div>
+  <div style="text-align:center"><button class="primary" id="pk-go" style="display:none" data-action="go-dice" data-i18n="pick.roll">掷骰子决定先手</button></div>
 </div>
 
 <div class="screen" id="sc-dice">
-  <div class="hd"><h1>决定先手</h1></div>
+  <div class="hd"><h1 data-i18n="pick.roll_title">决定先手</h1></div>
   <div class="dice">
     <div><div class="die" id="die-0">·</div><div style="text-align:center;margin-top:10px" id="dice-name0"></div></div>
     <div class="dim" style="font-size:28px;padding-top:20px">VS</div>
     <div><div class="die" id="die-1">·</div><div style="text-align:center;margin-top:10px" id="dice-name1"></div></div>
   </div>
-  <div style="text-align:center;color:var(--acc);font-size:16px" id="dice-msg">掷骰中…</div>
+  <div style="text-align:center;color:var(--acc);font-size:16px" id="dice-msg"></div>
 </div>
 
 <div class="screen" id="sc-lan">
-  <div class="hd"><button data-action="back-menu">← 返回</button><h1>局域网对战</h1></div>
+  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="lan.title">局域网对战</h1></div>
   <div style="max-width:430px;margin:0 auto;display:flex;flex-direction:column;gap:12px">
-    <p class="dim" style="font-size:12px">本机服务器已内置。电脑端填 <code>http://127.0.0.1:8788</code>，手机等设备填下方本机地址，同一 WiFi 即可联机。</p>
+    <p class="dim" style="font-size:12px" data-i18n="lan.desc">本机服务器已内置。电脑端填 http://127.0.0.1:8788，手机等设备填下方本机地址，同一 WiFi 即可联机。</p>
     <div class="maddr" style="font-size:15px" id="lan-addr"></div>
-    <div class="frow"><label>服务器</label><input id="lan-url" value=""></div>
+    <div class="frow"><label data-i18n="lan.server_label">服务器</label><input id="lan-url" value=""></div>
     <div style="display:flex;gap:8px">
-      <button class="primary" style="flex:1" data-action="lan-create">创建房间</button>
-      <button style="flex:1" data-action="lan-join">手动输入房间号</button>
+      <button class="primary" style="flex:1" data-action="lan-create" data-i18n="lan.create">创建房间</button>
+      <button style="flex:1" data-action="lan-join" data-i18n="lan.manual">手动输入房间号</button>
     </div>
-    <div class="frow" id="lan-join-row" style="display:none"><label>房间号</label><input id="lan-room"><button data-action="lan-join">加入</button></div>
+    <div class="frow" id="lan-join-row" style="display:none"><label data-i18n="lan.room_label">房间号</label><input id="lan-room"><button data-action="lan-join" data-i18n="lan.join">加入</button></div>
     <div class="lan-rooms">
-      <div class="lr-hd">可加入的房间<span class="dim" style="font-size:11px;font-weight:400">自动刷新</span></div>
-      <div id="room-list"><div class="dim" style="padding:12px;text-align:center">刷新中…</div></div>
+      <div class="lr-hd"><span data-i18n="lan.room_list">可加入的房间</span><span class="dim" style="font-size:11px;font-weight:400" data-i18n="lan.auto_refresh">自动刷新</span></div>
+      <div id="room-list"><div class="dim" style="padding:12px;text-align:center" data-i18n="lan.refreshing">刷新中…</div></div>
     </div>
     <div id="lan-info" class="dim" style="text-align:center"></div>
   </div>
 </div>
 
 <div class="screen" id="sc-battle">
-  <div class="hd"><button data-action="quit-battle">← 退出</button><h1 id="bt-title">对战</h1><span class="sp"></span><span id="bt-turn" class="dim"></span></div>
+  <div class="hd"><button data-action="quit-battle"><span data-i18n="quit">← 退出</span></button><h1 id="bt-title">对战</h1><span class="sp"></span><span id="bt-turn" class="dim"></span></div>
   <div class="battle-grid">
     <div class="pzone" id="pzone-up"></div>
     <div class="log" id="battle-log"></div>
