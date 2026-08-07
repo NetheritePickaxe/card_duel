@@ -1,0 +1,16 @@
+#!/bin/sh
+DIR=$(dirname "$0")
+cd "$DIR"
+if [ "$1" = "--server" ]; then
+    if [ -f "src-tauri/target/release/card-duel" ]; then
+        exec src-tauri/target/release/card-duel --server
+    else
+        cd src-tauri
+        cargo build --release --no-default-features
+        exec src-tauri/target/release/card-duel --server
+    fi
+else
+    echo "Card Duel Web starting..."
+    echo "Open http://localhost:8787"
+    python3 -m http.server 8787 -d app
+fi
