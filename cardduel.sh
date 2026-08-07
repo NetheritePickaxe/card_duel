@@ -6,7 +6,7 @@ if [ "$1" = "--server" ]; then
         exec src-tauri/target/release/card-duel --server
     else
         cd src-tauri
-        cargo build --release --no-default-features
+        cargo build --release
         exec src-tauri/target/release/card-duel --server
     fi
 else

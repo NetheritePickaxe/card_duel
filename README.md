@@ -122,11 +122,15 @@ npx tauri android build
 # 产物: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
 ```
 
-### 纯服务器模式（Web 托管）
+### 纯服务器模式（Web 托管 / 局域网联机）
 
 ```bash
+# 一键启动（自动构建）
+cardduel --server
+# 或 ./cardduel --server (Linux)
+
+# 直接运行已构建的二进制
 cargo run --release -- --server
-# 或编译后运行:
 # target/release/card-duel.exe --server
 ```
 

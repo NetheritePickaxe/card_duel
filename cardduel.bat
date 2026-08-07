@@ -5,7 +5,7 @@ if "%1"=="--server" (
         "src-tauri\target\release\card-duel.exe" --server
     ) else (
         cd src-tauri
-        cargo build --release --no-default-features
+        cargo build --release
         "src-tauri\target\release\card-duel.exe" --server
     )
 ) else (

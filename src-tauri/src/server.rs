@@ -147,29 +147,21 @@ impl ServerState {
         }
 
         match path {
-            #[cfg(feature = "embed-frontend")]
             "/" | "/index.html" => {
                 self.serve_file(request, "/index.html", "text/html; charset=utf-8")
             }
-            #[cfg(feature = "embed-frontend")]
             "/manifest.json" => {
                 self.serve_file(request, "/manifest.json", "application/manifest+json")
             }
-            #[cfg(feature = "embed-frontend")]
             "/sw.js" => self.serve_file(request, "/sw.js", "application/javascript"),
-            #[cfg(feature = "embed-frontend")]
             "/icon-192.png" => self.serve_file(request, "/icon-192.png", "image/png"),
-            #[cfg(feature = "embed-frontend")]
             "/icon-512.png" => self.serve_file(request, "/icon-512.png", "image/png"),
-            #[cfg(feature = "embed-frontend")]
             "/css/style.css" => {
                 self.serve_file(request, "/css/style.css", "text/css; charset=utf-8")
             }
-            #[cfg(feature = "embed-frontend")]
             path if path.starts_with("/js/") && path.ends_with(".js") => {
                 self.serve_file(request, path, "application/javascript; charset=utf-8")
             }
-            #[cfg(feature = "embed-frontend")]
             path if path.starts_with("/locales/") && path.ends_with(".js") => {
                 self.serve_file(request, path, "application/javascript; charset=utf-8")
             }
@@ -201,7 +193,6 @@ impl ServerState {
         }
     }
 
-    #[cfg(feature = "embed-frontend")]
     fn serve_file(&self, request: Request, path: &str, content_type: &str) {
         let content = match static_file(path) {
             Some(bytes) => bytes,
@@ -626,7 +617,6 @@ fn elapsed() -> f64 {
         .as_secs_f64()
 }
 
-#[cfg(feature = "embed-frontend")]
 fn static_file(path: &str) -> Option<&'static [u8]> {
     Some(match path {
         "/index.html" => include_bytes!("../../app/index.html"),

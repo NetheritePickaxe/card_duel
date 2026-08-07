@@ -11,10 +11,6 @@ rust-version = "1.75"
 name = "card_duel_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
-[features]
-default = ["embed-frontend"]
-embed-frontend = []
-
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
