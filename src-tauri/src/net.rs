@@ -38,14 +38,20 @@ pub fn local_ips() -> Vec<String> {
 
     // Sort: LAN first
     let mut ips: Vec<String> = ips.into_iter().collect();
-    ips.sort_by_key(|ip| !(ip.starts_with("192.168.") || ip.starts_with("10.") || ip.starts_with("172.")));
+    ips.sort_by_key(|ip| {
+        !(ip.starts_with("192.168.") || ip.starts_with("10.") || ip.starts_with("172."))
+    });
     ips
 }
 
 /// Virtual network prefixes to skip when choosing the best LAN IP
 #[cfg(windows)]
 const VIRTUAL_NET_PREFIXES: &[&str] = &[
-    "192.168.182.", "192.168.9.", "192.168.56.", "192.168.137.", "169.254.",
+    "192.168.182.",
+    "192.168.9.",
+    "192.168.56.",
+    "192.168.137.",
+    "169.254.",
 ];
 
 /// Get the best LAN IP for phones to connect
@@ -59,7 +65,9 @@ pub fn lan_ip() -> String {
 
     // Fallback: first non-loopback
     let ips = local_ips();
-    ips.first().cloned().unwrap_or_else(|| "127.0.0.1".to_string())
+    ips.first()
+        .cloned()
+        .unwrap_or_else(|| "127.0.0.1".to_string())
 }
 
 #[cfg(windows)]
@@ -137,13 +145,20 @@ mod tests {
     fn test_local_ips_not_empty() {
         let ips = local_ips();
         assert!(!ips.is_empty(), "Should detect at least one IP");
-        assert!(!ips.contains(&"127.0.0.1".to_string()), "Should not include loopback");
+        assert!(
+            !ips.contains(&"127.0.0.1".to_string()),
+            "Should not include loopback"
+        );
     }
 
     #[test]
     fn test_lan_ip_valid() {
         let ip = lan_ip();
         assert!(!ip.is_empty(), "Should return a valid IP");
-        assert!(ip.parse::<std::net::Ipv4Addr>().is_ok(), "IP should be valid: {}", ip);
+        assert!(
+            ip.parse::<std::net::Ipv4Addr>().is_ok(),
+            "IP should be valid: {}",
+            ip
+        );
     }
 }

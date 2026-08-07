@@ -16,8 +16,8 @@ pub fn start_background_server() {
 
 const PORT: u16 = 8788;
 const CODE_CHARS: &[char] = &[
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-    '2', '3', '4', '5', '6', '7', '8', '9',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+    'W', 'X', 'Y', 'Z', '2', '3', '4', '5', '6', '7', '8', '9',
 ];
 const ROOM_TTL: Duration = Duration::from_secs(7200);
 const LIST_TTL: Duration = Duration::from_secs(3600);
@@ -148,9 +148,13 @@ impl ServerState {
 
         match path {
             #[cfg(feature = "embed-frontend")]
-            "/" | "/index.html" => self.serve_file(request, "/index.html", "text/html; charset=utf-8"),
+            "/" | "/index.html" => {
+                self.serve_file(request, "/index.html", "text/html; charset=utf-8")
+            }
             #[cfg(feature = "embed-frontend")]
-            "/manifest.json" => self.serve_file(request, "/manifest.json", "application/manifest+json"),
+            "/manifest.json" => {
+                self.serve_file(request, "/manifest.json", "application/manifest+json")
+            }
             #[cfg(feature = "embed-frontend")]
             "/sw.js" => self.serve_file(request, "/sw.js", "application/javascript"),
             #[cfg(feature = "embed-frontend")]
@@ -158,7 +162,9 @@ impl ServerState {
             #[cfg(feature = "embed-frontend")]
             "/icon-512.png" => self.serve_file(request, "/icon-512.png", "image/png"),
             #[cfg(feature = "embed-frontend")]
-            "/css/style.css" => self.serve_file(request, "/css/style.css", "text/css; charset=utf-8"),
+            "/css/style.css" => {
+                self.serve_file(request, "/css/style.css", "text/css; charset=utf-8")
+            }
             #[cfg(feature = "embed-frontend")]
             path if path.starts_with("/js/") && path.ends_with(".js") => {
                 self.serve_file(request, path, "application/javascript; charset=utf-8")
@@ -187,7 +193,11 @@ impl ServerState {
             "/ping" => self.handle_ping(request),
             "/pick" => self.handle_pick(request),
             "/leave" => self.handle_leave(request),
-            _ => self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "not found"})),
+            _ => self.respond_json(
+                request,
+                404,
+                &serde_json::json!({"ok": false, "err": "not found"}),
+            ),
         }
     }
 
@@ -196,7 +206,11 @@ impl ServerState {
         let content = match static_file(path) {
             Some(bytes) => bytes,
             None => {
-                self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "not found"}));
+                self.respond_json(
+                    request,
+                    404,
+                    &serde_json::json!({"ok": false, "err": "not found"}),
+                );
                 return;
             }
         };
@@ -207,17 +221,26 @@ impl ServerState {
             let ip = crate::net::lan_ip();
             let ip_list = serde_json::to_string(&ips).unwrap_or_else(|_| "[]".to_string());
             let html = String::from_utf8_lossy(content);
-            html
-                .replace("const __IP_LIST__ = [];", &format!("const __IP_LIST__ = {};", ip_list))
-                .replace("const __PHONE_IP__ = \"\";", &format!("const __PHONE_IP__ = \"{}\";", ip))
-                .into_bytes()
+            html.replace(
+                "const __IP_LIST__ = [];",
+                &format!("const __IP_LIST__ = {};", ip_list),
+            )
+            .replace(
+                "const __PHONE_IP__ = \"\";",
+                &format!("const __PHONE_IP__ = \"{}\";", ip),
+            )
+            .into_bytes()
         } else {
             content.to_vec()
         };
 
         let headers = vec![
             Header::from_bytes(&b"Content-Type"[..], content_type.as_bytes()).unwrap(),
-            Header::from_bytes(&b"Cache-Control"[..], &b"no-store, no-cache, must-revalidate"[..]).unwrap(),
+            Header::from_bytes(
+                &b"Cache-Control"[..],
+                &b"no-store, no-cache, must-revalidate"[..],
+            )
+            .unwrap(),
             Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap(),
         ];
 
@@ -233,7 +256,9 @@ impl ServerState {
     fn gen_code() -> String {
         use rand::Rng;
         let mut rng = rand::thread_rng();
-        (0..5).map(|_| CODE_CHARS[rng.gen_range(0..CODE_CHARS.len())]).collect()
+        (0..5)
+            .map(|_| CODE_CHARS[rng.gen_range(0..CODE_CHARS.len())])
+            .collect()
     }
 
     fn respond_json(&self, request: Request, status: u16, body: &serde_json::Value) {
@@ -241,7 +266,8 @@ impl ServerState {
         let headers = vec![
             Header::from_bytes(&b"Content-Type"[..], b"application/json; charset=utf-8").unwrap(),
             Header::from_bytes(&b"Access-Control-Allow-Origin"[..], b"*").unwrap(),
-            Header::from_bytes(&b"Access-Control-Allow-Methods"[..], b"GET, POST, OPTIONS").unwrap(),
+            Header::from_bytes(&b"Access-Control-Allow-Methods"[..], b"GET, POST, OPTIONS")
+                .unwrap(),
             Header::from_bytes(&b"Access-Control-Allow-Headers"[..], b"Content-Type").unwrap(),
         ];
         let _ = request.respond(Response::new(
@@ -257,12 +283,15 @@ impl ServerState {
         let room = Self::gen_code();
         {
             let mut rooms = self.rooms.lock().unwrap();
-            rooms.insert(room.clone(), Room {
-                state: None,
-                picks: [None, None],
-                t: elapsed(),
-                data: None,
-            });
+            rooms.insert(
+                room.clone(),
+                Room {
+                    state: None,
+                    picks: [None, None],
+                    t: elapsed(),
+                    data: None,
+                },
+            );
         }
         self.slog(&format!("CREATE room={}", room));
         self.respond_json(request, 200, &serde_json::json!({"ok": true, "room": room}));
@@ -271,7 +300,11 @@ impl ServerState {
     fn handle_join(&self, request: Request, query: &str) {
         let room = Self::extract_param(query, "room").to_uppercase();
         if room.is_empty() {
-            self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "room required"}));
+            self.respond_json(
+                request,
+                400,
+                &serde_json::json!({"ok": false, "err": "room required"}),
+            );
             return;
         }
         {
@@ -287,7 +320,8 @@ impl ServerState {
     fn handle_rooms(&self, request: Request) {
         let now = elapsed();
         let rooms = self.rooms.lock().unwrap();
-        let room_list: Vec<serde_json::Value> = rooms.iter()
+        let room_list: Vec<serde_json::Value> = rooms
+            .iter()
             .filter(|(_, r)| now - r.t <= LIST_TTL.as_secs_f64())
             .map(|(code, r)| {
                 let picks = r.picks.iter().filter(|x| x.is_some()).count();
@@ -298,13 +332,21 @@ impl ServerState {
                 })
             })
             .collect();
-        self.respond_json(request, 200, &serde_json::json!({"ok": true, "rooms": room_list}));
+        self.respond_json(
+            request,
+            200,
+            &serde_json::json!({"ok": true, "rooms": room_list}),
+        );
     }
 
     fn handle_get_state(&self, request: Request, query: &str) {
         let room = Self::extract_param(query, "room").to_uppercase();
         if room.is_empty() {
-            self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "room required"}));
+            self.respond_json(
+                request,
+                400,
+                &serde_json::json!({"ok": false, "err": "room required"}),
+            );
             return;
         }
         {
@@ -315,34 +357,61 @@ impl ServerState {
                     let mut last_pk = self.last_pk.lock().unwrap();
                     if last_pk.get(&room) != Some(&pk) {
                         last_pk.insert(room.clone(), pk.clone());
-                        self.slog(&format!("STATE room={} picks={}", room, &pk[..120.min(pk.len())]));
+                        self.slog(&format!(
+                            "STATE room={} picks={}",
+                            room,
+                            &pk[..120.min(pk.len())]
+                        ));
                     }
-                    self.respond_json(request, 200, &serde_json::json!({
-                        "ok": true,
-                        "state": state,
-                        "picks": r.picks
-                    }));
+                    self.respond_json(
+                        request,
+                        200,
+                        &serde_json::json!({
+                            "ok": true,
+                            "state": state,
+                            "picks": r.picks
+                        }),
+                    );
                     return;
                 }
             }
         }
-        self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "room not found"}));
+        self.respond_json(
+            request,
+            404,
+            &serde_json::json!({"ok": false, "err": "room not found"}),
+        );
     }
 
     fn handle_post_state(&self, mut request: Request) {
         let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
             Ok(d) => d,
             Err(_) => {
-                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "bad json"}));
+                self.respond_json(
+                    request,
+                    400,
+                    &serde_json::json!({"ok": false, "err": "bad json"}),
+                );
                 return;
             }
         };
 
-        let room = data.get("room").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
-        let state: State = match data.get("state").and_then(|v| serde_json::from_value(v.clone()).ok()) {
+        let room = data
+            .get("room")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_uppercase();
+        let state: State = match data
+            .get("state")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+        {
             Some(s) => s,
             None => {
-                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "missing state"}));
+                self.respond_json(
+                    request,
+                    400,
+                    &serde_json::json!({"ok": false, "err": "missing state"}),
+                );
                 return;
             }
         };
@@ -352,13 +421,21 @@ impl ServerState {
             let r = match rooms.get_mut(&room) {
                 Some(r) => r,
                 None => {
-                    self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "room not found"}));
+                    self.respond_json(
+                        request,
+                        404,
+                        &serde_json::json!({"ok": false, "err": "room not found"}),
+                    );
                     return;
                 }
             };
             if let Some(current) = &r.state {
                 if current.seq >= state.seq {
-                    self.respond_json(request, 409, &serde_json::json!({"ok": false, "err": "回合冲突，状态已过期"}));
+                    self.respond_json(
+                        request,
+                        409,
+                        &serde_json::json!({"ok": false, "err": "回合冲突，状态已过期"}),
+                    );
                     return;
                 }
             }
@@ -372,19 +449,35 @@ impl ServerState {
         let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
             Ok(d) => d,
             Err(_) => {
-                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "bad json"}));
+                self.respond_json(
+                    request,
+                    400,
+                    &serde_json::json!({"ok": false, "err": "bad json"}),
+                );
                 return;
             }
         };
 
-        let room = data.get("room").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
+        let room = data
+            .get("room")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_uppercase();
         let side: u8 = data.get("side").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
         if side > 1 {
-            self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "side invalid"}));
+            self.respond_json(
+                request,
+                400,
+                &serde_json::json!({"ok": false, "err": "side invalid"}),
+            );
             return;
         }
 
-        let cards = match data.get("cards").cloned().unwrap_or(serde_json::Value::Array(vec![])) {
+        let cards = match data
+            .get("cards")
+            .cloned()
+            .unwrap_or(serde_json::Value::Array(vec![]))
+        {
             serde_json::Value::Array(arr) => arr,
             _ => Vec::new(),
         };
@@ -418,12 +511,20 @@ impl ServerState {
         let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
             Ok(d) => d,
             Err(_) => {
-                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "bad json"}));
+                self.respond_json(
+                    request,
+                    400,
+                    &serde_json::json!({"ok": false, "err": "bad json"}),
+                );
                 return;
             }
         };
 
-        let room = data.get("room").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
+        let room = data
+            .get("room")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_uppercase();
         let host_data = data.get("data").cloned();
         {
             let mut rooms = self.rooms.lock().unwrap();
@@ -444,12 +545,20 @@ impl ServerState {
         let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
             Ok(d) => d,
             Err(_) => {
-                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "bad json"}));
+                self.respond_json(
+                    request,
+                    400,
+                    &serde_json::json!({"ok": false, "err": "bad json"}),
+                );
                 return;
             }
         };
 
-        let room = data.get("room").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
+        let room = data
+            .get("room")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_uppercase();
         let side: u8 = data.get("side").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
         {
             let mut rooms = self.rooms.lock().unwrap();
@@ -471,7 +580,10 @@ impl ServerState {
             .and_then(|h| h.value.to_string().parse().ok())
             .unwrap_or(0);
         let mut buf = Vec::new();
-        let _ = request.as_reader().take(content_length as u64).read_to_end(&mut buf);
+        let _ = request
+            .as_reader()
+            .take(content_length as u64)
+            .read_to_end(&mut buf);
         String::from_utf8_lossy(&buf).to_string()
     }
 
@@ -486,18 +598,32 @@ impl ServerState {
     }
 
     fn slog(&self, msg: &str) {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default();
         let secs = now.as_secs();
-        let time_str = format!("{:02}:{:02}:{:02}", (secs / 3600) % 24, (secs % 3600) / 60, secs % 60);
+        let time_str = format!(
+            "{:02}:{:02}:{:02}",
+            (secs / 3600) % 24,
+            (secs % 3600) / 60,
+            secs % 60
+        );
         let log_line = format!("[{}] {}\n", time_str, msg);
-        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&self.log_path) {
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.log_path)
+        {
             let _ = f.write_all(log_line.as_bytes());
         }
     }
 }
 
 fn elapsed() -> f64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs_f64()
 }
 
 #[cfg(feature = "embed-frontend")]
