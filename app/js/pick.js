@@ -1,6 +1,6 @@
 import { $, show, esc, rollPair } from './util.js';
 import { state } from './state.js';
-import { DB } from './data.js';
+import { DB, getDefaultRoleIds } from './data.js';
 import { t } from './i18n.js';
 import { newBattle, logT } from './core.js';
 import { renderBattle, showBattle, renderSlots, slotHTML } from './render.js';
@@ -43,16 +43,19 @@ export function quitBattle() { backMenu(); }
 export function openPick() {
   state.PICK = [null, null];
   $('pk-title').textContent = state.MODE === 'ai' ? t('pick.title_ai') : state.MODE === 'local' ? t('pick.title_local') : t('pick.title_lan');
-  $('lan-hint').innerHTML = state.MODE === 'lan' && state.LAN
-    ? `${t('pick.lan_room')} <b style="color:var(--acc);font-size:18px">${state.LAN.room}</b> · ${state.LAN.side === 0 ? t('pick.host_hint') : t('pick.guest_hint')}`
-    : '';
+  $('lan-hint').innerHTML = '';
   renderSlots();
   show('sc-pick');
 }
 
 export function pickRole(i) {
   if (state.MODE === 'lan' && i !== state.LAN.side) return;
-  const all = state.MODE === 'lan' ? DB.roles : [...(state.LAN?.hostData?.roles || []), ...DB.roles];
+  let all = state.MODE === 'lan' ? DB.roles : [...(state.LAN?.hostData?.roles || []), ...DB.roles];
+  // 模组关闭时只显示原版角色
+  if (state.MODE === 'lan' && !state.LAN.mods) {
+    const vanillaIds = getDefaultRoleIds();
+    all = all.filter(r => vanillaIds.has(r.id));
+  }
   state.PICK_OPTIONS[i] = all;
   const m = $('mbox');
   m.innerHTML = `<div class="mhead">${t('pick.for', { side: i === 0 ? 'P0' : 'P1' })}${state.MODE === 'ai' && i === 0 ? t('pick.ai_opponent') : state.MODE === 'ai' && i === 1 ? t('pick.you') : ''}</div>

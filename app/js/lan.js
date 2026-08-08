@@ -1,6 +1,6 @@
-import { $, show } from './util.js';
+import { $, show, esc } from './util.js';
 import { state } from './state.js';
-import { DB } from './data.js';
+import { DB, getDefaultCardIds } from './data.js';
 import { t } from './i18n.js';
 import { newBattle, logT, forceDiscard } from './core.js';
 import { renderBattle, showBattle, renderSlots, slotHTML, playCardAnim } from './render.js';
@@ -10,6 +10,7 @@ import { goDice, openPick } from './pick.js';
 const STORAGE_KEY = 'saved_servers';
 const IS_HTTPS = location.protocol === 'https:';
 let currentServer = '';
+let cachedRooms = [];
 
 /* ============ 服务器地址管理 ============ */
 
@@ -125,12 +126,17 @@ function hideServerPanel() {
 /* ============ 房间操作 ============ */
 
 export function lanCreate() {
-  fetch(currentServer + '/create', { cache: 'no-store' }).then(r => r.json()).then(d => {
+  const gameName = t('lan.new_game_name') || '卡牌对决';
+  const modsEnabled = $('mods-toggle')?.checked ?? false;
+  fetch(currentServer + '/create', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: gameName, mods: modsEnabled }), cache: 'no-store',
+  }).then(r => r.json()).then(d => {
     if (!d.ok) { alert(t('lan.alert_create_fail')); return; }
-    state.LAN = { base: currentServer, room: d.room, side: 0, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
+    state.LAN = { base: currentServer, room: d.room, gameName, mods: modsEnabled, side: 0, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
     state.MODE = 'lan';
     stopRoomList();
-    $('lan-info').innerHTML = `${t('pick.lan_room')} <b style="color:var(--acc);font-size:18px">${d.room}</b><br>${t('lan.waiting')}`;
+    $('lan-info').textContent = t('lan.waiting');
     openPick();
     $('pk-title').textContent = t('pick.lan_p0_title');
     renderSlots();
@@ -139,14 +145,15 @@ export function lanCreate() {
 }
 
 export function lanJoinRoom(room) {
-  room = (room || '').trim().toUpperCase();
-  if (!room) { alert(t('lan.alert_room_required')); return; }
   fetch(currentServer + '/join?room=' + room, { cache: 'no-store' }).then(r => r.json()).then(d => {
     if (!d.ok) { alert(t('lan.alert_join_fail', { err: d.err })); return; }
-    state.LAN = { base: currentServer, room, side: 1, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
+    // 从房间列表缓存中找到该房间的 mods 标志
+    const roomData = cachedRooms.find(r => r.room === room);
+    const mods = roomData?.mods ?? true;
+    state.LAN = { base: currentServer, room, mods, side: 1, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
     state.MODE = 'lan';
     stopRoomList();
-    $('lan-info').textContent = t('lan.joined', { room });
+    $('lan-info').textContent = t('lan.waiting');
     openPick();
     $('pk-title').textContent = t('pick.lan_p1_title');
     renderSlots();
@@ -185,7 +192,7 @@ export function lanPoll() {
 export function renderLanPick() {
   const mySide = state.LAN.side;
   const both = state.LAN.picks[0] && state.LAN.picks[1];
-  $('lan-hint').innerHTML = `${t('pick.lan_room')} <b style="color:var(--acc);font-size:18px">${state.LAN.room}</b> · ${mySide === 0 ? t('pick.lan_p0') : t('pick.lan_p1')}<br><span style="font-size:12px">${t('pick.lan_status')}P0 ${state.LAN.picks[0] ? t('pick.lan_ready') : t('pick.lan_pending')} · P1 ${state.LAN.picks[1] ? t('pick.lan_ready') : t('pick.lan_pending')}${both ? ` · ${t('pick.lan_ready2')}` : ''}</span>`;
+  $('lan-hint').innerHTML = `${mySide === 0 ? t('pick.lan_p0') : t('pick.lan_p1')}<br><span style="font-size:12px">${t('pick.lan_status')}P0 ${state.LAN.picks[0] ? t('pick.lan_ready') : t('pick.lan_pending')} · P1 ${state.LAN.picks[1] ? t('pick.lan_ready') : t('pick.lan_pending')}${both ? ` · ${t('pick.lan_ready2')}` : ''}</span>`;
   const p0 = mySide === 0 ? state.PICK[0] : (state.LAN.picks[0] ? state.LAN.picks[0].role : null);
   $('slot-0').innerHTML = p0 ? slotHTML(p0) : `<div class="av" style="opacity:.4">?</div><div class="dim">${mySide === 0 ? t('pick.slot_choose') : t('pick.slot_wait_host')}</div>`;
   const p1 = mySide === 1 ? state.PICK[1] : (state.LAN.picks[1] ? state.LAN.picks[1].role : null);
@@ -201,7 +208,12 @@ export function renderLanPick() {
 
 export function lanPickPost(side, role) {
   const deckIds = (role.deck && role.deck.length) ? role.deck : null;
-  const cards = deckIds ? deckIds.map(id => DB.cards.find(c => c.id === id)).filter(Boolean) : DB.cards;
+  let cards = deckIds ? deckIds.map(id => DB.cards.find(c => c.id === id)).filter(Boolean) : [...DB.cards];
+  // 模组关闭时只保留原版卡牌
+  if (!state.LAN.mods) {
+    const vanillaIds = getDefaultCardIds();
+    cards = cards.filter(c => vanillaIds.has(c.id));
+  }
   const effectTypes = [...new Set(cards.flatMap(c => (c.effects || []).map(e => e.type)))];
   fetch(state.LAN.base + '/pick', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -280,18 +292,21 @@ function roomListTick() {
   if (!currentServer) return;
   fetch(currentServer + '/rooms', { cache: 'no-store' }).then(r => r.json()).then(d => {
     if (!d.ok) return;
+    cachedRooms = d.rooms || [];
     const list = $('room-list');
-    if (!d.rooms || !d.rooms.length) {
+    if (!cachedRooms.length) {
       list.innerHTML = `<div class="dim" style="padding:12px;text-align:center">${t('lan.no_rooms')}</div>`;
       return;
     }
-    list.innerHTML = d.rooms.map(r => `
-      <div class="room-row">
-        <div><b style="letter-spacing:1px">${r.room}</b><span class="dim" style="font-size:11px"> · ${r.picks}/2 ${t('lan.ready')}</span></div>
+    list.innerHTML = cachedRooms.map(r => {
+      const modsLabel = r.mods ? '' : `<span class="dim" style="font-size:10px">[模组关闭]</span>`;
+      return `<div class="room-row">
+        <div><b>${esc(r.name || r.room)}</b> ${modsLabel}<span class="dim" style="font-size:11px"> · ${r.picks}/2 ${t('lan.ready')}</span></div>
         <span style="display:flex;align-items:center;gap:8px">
           <span class="dim" style="font-size:11px">${r.playing ? t('lan.playing') : t('lan.wait_join')}</span>
           ${r.playing ? '' : `<button class="primary" data-action="lan-join-room" data-room="${r.room}">${t('lan.join')}</button>`}
         </span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }).catch(() => { });
 }

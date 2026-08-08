@@ -20,6 +20,14 @@ export function getDefaultCards() {
   return defaultCards;
 }
 
+export function getDefaultRoleIds() {
+  return new Set(defaultRoles.map(r => r.id));
+}
+
+export function getDefaultCardIds() {
+  return new Set(defaultCards.map(c => c.id));
+}
+
 function loadDB() {
   try {
     const s = localStorage.getItem(LS);

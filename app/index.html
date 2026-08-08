@@ -123,13 +123,16 @@
 
     <div id="server-panel" style="display:none">
       <div class="maddr" style="font-size:14px;text-align:center" id="connected-label"></div>
-      <div class="frow"><label data-i18n="lan.room_label">房间号</label><input id="lan-room"><button data-action="lan-join" data-i18n="lan.join">加入</button></div>
+      <div class="frow" style="margin-bottom:6px">
+        <label data-i18n="lan.mods_toggle">启用模组</label>
+        <input type="checkbox" id="mods-toggle">
+      </div>
       <div style="display:flex;gap:8px">
-        <button class="primary" style="flex:1" data-action="lan-create" data-i18n="lan.create">创建房间</button>
+        <button class="primary" style="flex:1" data-action="lan-create" data-i18n="lan.create">开始新游戏</button>
         <button style="flex:1" data-action="lan-disconnect" data-i18n="lan.disconnect">断开</button>
       </div>
       <div class="lan-rooms">
-        <div class="lr-hd"><span data-i18n="lan.room_list">可加入的房间</span></div>
+        <div class="lr-hd"><span data-i18n="lan.room_list">可加入的游戏</span></div>
         <div id="room-list"><div class="dim" style="padding:12px;text-align:center" data-i18n="lan.refreshing">刷新中…</div></div>
       </div>
       <div id="lan-info" class="dim" style="text-align:center"></div>

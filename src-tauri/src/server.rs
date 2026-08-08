@@ -24,6 +24,8 @@ const LIST_TTL: Duration = Duration::from_secs(3600);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Room {
+    pub name: String,
+    pub mods: bool,
     pub state: Option<State>,
     pub picks: [Option<Pick>; 2],
     pub t: f64,
@@ -366,13 +368,30 @@ impl ServerState {
         ));
     }
 
-    fn handle_create(&self, request: Request) {
+    fn handle_create(&self, mut request: Request) {
+        let (name, mods) = {
+            let body = Self::read_body(&mut request);
+            if body.is_empty() {
+                ("卡牌对决".to_string(), true)
+            } else {
+                let data: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
+                let n = data
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("卡牌对决")
+                    .to_string();
+                let m = data.get("mods").and_then(|v| v.as_bool()).unwrap_or(true);
+                (n, m)
+            }
+        };
         let room = Self::gen_code();
         {
             let mut rooms = self.rooms.lock().unwrap();
             rooms.insert(
                 room.clone(),
                 Room {
+                    name,
+                    mods,
                     state: None,
                     picks: [None, None],
                     t: elapsed(),
@@ -414,6 +433,8 @@ impl ServerState {
                 let picks = r.picks.iter().filter(|x| x.is_some()).count();
                 serde_json::json!({
                     "room": code,
+                    "name": r.name,
+                    "mods": r.mods,
                     "picks": picks,
                     "playing": r.state.is_some()
                 })

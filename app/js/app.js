@@ -7,7 +7,7 @@ import { updateEffTypes } from './data.js';
 import { startVsAI, startLocal, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice } from './pick.js';
 import { openEditor, setTab, editorActions } from './editor.js';
 import { playCardClick, endTurnClick } from './battle.js';
-import { lanCreate, lanJoin, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeServer, renderServerList, normalizeServerUrl } from './lan.js';
+import { lanCreate, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeServer, renderServerList, normalizeServerUrl } from './lan.js';
 
 /* ============ i18n ============ */
 
@@ -49,7 +49,6 @@ const actionMap = {
   'close-modal': () => closeModal(),
   'go-dice': () => goDice(),
   'lan-create': () => lanCreate(),
-  'lan-join': () => lanJoin(),
   'pick-role': (el) => pickRole(parseInt(el.dataset.slot)),
   'play-card': (el) => playCardClick(parseInt(el.dataset.pi), parseInt(el.dataset.index)),
   'end-turn': (el) => endTurnClick(parseInt(el.dataset.pi)),
