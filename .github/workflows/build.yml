@@ -57,7 +57,7 @@ jobs:
             libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf
       - name: Build server
         working-directory: src-tauri
-        run: cargo build --release
+        run: cargo build --release --features tls
       - name: Prepare artifacts
         run: |
           cp src-tauri/target/release/card-duel card-duel-linux

@@ -10,7 +10,7 @@ if [ "$1" = "--server" ]; then
         exec src-tauri/target/release/card-duel --server
     fi
 else
-    echo "Card Duel Web starting..."
-    echo "Open http://localhost:8787"
+    echo "卡牌对决 Web 版启动中..."
+    echo "浏览器打开 http://localhost:8787"
     python3 -m http.server 8787 -d app
 fi

@@ -7,8 +7,9 @@
 [![Tauri](https://img.shields.io/badge/Tauri-2.x-ff4c15?style=for-the-badge&logo=tauri)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-1.75+-yellow?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
 [![GitHub release](https://img.shields.io/github/v/release/NetheritePickaxe/card_duel?style=for-the-badge)](https://github.com/NetheritePickaxe/card_duel/releases)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Android%20%7C%20Web-6e40c9?style=for-the-badge)](https://github.com/NetheritePickaxe/card_duel)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Android%20%7C%20Web-4CAF50?style=for-the-badge)](https://github.com/NetheritePickaxe/card_duel)
 [![License](https://img.shields.io/github/license/NetheritePickaxe/card_duel?style=for-the-badge)](https://github.com/NetheritePickaxe/card_duel/blob/main/LICENSE)
+[![Web Demo](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E4%BD%93%E9%AA%8C-Web%20Demo-6e40c9?style=for-the-badge&logo=githubpages)](https://NetheritePickaxe.github.io/card_duel/)
 
 **跨平台卡牌对战游戏** · Tauri + Rust 后端 · 支持 Windows / Android / Web 浏览器
 
@@ -77,20 +78,63 @@
 
 ### 工作原理
 
-游戏内置局域网服务器（端口 `8788`），启动后自动在后台运行。房主与加入方通过 HTTP 请求与服务器同步状态。
+游戏内置联机服务器（端口 `8788`），支持 HTTP 和 HTTPS 两种模式。房主服务端启动后，其他玩家通过浏览器或客户端连接。
 
 ### 联机步骤
 
-1. **房主（电脑）**: 启动游戏 → 主菜单点击「局域网对战」→「创建房间」
-2. **加入方（电脑/手机）**: 同一局域网内，打开游戏 → 点击「局域网对战」→ 输入房间号加入
-3. 双方选好角色后，房主点击「掷骰子决定先手」开始对战
+1. **服务端启动**: 运行 `cardduel --server`（或 `./cardduel --server`）
+2. **玩家加入**: 所有玩家打开游戏 → 点击「联机对战」→ 输入服务器地址 → 连接
+3. **开始游戏**: 房主点击「开始新游戏」，其他玩家从列表加入
+
+### 自部署联机服务器
+
+支持公网部署，让 GitHub Pages 玩家也能联机。
+
+#### 方式一：VPS + Caddy（推荐，自动 HTTPS）
+
+```bash
+# 1. 上传服务端到 VPS（Linux amd64）
+scp card-duel-linux user@your-server:~/
+
+# 2. 运行服务端
+./card-duel --server
+
+# 3. 安装 Caddy，创建 Caddyfile
+cat > Caddyfile << EOF
+duel.example.com {
+    reverse_proxy 127.0.0.1:8788
+}
+EOF
+
+# 4. 启动 Caddy（自动申请 Let's Encrypt TLS 证书）
+caddy run
+```
+
+#### 方式二：原生 HTTPS（无需反向代理）
+
+需要服务器以 `--features tls` 构建：
+
+```bash
+# 构建支持 TLS 的服务器
+cargo build --release --features tls
+
+# 用 Let's Encrypt 或自签名证书启动
+./card-duel --server --cert /path/to/cert.pem --key /path/to/key.pem
+# 监听 https://0.0.0.0:8788
+```
+
+#### 方式三：Cloudflare Tunnel（免费，无需公网 IP）
+
+```bash
+# 安装 cloudflared
+cloudflared tunnel --url http://localhost:8788
+```
 
 ### 说明
 
-- 服务端启动后，界面底部自动显示本机 IP 地址和局域网入口
-- 电脑端访问 `http://127.0.0.1:8788` 可接入同一局
-- 手机等设备通过 WiFi 连接，自动发现房间列表，或手动输入房间号加入
-- 非局域网环境需自行配置端口转发或内网穿透
+- GitHub Pages 玩家连接 **HTTP** 服务器时，浏览器会阻止混合内容，需手动放行（Chrome: 地址栏🔒 → 网站设置 → 不安全内容 → 允许）
+- 推荐使用 **HTTPS** 服务器避免此问题（Caddy / Cloudflare Tunnel 可自动实现）
+- 服务器地址自动补全：`192.168.1.100` → `http://192.168.1.100:8788`
 
 ---
 
@@ -121,6 +165,29 @@ npx tauri build
 npx tauri android build
 # 产物: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
 ```
+
+### CI 构建
+
+本仓库已预配 GitHub Actions 自动构建（`.github/workflows/build.yml`），推送代码后自动触发：
+
+| 触发条件 | 构建内容 |
+|---------|---------|
+| `push` 到 `main`/`dev` | 全部构建 + GitHub Pages 部署（仅 main） |
+| `pull_request` | 仅 lint 检查 |
+| `workflow_dispatch` | 手动触发全部构建 |
+| `push tag v*` | 全部构建 + 创建 Release |
+
+**产物**：
+- Windows 安装包（`CardDuel_x64-setup.exe`）
+- Windows 可执行（`card-duel-win.exe`）
+- Android APK（已签名，`CardDuel-Android.apk`）
+- Linux 服务端（`card-duel-linux`，含 TLS 支持）
+- 启动脚本（`run.sh` / `run.bat`）
+- GitHub Pages 部署
+
+**GitHub Secrets 需求**（APK 签名）：
+- `ANDROID_KEYSTORE` — Base64 编码的 keystore 文件
+- `ANDROID_SIGNING_PASSWORD` — keystore 密码
 
 ### 纯服务器模式（Web 托管 / 局域网联机）
 
@@ -185,4 +252,4 @@ card_duel/
 
 ## 许可证
 
-本项目仅供学习参考，版权归原作者所有。
+本项目仅供学习参考，版权归作者所有。

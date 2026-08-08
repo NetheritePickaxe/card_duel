@@ -119,6 +119,20 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--acc)}
 .mrole{display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--ln);cursor:pointer;margin-bottom:6px}
 .mrole:hover{border-color:var(--acc)}
 .win-banner{text-align:center;padding:12px;font-size:16px;color:var(--acc);border:1px solid var(--acc);background:var(--p)}
+.mod-item{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--p);border:1px solid var(--ln);margin-bottom:4px;cursor:pointer}
+.mod-item:hover{border-color:var(--acc)}
+.mod-drag{cursor:grab;color:var(--dim);font-size:14px;user-select:none}
+.mod-name{font-weight:600;font-size:14px}
+.mod-toggle{margin-left:auto;display:flex;align-items:center}
+.mod-toggle input{width:auto;cursor:pointer}
+.mod-config{padding:8px 10px 12px 30px;background:var(--p2);border:1px solid var(--ln);border-top:none;margin-bottom:4px}
+.mod-config .frow{margin-bottom:6px}
+.mod-config .frow:last-child{margin-bottom:0}
+.server-item{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--p);border:1px solid var(--ln);margin-bottom:4px}
+.server-item:hover{border-color:var(--acc)}
+.server-status{font-size:12px;width:16px;text-align:center}
+.server-status.connected{color:var(--acc)}
+.server-url{font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:768px){
  .screen{padding:10px}
  .hd h1{font-size:17px}

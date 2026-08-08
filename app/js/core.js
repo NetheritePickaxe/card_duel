@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { shuffle } from './util.js';
-import { effFx } from './data.js';
+import { applyEffect, effFx } from './effect_registry.js';
 
 export const log = (b, msg) => b.log.push(msg);
 
@@ -69,33 +69,7 @@ export function forceDiscard(b, t, n) {
   }
 }
 
-export function applyEffect(b, a, t, e) {
-  const P = b.players;
-  const an = P[a].role.name, tn = P[t].role.name;
-  switch (e.type) {
-    case 'damage': {
-      const dmg = calcDamage(P[a], P[t], e.value, !!e.pierce);
-      P[t].hp -= dmg;
-      logT(b, e.pierce ? 'log.damage_pierce' : 'log.damage', { attacker: an, target: tn, dmg });
-      if (P[t].hp <= 0) { P[t].hp = 0; b.winner = a; logT(b, 'log.win', { winner: an, loser: tn }); }
-      break;
-    }
-    case 'heal': P[t].hp = Math.min(P[t].role.hp, P[t].hp + e.value); logT(b, 'log.heal', { target: tn, value: e.value }); break;
-    case 'gain_def': P[t].def += e.value; P[t].buffs.push({ type: 'gain_def', value: e.value, duration: e.duration ?? 999 }); logT(b, 'log.def_up', { target: tn, value: e.value }); break;
-    case 'gain_atk': P[t].buffs.push({ type: 'gain_atk', value: e.value, duration: e.duration ?? 999 }); logT(b, 'log.atk_up', { target: tn, value: e.value }); break;
-    case 'weaken_def': P[t].buffs.push({ type: 'weaken_def', value: e.value, duration: e.duration ?? 3 }); logT(b, 'log.def_down', { target: tn, value: e.value, dur: e.duration ?? 3 }); break;
-    case 'cost_up': P[t].buffs.push({ type: 'cost_up', value: e.value, duration: e.duration ?? 2 }); logT(b, 'log.cost_up', { target: tn, value: e.value, dur: e.duration ?? 2 }); break;
-    case 'dmg_reduce': P[t].buffs.push({ type: 'dmg_reduce', value: e.value, duration: e.duration ?? 3 }); logT(b, 'log.dmg_reduce', { target: tn, value: e.value, dur: e.duration ?? 3 }); break;
-    case 'skip_turn': P[t].buffs.push({ type: 'skip_turn' }); logT(b, 'log.skip_turn', { target: tn }); break;
-    case 'extra_turn': P[a].buffs.push({ type: 'extra_turn' }); logT(b, 'log.extra_turn', { target: an }); break;
-    case 'draw': drawCards(b, a, e.value, true); logT(b, 'log.draw', { target: an, value: e.value }); break;
-    case 'force_discard':
-      if (Array.isArray(P[t].hand)) forceDiscard(b, t, e.value);
-      else b.pendingFD = { side: t, count: e.value, atSeq: b.seq + 1 };
-      logT(b, 'log.force_discard', { target: tn, value: e.value }); break;
-    case 'energy': P[a].energy = Math.max(0, P[a].energy + e.value); logT(b, 'log.energy', { target: an, sign: e.value >= 0 ? '+' : '', value: e.value }); break;
-  }
-}
+export { applyEffect };
 
 export function resolveEffects(b, pi, card) {
   const foe = 1 - pi, events = [];

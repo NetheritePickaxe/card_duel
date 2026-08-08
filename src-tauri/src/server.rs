@@ -90,11 +90,13 @@ pub struct ForceDiscardEvent {
 pub struct Pick {
     pub role: serde_json::Value,
     pub cards: Vec<serde_json::Value>,
+    pub effects: Vec<serde_json::Value>,
 }
 
 pub struct ServerState {
     pub rooms: Arc<Mutex<HashMap<String, Room>>>,
     pub last_pk: Arc<Mutex<HashMap<String, String>>>,
+    pub shared_mods: Arc<Mutex<HashMap<String, Vec<u8>>>>,
     pub log_path: String,
 }
 
@@ -103,6 +105,7 @@ impl Default for ServerState {
         Self {
             rooms: Arc::new(Mutex::new(HashMap::new())),
             last_pk: Arc::new(Mutex::new(HashMap::new())),
+            shared_mods: Arc::new(Mutex::new(HashMap::new())),
             log_path: "server.log".to_string(),
         }
     }
@@ -110,14 +113,61 @@ impl Default for ServerState {
 
 impl ServerState {
     pub fn start(self: Arc<Self>) {
-        let server = match Server::http(("0.0.0.0", PORT)) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("Failed to start server on port {}: {}", PORT, e);
-                return;
+        self.start_inner(None);
+    }
+
+    #[cfg(feature = "tls")]
+    pub fn start_with_tls(self: Arc<Self>, cert_path: &str, key_path: &str) {
+        self.start_inner(Some((cert_path.to_string(), key_path.to_string())));
+    }
+
+    fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
+        let server: Server = match tls {
+            #[cfg(feature = "tls")]
+            Some((cert, key)) => {
+                let cert_pem = std::fs::read_to_string(&cert).unwrap_or_else(|e| {
+                    eprintln!("Failed to read cert file {}: {}", cert, e);
+                    std::process::exit(1);
+                });
+                let key_pem = std::fs::read_to_string(&key).unwrap_or_else(|e| {
+                    eprintln!("Failed to read key file {}: {}", key, e);
+                    std::process::exit(1);
+                });
+                let mut builder = openssl::ssl::SslAcceptor::mozilla_intermediate_v5(
+                    openssl::ssl::SslMethod::tls_server(),
+                )
+                .unwrap();
+                builder
+                    .set_private_key(
+                        &openssl::pkey::PKey::private_key_from_pem(key_pem.as_bytes()).unwrap(),
+                    )
+                    .unwrap();
+                builder
+                    .set_certificate_chain_pem(cert_pem.as_bytes())
+                    .unwrap();
+                match Server::https(("0.0.0.0", PORT), builder.build()) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        eprintln!("Failed to start HTTPS server on port {}: {}", PORT, e);
+                        std::process::exit(1);
+                    }
+                }
             }
+            #[cfg(not(feature = "tls"))]
+            Some(_) => {
+                eprintln!("HTTPS support not compiled in. Build with --features tls.");
+                std::process::exit(1);
+            }
+            None => match Server::http(("0.0.0.0", PORT)) {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("Failed to start server on port {}: {}", PORT, e);
+                    return;
+                }
+            },
         };
-        println!("LAN server started on http://0.0.0.0:{}", PORT);
+        let proto = if tls.is_some() { "https" } else { "http" };
+        println!("Server started on {}://0.0.0.0:{}", proto, PORT);
 
         // Cleanup thread
         let cleanup_rooms = self.rooms.clone();
@@ -162,13 +212,11 @@ impl ServerState {
             path if path.starts_with("/js/") && path.ends_with(".js") => {
                 self.serve_file(request, path, "application/javascript; charset=utf-8")
             }
-            path if path.starts_with("/locales/") && path.ends_with(".js") => {
-                self.serve_file(request, path, "application/javascript; charset=utf-8")
+            path if path.starts_with("/js/") && path.ends_with(".map") => {
+                self.serve_file(request, path, "application/json")
             }
-            "/sound/bgm/menu.ogg" => self.serve_file(request, "/sound/bgm/menu.ogg", "audio/ogg"),
-            "/sound/tracks.json" => {
-                self.serve_file(request, "/sound/tracks.json", "application/json")
-            }
+            path if path.starts_with("/mods/") => self.serve_disk_file(request, path),
+            path if path.starts_with("/card_duel/") => self.serve_disk_file(request, path),
             "/create" => self.handle_create(request),
             "/join" => self.handle_join(request, query),
             "/rooms" => self.handle_rooms(request),
@@ -189,6 +237,9 @@ impl ServerState {
             "/ping" => self.handle_ping(request),
             "/pick" => self.handle_pick(request),
             "/leave" => self.handle_leave(request),
+            "/api/mod/list" => self.handle_mod_list(request),
+            "/api/mod/upload" => self.handle_mod_upload(request),
+            "/api/mod/download" => self.handle_mod_download(request, query),
             _ => self.respond_json(
                 request,
                 404,
@@ -246,6 +297,47 @@ impl ServerState {
             None,
             None,
         ));
+    }
+
+    fn serve_disk_file(&self, request: Request, path: &str) {
+        let disk_path = format!("app{}", path);
+        match std::fs::read(&disk_path) {
+            Ok(content) => {
+                let ext = path.rsplit('.').next().unwrap_or("");
+                let ct = match ext {
+                    "json" => "application/json",
+                    "ogg" => "audio/ogg",
+                    "png" => "image/png",
+                    "js" => "application/javascript; charset=utf-8",
+                    "css" => "text/css; charset=utf-8",
+                    "html" => "text/html; charset=utf-8",
+                    _ => "application/octet-stream",
+                };
+                let headers = vec![
+                    Header::from_bytes(&b"Content-Type"[..], ct.as_bytes()).unwrap(),
+                    Header::from_bytes(
+                        &b"Cache-Control"[..],
+                        &b"no-store, no-cache, must-revalidate"[..],
+                    )
+                    .unwrap(),
+                    Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap(),
+                ];
+                let _ = request.respond(Response::new(
+                    StatusCode(200),
+                    headers,
+                    Box::new(std::io::Cursor::new(content)) as Box<dyn std::io::Read + Send>,
+                    None,
+                    None,
+                ));
+            }
+            Err(_) => {
+                self.respond_json(
+                    request,
+                    404,
+                    &serde_json::json!({"ok": false, "err": "not found"}),
+                );
+            }
+        }
     }
 
     fn gen_code() -> String {
@@ -476,9 +568,18 @@ impl ServerState {
             serde_json::Value::Array(arr) => arr,
             _ => Vec::new(),
         };
+        let effects = match data
+            .get("effects")
+            .cloned()
+            .unwrap_or(serde_json::Value::Array(vec![]))
+        {
+            serde_json::Value::Array(arr) => arr,
+            _ => Vec::new(),
+        };
         let pick = Pick {
             role: data.get("role").cloned().unwrap_or_default(),
             cards,
+            effects,
         };
         {
             let mut rooms = self.rooms.lock().unwrap();
@@ -567,6 +668,91 @@ impl ServerState {
         self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
+    fn handle_mod_list(&self, mut request: Request) {
+        let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
+            Ok(d) => d,
+            Err(_) => {
+                self.respond_json(
+                    request,
+                    400,
+                    &serde_json::json!({"ok": false, "err": "bad json"}),
+                );
+                return;
+            }
+        };
+        let room = data
+            .get("room")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_uppercase();
+        let mods = data
+            .get("mods")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        {
+            let mut rooms = self.rooms.lock().unwrap();
+            if let Some(r) = rooms.get_mut(&room) {
+                r.data = Some(serde_json::json!({"mods": mods}));
+            }
+        }
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
+    }
+
+    fn handle_mod_upload(&self, mut request: Request) {
+        let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
+            Ok(d) => d,
+            Err(_) => {
+                self.respond_json(
+                    request,
+                    400,
+                    &serde_json::json!({"ok": false, "err": "bad json"}),
+                );
+                return;
+            }
+        };
+        let mod_id = data
+            .get("mod_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let content = data.get("content").and_then(|v| v.as_str()).unwrap_or("");
+        if mod_id.is_empty() || content.is_empty() {
+            self.respond_json(
+                request,
+                400,
+                &serde_json::json!({"ok": false, "err": "mod_id and content required"}),
+            );
+            return;
+        }
+        let bytes = content.as_bytes().to_vec();
+        {
+            let mut mods = self.shared_mods.lock().unwrap();
+            mods.insert(mod_id.clone(), bytes);
+        }
+        self.slog(&format!("MOD_UPLOAD mod_id={}", mod_id));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
+    }
+
+    fn handle_mod_download(&self, request: Request, query: &str) {
+        let mod_id = Self::extract_param(query, "mod_id").to_string();
+        let mods = self.shared_mods.lock().unwrap();
+        if let Some(content) = mods.get(&mod_id) {
+            let b64 = base64_encode(content);
+            self.respond_json(
+                request,
+                200,
+                &serde_json::json!({"ok": true, "content": b64}),
+            );
+        } else {
+            self.respond_json(
+                request,
+                404,
+                &serde_json::json!({"ok": false, "err": "mod not found"}),
+            );
+        }
+    }
+
     fn read_body(request: &mut Request) -> String {
         let content_length: usize = request
             .headers()
@@ -621,6 +807,30 @@ fn elapsed() -> f64 {
         .as_secs_f64()
 }
 
+fn base64_encode(data: &[u8]) -> String {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::new();
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = *chunk.get(1).unwrap_or(&0) as u32;
+        let b2 = *chunk.get(2).unwrap_or(&0) as u32;
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        out.push(CHARS[(n >> 18) as usize & 63] as char);
+        out.push(CHARS[(n >> 12) as usize & 63] as char);
+        out.push(if chunk.len() > 1 {
+            CHARS[(n >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            CHARS[n as usize & 63] as char
+        } else {
+            '='
+        });
+    }
+    out
+}
+
 fn static_file(path: &str) -> Option<&'static [u8]> {
     Some(match path {
         "/index.html" => include_bytes!("../../app/index.html"),
@@ -639,10 +849,11 @@ fn static_file(path: &str) -> Option<&'static [u8]> {
         "/js/lan.js" => include_bytes!("../../app/js/lan.js"),
         "/js/pick.js" => include_bytes!("../../app/js/pick.js"),
         "/js/editor.js" => include_bytes!("../../app/js/editor.js"),
-        "/locales/zh_cn.js" => include_bytes!("../../app/locales/zh_cn.js"),
-        "/locales/en_us.js" => include_bytes!("../../app/locales/en_us.js"),
-        "/sound/bgm/menu.ogg" => include_bytes!("../../app/sound/bgm/menu.ogg"),
-        "/sound/tracks.json" => include_bytes!("../../app/sound/tracks.json"),
+        "/js/i18n.js" => include_bytes!("../../app/js/i18n.js"),
+        "/js/sound.js" => include_bytes!("../../app/js/sound.js"),
+        "/js/effect_registry.js" => include_bytes!("../../app/js/effect_registry.js"),
+        "/js/modloader.js" => include_bytes!("../../app/js/modloader.js"),
+        "/js/jszip.min.js" => include_bytes!("../../app/js/jszip.min.js"),
         _ => return None,
     })
 }

@@ -1,20 +1,22 @@
 import { $, show, esc, rollPair } from './util.js';
 import { state } from './state.js';
-import { DB, applyDefaultNames } from './data.js';
+import { DB } from './data.js';
 import { t } from './i18n.js';
 import { newBattle, logT } from './core.js';
 import { renderBattle, showBattle, renderSlots, slotHTML } from './render.js';
 import { startTurn } from './battle.js';
-import { stopRoomList, lanPickPost, lanPost, lanBase, renderLanPick, startRoomList } from './lan.js';
+import { stopRoomList, lanPickPost, lanPost, lanBase, renderLanPick, startRoomList, renderServerList } from './lan.js';
 
 export function startVsAI() { state.MODE = 'ai'; openPick(); }
 export function startLocal() { state.MODE = 'local'; openPick(); }
 
 export function openLAN() {
   show('sc-lan');
-  $('lan-info').textContent = '';
-  $('lan-join-row').style.display = 'none';
-  startRoomList();
+  renderServerList();
+  $('mixed-content-warning').style.display = 'none';
+  $('server-panel').style.display = 'none';
+  $('server-list-section').style.display = 'block';
+  $('add-server-section').style.display = 'block';
 }
 
 export function backMenu() {
@@ -50,13 +52,11 @@ export function openPick() {
 
 export function pickRole(i) {
   if (state.MODE === 'lan' && i !== state.LAN.side) return;
-  const hr = (state.LAN && state.LAN.hostData && state.LAN.hostData.roles) || [];
-  const seen = {}, all = [];
-  for (const r of [...hr, ...DB.roles]) { if (!seen[r.id]) { seen[r.id] = 1; all.push(r); } }
+  const all = state.MODE === 'lan' ? DB.roles : [...(state.LAN?.hostData?.roles || []), ...DB.roles];
   state.PICK_OPTIONS[i] = all;
   const m = $('mbox');
   m.innerHTML = `<div class="mhead">${t('pick.for', { side: i === 0 ? 'P0' : 'P1' })}${state.MODE === 'ai' && i === 0 ? t('pick.ai_opponent') : state.MODE === 'ai' && i === 1 ? t('pick.you') : ''}</div>
-    ${all.map((r, j) => `<div class="mrole" data-action="set-pick" data-slot="${i}" data-index="${j}"><div class="av sm">${r.img ? `<img src="${r.img}">` : esc(r.name[0])}</div><div><b>${esc(r.name)}</b>${state.LAN && state.LAN.hostData && state.LAN.hostData.roles.some(h => h.id === r.id) ? `<span class="dim" style="font-size:10px">${t('pick.custom_tag')}</span>` : ''}<div class="dim" style="font-size:11px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div></div></div>`).join('')}
+    ${all.map((r, j) => `<div class="mrole" data-action="set-pick" data-slot="${i}" data-index="${j}"><div class="av sm">${r.img ? `<img src="${r.img}">` : esc(r.name[0])}</div><div><b>${esc(r.name)}</b><div class="dim" style="font-size:11px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div></div></div>`).join('')}
     <div style="text-align:center;margin-top:10px"><button data-action="pick-random" data-slot="${i}">${t('pick.random')}</button></div>`;
   $('modal').classList.add('on');
 }
@@ -134,13 +134,12 @@ function buildDefs() {
     const need = new Set();
     roles.forEach(r => (r.deck || []).forEach(id => need.add(id)));
     const seen = {}, m = [];
-    for (const c of [...DB.cards, ...(p1.cards || [])]) {
+    for (const c of [...(p0.cards || []), ...(p1.cards || [])]) {
       if (!seen[c.id]) { seen[c.id] = 1; if (need.size === 0 || need.has(c.id)) m.push(c); }
     }
-    return { roles, cards: m };
+    // 收集双方效果定义（效果类型字符串，由房主注册）
+    const allEffects = [...new Set([...(p0.effects || []), ...(p1.effects || [])])];
+    return { roles, cards: m, effects: allEffects };
   }
   return { roles: [state.PICK[0], state.PICK[1]], cards: DB.cards };
 }
-
-/* 启动时填充默认名称 */
-applyDefaultNames();

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "r_sword",
+    "name": "无名剑客",
+    "hp": 42,
+    "def": 3,
+    "eng": 3,
+    "intro": "三尺青锋，攻守兼备",
+    "img": "",
+    "deck": ["c_strike", "c_strike", "c_strike", "c_heavy", "c_heavy", "c_pierce", "c_pierce", "c_guard", "c_guard", "c_weak", "c_draw"]
+  },
+  {
+    "id": "r_mage",
+    "name": "符文法师",
+    "hp": 32,
+    "def": 2,
+    "eng": 4,
+    "intro": "能量充裕，法术多变",
+    "img": "",
+    "deck": ["c_strike", "c_strike", "c_heavy", "c_heal", "c_heal", "c_overload", "c_barrier", "c_haste", "c_charge", "c_draw"]
+  }
+]

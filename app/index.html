@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#141517">
+<title>卡牌对决</title>
 <link rel="stylesheet" href="css/style.css">
 <link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
@@ -25,17 +26,37 @@
 
 <div class="screen" id="sc-settings">
   <div class="hd"><button data-action="back-menu">← 返回</button><h1 data-i18n="settings.title">设置</h1></div>
-  <div style="max-width:400px;margin:30px auto">
-    <div class="frow">
-      <label data-i18n="settings.lang">语言</label>
-      <select id="lang-select">
-        <option value="zh_cn" data-i18n="settings.lang_zh">中文</option>
-        <option value="en_us" data-i18n="settings.lang_en">English</option>
-      </select>
+  <div class="tabs">
+    <button class="tab on" data-action="settings-tab" data-tab="lang">语言</button>
+    <button class="tab" data-action="settings-tab" data-tab="volume">音量</button>
+    <button class="tab" data-action="settings-tab" data-tab="mods">模组</button>
+  </div>
+  <div id="settings-lang">
+    <div style="max-width:400px;margin:10px auto">
+      <div class="frow">
+        <label data-i18n="settings.lang">语言</label>
+        <select id="lang-select">
+          <option value="zh_cn" data-i18n="settings.lang_zh">中文</option>
+          <option value="en_us" data-i18n="settings.lang_en">English</option>
+        </select>
+      </div>
     </div>
-    <div class="frow">
-      <label data-i18n="settings.volume">音乐音量</label>
-      <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="0.3">
+  </div>
+  <div id="settings-volume" style="display:none">
+    <div style="max-width:400px;margin:10px auto">
+      <div class="frow"><label data-i18n="settings.vol_bgm">音乐音量</label><input type="range" class="vol-slider" data-type="bgm" min="0" max="1" step="0.05" value="0.3"></div>
+      <div class="frow"><label data-i18n="settings.vol_sfx">音效音量</label><input type="range" class="vol-slider" data-type="sfx" min="0" max="1" step="0.05" value="0.8"></div>
+      <div class="frow"><label data-i18n="settings.vol_voice">语音音量</label><input type="range" class="vol-slider" data-type="voice" min="0" max="1" step="0.05" value="0.8"></div>
+    </div>
+  </div>
+  <div id="settings-mods" style="display:none">
+    <div style="max-width:500px;margin:10px auto">
+      <div id="mod-list"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="primary" id="mod-import-btn" data-i18n="settings.mods_import">导入模组</button>
+        <span class="sp"></span>
+        <button id="mod-apply-btn" data-i18n="settings.mods_apply">应用模组</button>
+      </div>
     </div>
   </div>
 </div>
@@ -77,21 +98,43 @@
 </div>
 
 <div class="screen" id="sc-lan">
-  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="lan.title">局域网对战</h1></div>
-  <div style="max-width:430px;margin:0 auto;display:flex;flex-direction:column;gap:12px">
-    <p class="dim" style="font-size:12px" data-i18n="lan.desc">本机服务器已内置。电脑端填 http://127.0.0.1:8788，手机等设备填下方本机地址，同一 WiFi 即可联机。</p>
-    <div class="maddr" style="font-size:15px" id="lan-addr"></div>
-    <div class="frow"><label data-i18n="lan.server_label">服务器</label><input id="lan-url" value=""></div>
-    <div style="display:flex;gap:8px">
-      <button class="primary" style="flex:1" data-action="lan-create" data-i18n="lan.create">创建房间</button>
-      <button style="flex:1" data-action="lan-join" data-i18n="lan.manual">手动输入房间号</button>
+  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="lan.title">联机对战</h1></div>
+  <div style="max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:10px">
+
+    <div id="mixed-content-warning" style="display:none;background:var(--p);border:1px solid var(--red);padding:10px;font-size:12px;color:var(--red)">
+      <b>⚠ <span data-i18n="lan.mixed_content_warning">当前页面是 HTTPS 连接，但服务器是 HTTP。浏览器可能阻止连接。请手动放行：</span></b><br>
+      <span data-i18n="lan.chrome_hint">Chrome: 地址栏🔒 → 网站设置 → 不安全内容 → 允许</span><br>
+      <span data-i18n="lan.edge_hint">Edge: 同 Chrome 操作</span><br>
+      <span data-i18n="lan.firefox_hint">Firefox: 地址栏左侧盾牌图标 → 关闭保护</span>
     </div>
-    <div class="frow" id="lan-join-row" style="display:none"><label data-i18n="lan.room_label">房间号</label><input id="lan-room"><button data-action="lan-join" data-i18n="lan.join">加入</button></div>
-    <div class="lan-rooms">
-      <div class="lr-hd"><span data-i18n="lan.room_list">可加入的房间</span><span class="dim" style="font-size:11px;font-weight:400" data-i18n="lan.auto_refresh">自动刷新</span></div>
-      <div id="room-list"><div class="dim" style="padding:12px;text-align:center" data-i18n="lan.refreshing">刷新中…</div></div>
+
+    <div id="server-list-section">
+      <div class="lr-hd"><span data-i18n="lan.server_list">服务器列表</span></div>
+      <div id="server-list"></div>
     </div>
-    <div id="lan-info" class="dim" style="text-align:center"></div>
+
+    <div id="add-server-section">
+      <div class="frow"><label data-i18n="lan.server_addr">服务器地址</label><input id="server-input" placeholder="192.168.1.100" value=""></div>
+      <div style="display:flex;gap:8px">
+        <button class="primary" data-action="server-add" style="flex:1" data-i18n="lan.add_server">添加服务器</button>
+        <button data-action="server-connect-input" style="flex:1" data-i18n="lan.connect">连接</button>
+      </div>
+    </div>
+
+    <div id="server-panel" style="display:none">
+      <div class="maddr" style="font-size:14px;text-align:center" id="connected-label"></div>
+      <div class="frow"><label data-i18n="lan.room_label">房间号</label><input id="lan-room"><button data-action="lan-join" data-i18n="lan.join">加入</button></div>
+      <div style="display:flex;gap:8px">
+        <button class="primary" style="flex:1" data-action="lan-create" data-i18n="lan.create">创建房间</button>
+        <button style="flex:1" data-action="lan-disconnect" data-i18n="lan.disconnect">断开</button>
+      </div>
+      <div class="lan-rooms">
+        <div class="lr-hd"><span data-i18n="lan.room_list">可加入的房间</span></div>
+        <div id="room-list"><div class="dim" style="padding:12px;text-align:center" data-i18n="lan.refreshing">刷新中…</div></div>
+      </div>
+      <div id="lan-info" class="dim" style="text-align:center"></div>
+    </div>
+
   </div>
 </div>
 

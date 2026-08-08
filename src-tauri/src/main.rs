@@ -6,9 +6,20 @@ mod server;
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.contains(&"--server".to_string()) {
-        // Headless server mode for web hosting
         let state = std::sync::Arc::new(server::ServerState::default());
-        state.start();
+        let cert = args
+            .iter()
+            .position(|a| a == "--cert")
+            .and_then(|i| args.get(i + 1));
+        let key = args
+            .iter()
+            .position(|a| a == "--key")
+            .and_then(|i| args.get(i + 1));
+        match (cert, key) {
+            #[cfg(feature = "tls")]
+            (Some(c), Some(k)) => state.start_with_tls(c, k),
+            _ => state.start(),
+        }
         std::thread::park();
         return;
     }

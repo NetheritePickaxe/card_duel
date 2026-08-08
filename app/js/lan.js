@@ -7,21 +7,129 @@ import { renderBattle, showBattle, renderSlots, slotHTML, playCardAnim } from '.
 import { startTurn } from './battle.js';
 import { goDice, openPick } from './pick.js';
 
-export function lanBase() {
-  const v = $('lan-url').value.trim();
-  return (v || location.origin || 'http://127.0.0.1:8788').replace(/\/+$/, '');
+const STORAGE_KEY = 'saved_servers';
+const IS_HTTPS = location.protocol === 'https:';
+let currentServer = '';
+
+/* ============ 服务器地址管理 ============ */
+
+export function normalizeServerUrl(input) {
+  input = input.trim();
+  if (!input) return '';
+  // 已包含协议
+  if (input.startsWith('http://') || input.startsWith('https://')) {
+    // 确保有端口
+    if (!input.includes(':', 8)) return input + ':8788';
+    return input.replace(/\/+$/, '');
+  }
+  // 纯 IP 或域名
+  return `http://${input}:8788`;
 }
 
+export function lanBase() {
+  return currentServer || 'http://127.0.0.1:8788';
+}
+
+export function getServers() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (e) { return []; }
+}
+
+function saveServers(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+export function addServer(url) {
+  const normalized = normalizeServerUrl(url);
+  if (!normalized) return false;
+  const list = getServers();
+  if (!list.includes(normalized)) {
+    list.push(normalized);
+    saveServers(list);
+  }
+  return true;
+}
+
+export function removeServer(url) {
+  const list = getServers().filter(s => s !== url);
+  saveServers(list);
+  renderServerList();
+}
+
+export function renderServerList() {
+  const list = $('server-list');
+  if (!list) return;
+  const servers = getServers();
+  list.innerHTML = servers.length
+    ? servers.map(s => `
+      <div class="server-item" data-url="${s}">
+        <span class="server-status ${currentServer === s ? 'connected' : ''}">${currentServer === s ? '●' : '○'}</span>
+        <span class="server-url">${s}</span>
+        <span class="sp"></span>
+        <button class="server-connect" data-action="server-connect" data-url="${s}" style="padding:2px 8px">${t('lan.connect')}</button>
+        <button class="server-del" data-action="server-del" data-url="${s}" style="padding:2px 6px;color:var(--red)">✕</button>
+      </div>`).join('')
+    : `<div class="dim" style="padding:8px;text-align:center">${t('lan.no_servers')}</div>`;
+}
+
+/* ============ 连接管理 ============ */
+
+export function lanConnect(url) {
+  const base = normalizeServerUrl(url);
+  if (!base) { alert(t('lan.connect_fail')); return; }
+  // 混合内容提示
+  if (IS_HTTPS && base.startsWith('http://')) {
+    $('mixed-content-warning').style.display = 'block';
+  } else {
+    $('mixed-content-warning').style.display = 'none';
+  }
+  fetch(base + '/ping', { cache: 'no-store' }).then(r => r.json()).then(d => {
+    if (!d.ok) { alert(t('lan.connect_fail')); return; }
+    currentServer = base;
+    addServer(base);
+    renderServerList();
+    showServerPanel();
+    $('connected-label').textContent = t('lan.connected_to', { server: base });
+    startRoomList();
+  }).catch(() => {
+    if (IS_HTTPS && base.startsWith('http://') && $('mixed-content-warning').style.display !== 'block') {
+      $('mixed-content-warning').style.display = 'block';
+    }
+    alert(t('lan.connect_fail'));
+  });
+}
+
+export function lanDisconnect() {
+  currentServer = '';
+  stopRoomList();
+  state.LAN = null;
+  state.BATTLE = null;
+  state.PHASE_BATTLE = false;
+  hideServerPanel();
+  renderServerList();
+}
+
+/* ============ UI 控制 ============ */
+
+function showServerPanel() {
+  $('server-panel').style.display = 'block';
+  $('server-list-section').style.display = 'none';
+  $('add-server-section').style.display = 'none';
+}
+
+function hideServerPanel() {
+  $('server-panel').style.display = 'none';
+  $('server-list-section').style.display = 'block';
+  $('add-server-section').style.display = 'block';
+}
+
+/* ============ 房间操作 ============ */
+
 export function lanCreate() {
-  fetch(lanBase() + '/create', { cache: 'no-store' }).then(r => r.json()).then(d => {
+  fetch(currentServer + '/create', { cache: 'no-store' }).then(r => r.json()).then(d => {
     if (!d.ok) { alert(t('lan.alert_create_fail')); return; }
-    state.LAN = { base: lanBase(), room: d.room, side: 0, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
+    state.LAN = { base: currentServer, room: d.room, side: 0, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
     state.MODE = 'lan';
     stopRoomList();
-    fetch(lanBase() + '/hostdata', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room: d.room, data: DB }), cache: 'no-store',
-    }).catch(() => { });
     $('lan-info').innerHTML = `${t('pick.lan_room')} <b style="color:var(--acc);font-size:18px">${d.room}</b><br>${t('lan.waiting')}`;
     openPick();
     $('pk-title').textContent = t('pick.lan_p0_title');
@@ -33,14 +141,11 @@ export function lanCreate() {
 export function lanJoinRoom(room) {
   room = (room || '').trim().toUpperCase();
   if (!room) { alert(t('lan.alert_room_required')); return; }
-  fetch(lanBase() + '/join?room=' + room, { cache: 'no-store' }).then(r => r.json()).then(d => {
+  fetch(currentServer + '/join?room=' + room, { cache: 'no-store' }).then(r => r.json()).then(d => {
     if (!d.ok) { alert(t('lan.alert_join_fail', { err: d.err })); return; }
-    state.LAN = { base: lanBase(), room, side: 1, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
+    state.LAN = { base: currentServer, room, side: 1, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
     state.MODE = 'lan';
     stopRoomList();
-    fetch(lanBase() + '/hostdata?room=' + room, { cache: 'no-store' }).then(r => r.json()).then(dd => {
-      if (dd && dd.ok && dd.data) state.LAN.hostData = dd.data;
-    }).catch(() => { });
     $('lan-info').textContent = t('lan.joined', { room });
     openPick();
     $('pk-title').textContent = t('pick.lan_p1_title');
@@ -95,13 +200,18 @@ export function renderLanPick() {
 }
 
 export function lanPickPost(side, role) {
+  const deckIds = (role.deck && role.deck.length) ? role.deck : null;
+  const cards = deckIds ? deckIds.map(id => DB.cards.find(c => c.id === id)).filter(Boolean) : DB.cards;
+  const effectTypes = [...new Set(cards.flatMap(c => (c.effects || []).map(e => e.type)))];
   fetch(state.LAN.base + '/pick', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ room: state.LAN.room, side, role, cards: DB.cards }),
+    body: JSON.stringify({ room: state.LAN.room, side, role, cards, effects: effectTypes }),
   }).then(r => r.json()).then(d => {
     if (d && !d.ok) alert(t('lan.alert_upload_fail', { err: d.err }));
   }).catch(() => alert(t('lan.alert_upload_fail2')));
 }
+
+/* ============ 战斗同步 ============ */
 
 function publicState(b) {
   const play = b.lastPlay ? { seq: b.lastPlay.atSeq, pi: b.lastPlay.pi, card: b.lastPlay.card, events: b.lastPlay.events } : null;
@@ -154,7 +264,8 @@ function applyPublic(pub) {
   }
 }
 
-/* 可加入房间列表 */
+/* ============ 房间列表 ============ */
+
 export function startRoomList() {
   stopRoomList();
   roomListTick();
@@ -166,7 +277,8 @@ export function stopRoomList() {
 }
 
 function roomListTick() {
-  fetch(lanBase() + '/rooms', { cache: 'no-store' }).then(r => r.json()).then(d => {
+  if (!currentServer) return;
+  fetch(currentServer + '/rooms', { cache: 'no-store' }).then(r => r.json()).then(d => {
     if (!d.ok) return;
     const list = $('room-list');
     if (!d.rooms || !d.rooms.length) {

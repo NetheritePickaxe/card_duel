@@ -1,0 +1,10 @@
+{
+  "id": "card_duel",
+  "name": "原版",
+  "version": "1.0.0",
+  "author": "Card Duel",
+  "description": "原版游戏内容",
+  "builtin": true,
+  "dependencies": [],
+  "conflicts": []
+}
