@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::net::UdpSocket;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -68,6 +69,9 @@ pub fn start_background_server() {
 }
 
 const PORT: u16 = 8788;
+const DISCOVER_PORT: u16 = 8789;
+const DISCOVER_MAGIC: &[u8] = b"CARD_DUEL_DISCOVER";
+const DISCOVER_RESP: &[u8] = b"CARD_DUEL_HERE";
 const CODE_CHARS: &[char] = &[
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
     'W', 'X', 'Y', 'Z', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -238,6 +242,24 @@ impl ServerState {
             rooms.retain(|_, r| now - r.t <= ROOM_TTL.as_secs_f64());
         });
 
+        // UDP 局域网发现（仅当有房间时才响应）
+        let discover_rooms = self.rooms.clone();
+        thread::spawn(move || {
+            if let Ok(sock) = UdpSocket::bind(("0.0.0.0", DISCOVER_PORT)) {
+                let mut buf = [0u8; 256];
+                loop {
+                    if let Ok((len, src)) = sock.recv_from(&mut buf) {
+                        if &buf[..len] == DISCOVER_MAGIC {
+                            let has_rooms = discover_rooms.lock().map(|r| !r.is_empty()).unwrap_or(false);
+                            if has_rooms {
+                                let _ = sock.send_to(DISCOVER_RESP, src);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
         for request in server.incoming_requests() {
             self.handle_request(request);
         }
@@ -276,6 +298,9 @@ impl ServerState {
                 self.serve_file(request, path, "application/json")
             }
             path if path.starts_with("/mods/") => self.serve_disk_file(request, path),
+            "/card_duel/assets/splash.txt" => {
+                self.serve_file(request, "/splash.txt", "text/plain; charset=utf-8")
+            }
             path if path.starts_with("/card_duel/") => self.serve_disk_file(request, path),
             "/create" => self.handle_create(request),
             "/join" => self.handle_join(request, query),
@@ -295,16 +320,23 @@ impl ServerState {
                 }
             }
             "/ping" => self.handle_ping(request),
+            "/discover" => self.handle_discover(request),
             "/pick" => self.handle_pick(request),
             "/leave" => self.handle_leave(request),
             "/api/mod/list" => self.handle_mod_list(request),
             "/api/mod/upload" => self.handle_mod_upload(request),
             "/api/mod/download" => self.handle_mod_download(request, query),
-            _ => self.respond_json(
-                request,
-                404,
-                &serde_json::json!({"ok": false, "err": "not found"}),
-            ),
+            _ => {
+                if method == "GET" {
+                    self.serve_file(request, "/index.html", "text/html; charset=utf-8")
+                } else {
+                    self.respond_json(
+                        request,
+                        404,
+                        &serde_json::json!({"ok": false, "err": "not found"}),
+                    )
+                }
+            }
         }
     }
 
@@ -716,6 +748,32 @@ impl ServerState {
         self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
+    fn handle_discover(&self, request: Request) {
+        let ips = std::sync::Mutex::new(Vec::new());
+        if let Ok(sock) = UdpSocket::bind("0.0.0.0:0") {
+            if sock.set_read_timeout(Some(Duration::from_secs(2))).is_ok() {
+                let _ = sock.set_broadcast(true);
+                let _ = sock.send_to(DISCOVER_MAGIC, ("255.255.255.255", DISCOVER_PORT));
+                let mut buf = [0u8; 256];
+                loop {
+                    match sock.recv_from(&mut buf) {
+                        Ok((len, src)) => {
+                            if &buf[..len] == DISCOVER_RESP {
+                                let mut list = ips.lock().unwrap();
+                                if !list.contains(&src.ip().to_string()) {
+                                    list.push(src.ip().to_string());
+                                }
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+            }
+        }
+        let found = ips.lock().unwrap().clone();
+        self.respond_json(request, 200, &serde_json::json!({"ok": true, "servers": found}));
+    }
+
     fn handle_leave(&self, mut request: Request) {
         let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
             Ok(d) => d,
@@ -930,6 +988,7 @@ fn embedded_static_file(path: &str) -> Option<&'static [u8]> {
         "/index.html" => include_bytes!("../../app/index.html"),
         "/manifest.json" => include_bytes!("../../app/manifest.json"),
         "/sw.js" => include_bytes!("../../app/sw.js"),
+        "/splash.txt" => include_bytes!("../../app/card_duel/assets/splash.txt"),
         "/icon-192.png" => include_bytes!("../../app/icon-192.png"),
         "/icon-512.png" => include_bytes!("../../app/icon-512.png"),
         "/css/style.css" => include_bytes!("../../app/css/style.css"),

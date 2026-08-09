@@ -1,4 +1,4 @@
-import { $, show, esc } from './util.js';
+import { $, show, esc, toast } from './util.js';
 import { state } from './state.js';
 import { DB, getDefaultCardIds } from './data.js';
 import { t } from './i18n.js';
@@ -11,6 +11,7 @@ const STORAGE_KEY = 'saved_servers';
 const IS_HTTPS = location.protocol === 'https:';
 let currentServer = '';
 let cachedRooms = [];
+let roomCounts = {}; // 扫描时记录每个服务器的房间数
 
 /* ============ 服务器地址管理 ============ */
 
@@ -65,11 +66,49 @@ export function renderServerList() {
       <div class="server-item" data-url="${s}">
         <span class="server-status ${currentServer === s ? 'connected' : ''}">${currentServer === s ? '●' : '○'}</span>
         <span class="server-url">${s}</span>
+        ${roomCounts[s] != null ? `<span class="dim" style="font-size:11px">${roomCounts[s]} ${t('lan.room_word')}</span>` : ''}
         <span class="sp"></span>
         <button class="server-connect" data-action="server-connect" data-url="${s}" style="padding:2px 8px">${t('lan.connect')}</button>
         <button class="server-del" data-action="server-del" data-url="${s}" style="padding:2px 6px;color:var(--red)">✕</button>
       </div>`).join('')
     : `<div class="dim" style="padding:8px;text-align:center">${t('lan.no_servers')}</div>`;
+}
+
+// 局域网扫描
+function isPrivateIp(ip) {
+  return /^10\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip) || /^192\.168\./.test(ip);
+}
+
+export function scanLan() {
+  const list = $('server-list');
+  if (!list) return;
+  const status = list.querySelector('.dim');
+  if (status) status.textContent = t('lan.scanning');
+  fetch('/discover', { cache: 'no-store' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok && Array.isArray(d.servers)) {
+        let added = 0;
+        const found = d.servers.filter(isPrivateIp);
+        found.forEach(ip => { if (addServer('http://' + ip + ':8788')) added++; });
+        renderServerList();
+        if (added) toast(t('lan.scan_found', { n: added }));
+        // 逐个查询每个服务器的房间数
+        found.forEach(ip => {
+          const url = 'http://' + ip + ':8788';
+          fetch(url + '/rooms', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(rd => {
+              if (rd.ok && Array.isArray(rd.rooms)) {
+                roomCounts[url] = rd.rooms.length;
+                renderServerList();
+              }
+            })
+            .catch(() => {});
+        });
+      }
+    })
+    .catch(() => renderServerList());
 }
 
 /* ============ 连接管理 ============ */

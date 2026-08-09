@@ -1,6 +1,6 @@
 import { $, esc, IS_MOBILE, toast } from './util.js';
 import { state } from './state.js';
-import { DB, saveDB, EFF_TYPES, FX_FORMS, defaultFx, compressImage, genDesc } from './data.js';
+import { DB, saveDB, EFF_TYPES, FX_FORMS, defaultFx, compressImage, genDesc, getFaction } from './data.js';
 import { t } from './i18n.js';
 import { show } from './util.js';
 
@@ -11,7 +11,7 @@ function autoGrow(el) {
 }
 
 export function openEditor() {
-  state.EDIT = { tab: 'role', sel: null };
+  state.EDIT = { tab: 'role', sel: null, factionSel: null };
   setTab('role');
   show('sc-edit');
 }
@@ -19,19 +19,24 @@ export function openEditor() {
 export function setTab(tab) {
   state.EDIT.tab = tab;
   state.EDIT.sel = null;
+  state.EDIT.factionSel = null;
   saveEditState();
   $('edit-role').style.display = tab === 'role' ? 'flex' : 'none';
   $('edit-card').style.display = tab === 'card' ? 'flex' : 'none';
-  document.querySelectorAll('.tab').forEach((b, i) => b.classList.toggle('on', i === (tab === 'role' ? 0 : 1)));
+  $('edit-faction').style.display = tab === 'faction' ? 'flex' : 'none';
+  const tabs = document.querySelectorAll('.edit-tabs .tab');
+  const idx = tab === 'role' ? 0 : tab === 'card' ? 1 : 2;
+  tabs.forEach((b, i) => b.classList.toggle('on', i === idx));
   renderEditList();
 }
 
 export function renderEditList() {
+  if (state.EDIT.tab === 'faction') {
+    renderFactionList();
+    return;
+  }
   if (state.EDIT.tab === 'role') {
-    $('role-list').innerHTML = DB.roles.map((r, i) =>
-      `<button class="item ${state.EDIT.sel === r.id ? 'sel' : ''}" data-action="edit-sel-role" data-index="${i}">
-        <div class="thumb">${r.img ? `<img src="${r.img}">` : ''}</div><div><b>${esc(r.name)}</b><div class="dim" style="font-size:11px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div></div></button>`).join('')
-      + (!IS_MOBILE ? `<button data-action="new-role" style="padding:8px">${t('edit.new_role')}</button>` : '');
+    renderRoleList();
     const r = DB.roles.find(x => x.id === state.EDIT.sel) || DB.roles[0];
     if (r) { renderRoleForm(r); $('role-form').style.display = ''; }
     else $('role-form').style.display = 'none';
@@ -46,6 +51,31 @@ export function renderEditList() {
   }
 }
 
+function renderRoleList() {
+  const groups = getRoleGroups();
+  $('role-list').innerHTML = groups.map((g, gi) => `
+    <div class="faction-header">${esc(g.name)}</div>
+    ${g.roles.map((r, ri) => {
+      const idx = DB.roles.indexOf(r);
+      return `<button class="item ${state.EDIT.sel === r.id ? 'sel' : ''}" data-action="edit-sel-role" data-index="${idx}">
+        <div class="thumb">${r.img ? `<img src="${r.img}">` : ''}</div><div><b>${esc(r.name)}</b><div class="dim" style="font-size:11px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div></div></button>`;
+    }).join('')}
+  `).join('')
+  + (!IS_MOBILE ? `<button data-action="new-role" style="padding:8px">${t('edit.new_role')}</button>` : '');
+}
+
+function getRoleGroups() {
+  const fid = new Set(DB.factions.map(f => f.id));
+  const groups = [];
+  for (const f of DB.factions) {
+    const roles = DB.roles.filter(r => r.faction === f.id);
+    if (roles.length) groups.push({ name: f.name, roles });
+  }
+  const freelancers = DB.roles.filter(r => !r.faction || !fid.has(r.faction));
+  if (freelancers.length) groups.push({ name: t('edit.faction_none'), roles: freelancers });
+  return groups;
+}
+
 function editSel(tab, i) {
   state.EDIT.sel = (tab === 'role' ? DB.roles[i].id : DB.cards[i].id);
   saveEditState();
@@ -57,7 +87,7 @@ function saveEditState() {
 }
 
 function newRole() {
-  const r = { id: 'r' + Date.now(), name: t('edit.default_role_name'), hp: 40, def: 2, eng: 3, intro: '', img: '', deck: [] };
+  const r = { id: 'r' + Date.now(), name: t('edit.default_role_name'), faction: null, hp: 40, def: 2, eng: 3, intro: '', img: '', deck: [] };
   DB.roles.push(r);
   state.EDIT.sel = r.id;
   renderEditList();
@@ -103,6 +133,7 @@ function renderRoleForm(r) {
   }
   $('role-form').innerHTML = `
     <div class="frow"><label>${t('edit.name')}</label><input id="rf-name" value="${esc(r.name)}"></div>
+    <div class="frow"><label>${t('edit.faction')}</label><select id="rf-faction"><option value="">${t('edit.faction_none')}</option>${DB.factions.map(f => `<option value="${esc(f.id)}" ${r.faction === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select></div>
     <div class="frow"><label>${t('edit.hp')}</label><input id="rf-hp" type="number" min="1" value="${r.hp}"></div>
     <div class="frow"><label>${t('edit.def')}</label><input id="rf-def" type="number" min="0" value="${r.def}"></div>
     <div class="frow"><label>${t('edit.energy')}</label><input id="rf-eng" type="number" min="1" value="${r.eng}"></div>
@@ -169,7 +200,7 @@ function addEffRow(e) {
     <span class="fxlab">${t('edit.eff_fx')}</span>
     <select class="ef">${FX_FORMS.map(f => `<option value="${f.v}" ${e && e.fx && e.fx.form === f.v ? 'selected' : ''}>${t(f.nkey)}</option>`).join('')}</select>
     <input type="color" class="ec" value="${e && e.fx && e.fx.color ? e.fx.color : d.color}">
-    <button style="padding:4px 8px" data-action="eff-del">${t('edit.eff_del')}</button>`;
+    <button style="padding:4px 8px" class="eff-del" data-action="eff-del">${t('edit.eff_del')}</button>`;
   box.querySelector('.eff-del').onclick = () => box.remove();
   box.querySelector('.et').onchange = () => updateEffRow(box);
   updateEffRow(box);
@@ -202,6 +233,7 @@ function saveRole() {
   const r = DB.roles.find(x => x.id === state.EDIT.sel);
   if (!r) return;
   r.name = $('rf-name').value.trim() || t('edit.fallback_name');
+  r.faction = $('rf-faction').value || null;
   r.hp = Math.max(1, parseInt($('rf-hp').value) || 1);
   r.def = Math.max(0, parseInt($('rf-def').value) || 0);
   r.eng = Math.max(1, parseInt($('rf-eng').value) || 1);
@@ -243,18 +275,93 @@ function loadImg(kind) {
   });
 }
 
+function renderFactionList() {
+  $('faction-list').innerHTML =
+    DB.factions.map((f, i) => {
+      const count = DB.roles.filter(r => r.faction === f.id).length;
+      return `<button class="item ${state.EDIT.factionSel === f.id ? 'sel' : ''}" data-action="edit-sel-faction" data-index="${i}">
+        <div class="thumb">${f.img ? `<img src="${f.img}">` : ''}</div><div><b>${esc(f.name)}</b><div class="dim" style="font-size:11px">${count} ${t('edit.role_count')}</div></div></button>`;
+    }).join('')
+    + (!IS_MOBILE ? `<button data-action="new-faction" style="padding:8px">${t('edit.new_faction')}</button>` : '');
+  const f = DB.factions.find(x => x.id === state.EDIT.factionSel) || DB.factions[0];
+  if (f) { renderFactionForm(f); $('faction-form').style.display = ''; }
+  else $('faction-form').style.display = 'none';
+}
+
+function renderFactionForm(f) {
+  if (IS_MOBILE) {
+    $('faction-form').innerHTML = `
+      <div class="frow"><label>${t('edit.faction_name')}</label><span>${esc(f.name)}</span></div>
+      <div class="frow"><label>${t('edit.faction_desc')}</label><span class="dim">${esc(f.desc || '')}</span></div>
+      <div class="frow"><button style="color:var(--red)" data-action="del-faction">${t('edit.del_faction')}</button></div>
+      <div class="dim" style="font-size:11px">${t('edit.mobile_hint')}</div>`;
+    return;
+  }
+  $('faction-form').innerHTML = `
+    <div class="frow"><label>${t('edit.faction_name')}</label><input id="ff-name" value="${esc(f.name)}"></div>
+    <div class="frow"><label>${t('edit.faction_desc')}</label><textarea id="ff-desc" rows="2">${esc(f.desc || '')}</textarea></div>
+    <div class="frow"><label>${t('edit.img')}</label><input id="ff-img" placeholder="${t('edit.img_placeholder')}" value="${esc(f.img || '')}"><input type="file" accept="image/*" data-action="load-img-faction"></div>
+    <div class="frow"><button class="primary" data-action="save-faction">${t('edit.save_faction')}</button><button style="color:var(--red)" data-action="del-faction">${t('edit.del_faction_btn')}</button></div>`;
+  autoGrow($('ff-desc'));
+}
+
+function newFaction() {
+  const f = { id: 'f' + Date.now(), name: t('edit.default_faction_name'), desc: '', img: '' };
+  DB.factions.push(f);
+  state.EDIT.factionSel = f.id;
+  renderFactionList();
+}
+
+function saveFaction() {
+  const f = DB.factions.find(x => x.id === state.EDIT.factionSel);
+  if (!f) return;
+  f.name = $('ff-name').value.trim() || t('edit.fallback_name');
+  f.desc = $('ff-desc').value;
+  f.img = $('ff-img').value.trim();
+  saveDB();
+  renderFactionList();
+  toast(t('edit.saved'));
+}
+
+function delFaction() {
+  const f = DB.factions.find(x => x.id === state.EDIT.factionSel);
+  if (!f) return;
+  if (!confirm(t('edit.confirm_del_faction'))) return;
+  DB.factions = DB.factions.filter(x => x.id !== f.id);
+  DB.roles.forEach(r => { if (r.faction === f.id) r.faction = null; });
+  state.EDIT.factionSel = null;
+  saveDB();
+  renderFactionList();
+}
+
+function loadImgFaction() {
+  const input = $('ff-img').nextElementSibling;
+  const file = input.files[0];
+  if (!file) return;
+  compressImage(file, data => {
+    const f = DB.factions.find(x => x.id === state.EDIT.factionSel);
+    if (f) f.img = data;
+    renderFactionList();
+  });
+}
+
 export const editorActions = {
   'edit-sel-role': (el) => editSel('role', parseInt(el.dataset.index)),
   'edit-sel-card': (el) => editSel('card', parseInt(el.dataset.index)),
+  'edit-sel-faction': (el) => { state.EDIT.factionSel = DB.factions[parseInt(el.dataset.index)].id; renderFactionList(); },
   'new-role': () => newRole(),
   'new-card': () => newCard(),
+  'new-faction': () => newFaction(),
   'del-role': () => delRole(),
   'del-card': () => delCard(),
+  'del-faction': () => delFaction(),
   'save-role': () => saveRole(),
   'save-card': () => saveCard(),
+  'save-faction': () => saveFaction(),
   'deck-dec': (el) => deckAdj(el.dataset.card, -1),
   'deck-inc': (el) => deckAdj(el.dataset.card, 1),
   'add-eff': () => addEff(),
   'load-img-role': (el) => { el.addEventListener('change', () => loadImg('role'), { once: true }); },
   'load-img-card': (el) => { el.addEventListener('change', () => loadImg('card'), { once: true }); },
+  'load-img-faction': (el) => { el.addEventListener('change', () => loadImgFaction(), { once: true }); },
 };

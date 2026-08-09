@@ -6,10 +6,12 @@ const LS = 'cardgame_db_v3';
 
 let defaultRoles = [];
 let defaultCards = [];
+let defaultFactions = [];
 
-export function setDefaultData(roles, cards) {
+export function setDefaultData(roles, cards, factions) {
   defaultRoles = roles;
   defaultCards = cards;
+  defaultFactions = factions || [];
 }
 
 export function getDefaultRoles() {
@@ -28,12 +30,26 @@ export function getDefaultCardIds() {
   return new Set(defaultCards.map(c => c.id));
 }
 
+export function getDefaultFactions() {
+  return defaultFactions;
+}
+
+export function getFaction(id) {
+  return DB.factions.find(f => f.id === id);
+}
+
 function loadDB() {
+  let db;
   try {
     const s = localStorage.getItem(LS);
-    if (s) return JSON.parse(s);
+    if (s) db = JSON.parse(s);
   } catch (e) { /* ignore */ }
-  return JSON.parse(JSON.stringify({ roles: defaultRoles, cards: defaultCards }));
+  if (!db) {
+    db = JSON.parse(JSON.stringify({ roles: defaultRoles, cards: defaultCards, factions: defaultFactions }));
+  }
+  // 兼容旧存档：没有 factions 字段时补默认
+  if (!Array.isArray(db.factions)) db.factions = defaultFactions;
+  return db;
 }
 
 export const DB = loadDB();

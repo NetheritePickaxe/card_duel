@@ -2,6 +2,7 @@
   {
     "id": "r_sword",
     "name": "无名剑客",
+    "faction": "f_wulin",
     "hp": 42,
     "def": 3,
     "eng": 3,
@@ -12,6 +13,7 @@
   {
     "id": "r_mage",
     "name": "符文法师",
+    "faction": "f_xian",
     "hp": 32,
     "def": 2,
     "eng": 4,

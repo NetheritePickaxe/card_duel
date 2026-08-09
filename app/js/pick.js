@@ -1,11 +1,11 @@
 import { $, show, esc, rollPair } from './util.js';
 import { state } from './state.js';
-import { DB, getDefaultRoleIds } from './data.js';
+import { DB, getDefaultRoleIds, getFaction } from './data.js';
 import { t } from './i18n.js';
 import { newBattle, logT } from './core.js';
 import { renderBattle, showBattle, renderSlots, slotHTML } from './render.js';
 import { startTurn } from './battle.js';
-import { stopRoomList, lanPickPost, lanPost, lanBase, renderLanPick, startRoomList, renderServerList } from './lan.js';
+import { stopRoomList, lanPickPost, lanPost, lanBase, renderLanPick, startRoomList, renderServerList, scanLan } from './lan.js';
 
 export function startVsAI() { state.MODE = 'ai'; openPick(); }
 export function startLocal() { state.MODE = 'local'; openPick(); }
@@ -17,6 +17,7 @@ export function openLAN() {
   $('server-panel').style.display = 'none';
   $('server-list-section').style.display = 'block';
   $('add-server-section').style.display = 'block';
+  setTimeout(() => scanLan(), 500);
 }
 
 export function backMenu() {
@@ -57,11 +58,30 @@ export function pickRole(i) {
     all = all.filter(r => vanillaIds.has(r.id));
   }
   state.PICK_OPTIONS[i] = all;
+  const groups = getPickGroups(all);
   const m = $('mbox');
   m.innerHTML = `<div class="mhead">${t('pick.for', { side: i === 0 ? 'P0' : 'P1' })}${state.MODE === 'ai' && i === 0 ? t('pick.ai_opponent') : state.MODE === 'ai' && i === 1 ? t('pick.you') : ''}</div>
-    ${all.map((r, j) => `<div class="mrole" data-action="set-pick" data-slot="${i}" data-index="${j}"><div class="av sm">${r.img ? `<img src="${r.img}">` : esc(r.name[0])}</div><div><b>${esc(r.name)}</b><div class="dim" style="font-size:11px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div></div></div>`).join('')}
+    ${groups.map(g => `
+      <div class="pick-faction-header">${esc(g.name)}</div>
+      ${g.roles.map((r, j) => {
+        const idx = all.indexOf(r);
+        return `<div class="mrole" data-action="set-pick" data-slot="${i}" data-index="${idx}"><div class="av sm">${r.img ? `<img src="${r.img}">` : esc(r.name[0])}</div><div><b>${esc(r.name)}</b><div class="dim" style="font-size:11px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div></div></div>`;
+      }).join('')}
+    `).join('')}
     <div style="text-align:center;margin-top:10px"><button data-action="pick-random" data-slot="${i}">${t('pick.random')}</button></div>`;
   $('modal').classList.add('on');
+}
+
+function getPickGroups(roles) {
+  const fid = new Set(DB.factions.map(f => f.id));
+  const groups = [];
+  for (const f of DB.factions) {
+    const fr = roles.filter(r => r.faction === f.id);
+    if (fr.length) groups.push({ name: f.name, roles: fr });
+  }
+  const freelancers = roles.filter(r => !r.faction || !fid.has(r.faction));
+  if (freelancers.length) groups.push({ name: t('edit.faction_none'), roles: freelancers });
+  return groups;
 }
 
 export function closeModal() { $('modal').classList.remove('on'); }

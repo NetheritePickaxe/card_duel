@@ -1,14 +1,173 @@
 [
-  { "id": "c_strike", "name": "打击", "cost": 1, "img": "", "effects": [{ "type": "damage", "value": 6, "target": "enemy" }], "desc": "" },
-  { "id": "c_heavy", "name": "重击", "cost": 2, "img": "", "effects": [{ "type": "damage", "value": 11, "target": "enemy" }], "desc": "" },
-  { "id": "c_pierce", "name": "破甲斩", "cost": 2, "img": "", "effects": [{ "type": "damage", "value": 6, "pierce": true, "target": "enemy" }], "desc": "" },
-  { "id": "c_guard", "name": "铁壁", "cost": 1, "img": "", "effects": [{ "type": "gain_def", "value": 3, "duration": 999, "target": "self" }], "desc": "" },
-  { "id": "c_heal", "name": "治愈", "cost": 1, "img": "", "effects": [{ "type": "heal", "value": 6, "target": "self" }], "desc": "" },
-  { "id": "c_weak", "name": "虚弱", "cost": 1, "img": "", "effects": [{ "type": "weaken_def", "value": 2, "duration": 3, "target": "enemy" }], "desc": "" },
-  { "id": "c_charge", "name": "能量榨取", "cost": 1, "img": "", "effects": [{ "type": "force_discard", "value": 1, "target": "enemy" }], "desc": "" },
-  { "id": "c_overload", "name": "过载", "cost": 1, "img": "", "effects": [{ "type": "cost_up", "value": 1, "duration": 2, "target": "enemy" }], "desc": "" },
-  { "id": "c_barrier", "name": "屏障", "cost": 2, "img": "", "effects": [{ "type": "dmg_reduce", "value": 25, "duration": 3, "target": "self" }], "desc": "" },
-  { "id": "c_timelock", "name": "禁行", "cost": 2, "img": "", "effects": [{ "type": "skip_turn", "target": "enemy" }], "desc": "" },
-  { "id": "c_haste", "name": "时间裂隙", "cost": 3, "img": "", "effects": [{ "type": "extra_turn", "target": "self" }], "desc": "" },
-  { "id": "c_draw", "name": "洞察", "cost": 0, "img": "", "effects": [{ "type": "draw", "value": 2, "target": "self" }], "desc": "" }
+  {
+    "id": "c_strike",
+    "name": "打击",
+    "cost": 1,
+    "img": "",
+    "effects": [
+      {
+        "type": "damage",
+        "value": 6,
+        "target": "enemy"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_heavy",
+    "name": "重击",
+    "cost": 2,
+    "img": "",
+    "effects": [
+      {
+        "type": "damage",
+        "value": 11,
+        "target": "enemy"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_pierce",
+    "name": "破甲斩",
+    "cost": 2,
+    "img": "",
+    "effects": [
+      {
+        "type": "damage",
+        "value": 6,
+        "pierce": true,
+        "target": "enemy"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_guard",
+    "name": "铁壁",
+    "cost": 1,
+    "img": "",
+    "effects": [
+      {
+        "type": "gain_def",
+        "value": 3,
+        "duration": 999,
+        "target": "self"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_heal",
+    "name": "治愈",
+    "cost": 1,
+    "img": "",
+    "effects": [
+      {
+        "type": "heal",
+        "value": 6,
+        "target": "self"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_weak",
+    "name": "虚弱",
+    "cost": 1,
+    "img": "",
+    "effects": [
+      {
+        "type": "weaken_def",
+        "value": 2,
+        "duration": 3,
+        "target": "enemy"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_charge",
+    "name": "能量榨取",
+    "cost": 1,
+    "img": "",
+    "effects": [
+      {
+        "type": "force_discard",
+        "value": 1,
+        "target": "enemy"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_overload",
+    "name": "过载",
+    "cost": 1,
+    "img": "",
+    "effects": [
+      {
+        "type": "cost_up",
+        "value": 1,
+        "duration": 2,
+        "target": "enemy"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_barrier",
+    "name": "屏障",
+    "cost": 2,
+    "img": "",
+    "effects": [
+      {
+        "type": "dmg_reduce",
+        "value": 25,
+        "duration": 3,
+        "target": "self"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_timelock",
+    "name": "禁行",
+    "cost": 2,
+    "img": "",
+    "effects": [
+      {
+        "type": "skip_turn",
+        "target": "enemy"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_haste",
+    "name": "时间裂隙",
+    "cost": 3,
+    "img": "",
+    "effects": [
+      {
+        "type": "extra_turn",
+        "target": "self"
+      }
+    ],
+    "desc": ""
+  },
+  {
+    "id": "c_draw",
+    "name": "洞察",
+    "cost": 0,
+    "img": "",
+    "effects": [
+      {
+        "type": "draw",
+        "value": 2,
+        "target": "self"
+      }
+    ],
+    "desc": ""
+  }
 ]

@@ -10,12 +10,9 @@
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
-  var s = sessionStorage.getItem('saved_screen');
-  if (s === 'sc-settings' || s === 'sc-edit') {
-    document.documentElement.classList.add('init-' + s);
-  } else {
-    document.documentElement.classList.add('init-menu');
-  }
+  var p = location.pathname;
+  var m = { '/settings':'sc-settings', '/edit':'sc-edit', '/mods':'sc-mods', '/select':'sc-pick', '/battle':'sc-battle', '/lan':'sc-lan', '/dice':'sc-dice' };
+  document.documentElement.classList.add(m[p] ? 'init-' + m[p] : 'init-menu');
   var t = localStorage.getItem('theme') || 'dark';
   if (t === 'light') document.documentElement.dataset.theme = 'light';
   else if (t === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches) document.documentElement.dataset.theme = 'light';
@@ -33,8 +30,8 @@
     <div class="mbtn" data-action="start-local"><span data-i18n="menu.local">本地对战</span><small data-i18n="menu.local_hint">同屏轮流操作</small></div>
     <div class="mbtn" data-action="open-lan"><span data-i18n="menu.lan">局域网对战</span><small data-i18n="menu.lan_hint">电脑与手机联机</small></div>
     <div class="mbtn" data-action="open-editor"><span data-i18n="menu.edit">角色与卡牌编辑</span><small data-i18n="menu.edit_hint">自定义数据，自动保存</small></div>
+    <div class="mbtn" data-action="open-mods"><span data-i18n="menu.mods">模组</span><small data-i18n="menu.mods_hint">管理模组</small></div>
     <div class="mbtn" data-action="open-settings"><span data-i18n="menu.settings">设置</span><small></small></div>
-    <div class="mfoot" data-i18n="menu.foot">先手由掷骰子决定 · 抽牌堆/弃牌堆参考杀戮尖塔 · 每个角色独立牌组 · 出牌带特效动画</div>
     <div class="maddr" id="maddr"></div>
   </div>
 </div>
@@ -42,9 +39,8 @@
 <div class="screen" id="sc-settings">
   <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="settings.title">设置</h1></div>
   <div class="tabs">
-    <button class="tab on" data-action="settings-tab" data-tab="lang" data-i18n="settings.lang">语言</button>
+    <button class="tab on" data-action="settings-tab" data-tab="lang" data-i18n="settings.basic">基础设置</button>
     <button class="tab" data-action="settings-tab" data-tab="sound" data-i18n="settings.sound">声音</button>
-    <button class="tab" data-action="settings-tab" data-tab="mods" data-i18n="settings.mods">模组</button>
   </div>
   <div id="settings-lang">
     <div style="max-width:400px;margin:10px auto">
@@ -67,6 +63,10 @@
         <label data-i18n="settings.accent">主题色</label>
         <div class="accent-row" id="accent-row"></div>
       </div>
+      <div class="frow">
+        <label data-i18n="settings.splash">主界面标语</label>
+        <label class="toggle"><input type="checkbox" id="splash-toggle" checked><span class="slider"></span></label>
+      </div>
     </div>
   </div>
   <div id="settings-sound" style="display:none">
@@ -78,23 +78,27 @@
       <div class="frow"><label data-i18n="settings.vol_voice">语音音量</label><input type="range" class="vol-slider" data-type="voice" min="0" max="1" step="0.05" value="0.8"><span class="vol-value">80%</span></div>
     </div>
   </div>
-  <div id="settings-mods" style="display:none">
-    <div style="max-width:500px;margin:10px auto">
-      <div id="mod-list"></div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="primary" id="mod-import-btn" data-i18n="settings.mods_import">导入模组</button>
-        <span class="sp"></span>
-        <button id="mod-apply-btn" data-i18n="settings.mods_apply">应用模组</button>
-      </div>
+  </div>
+</div>
+
+<div class="screen" id="sc-mods">
+  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="menu.mods">模组</h1></div>
+  <div style="max-width:500px;margin:10px auto">
+    <div id="mod-list"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="primary" id="mod-import-btn" data-i18n="settings.mods_import">导入模组</button>
+      <span class="sp"></span>
+      <button id="mod-apply-btn" data-i18n="settings.mods_apply">应用模组</button>
     </div>
   </div>
 </div>
 
 <div class="screen" id="sc-edit">
   <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="edit.title">数据编辑</h1></div>
-  <div class="tabs">
+  <div class="tabs edit-tabs">
     <button class="tab on" data-action="tab-role"><span data-i18n="edit.tab_role">角色</span></button>
     <button class="tab" data-action="tab-card"><span data-i18n="edit.tab_card">技能卡牌</span></button>
+    <button class="tab" data-action="tab-faction"><span data-i18n="edit.tab_faction">阵营</span></button>
   </div>
   <div class="edit-wrap" id="edit-role">
     <div class="list" id="role-list"></div>
@@ -103,6 +107,10 @@
   <div class="edit-wrap" id="edit-card" style="display:none">
     <div class="list" id="card-list"></div>
     <div class="form" id="card-form"></div>
+  </div>
+  <div class="edit-wrap" id="edit-faction" style="display:none">
+    <div class="list" id="faction-list"></div>
+    <div class="form" id="faction-form"></div>
   </div>
 </div>
 
@@ -128,7 +136,7 @@
 
 <div class="screen" id="sc-lan">
   <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="lan.title">联机对战</h1></div>
-  <div style="max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:10px">
+  <div style="max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:10px;padding-top:20px">
 
     <div id="mixed-content-warning" style="display:none;background:var(--p);border:1px solid var(--red);padding:10px;font-size:12px;color:var(--red)">
       <b>⚠ <span data-i18n="lan.mixed_content_warning">当前页面是 HTTPS 连接，但服务器是 HTTP。浏览器可能阻止连接。请手动放行：</span></b><br>
@@ -138,7 +146,7 @@
     </div>
 
     <div id="server-list-section">
-      <div class="lr-hd"><span data-i18n="lan.server_list">服务器列表</span></div>
+      <div class="lr-hd"><span data-i18n="lan.server_list">服务器列表</span><button data-action="lan-scan" style="padding:2px 8px;font-size:11px" data-i18n="lan.scan">扫描局域网</button></div>
       <div id="server-list"></div>
     </div>
 
@@ -187,10 +195,10 @@
 <div id="cp-pop" style="display:none">
   <div class="cp-back" data-action="cp-cancel"></div>
   <div class="cp-box">
-    <div class="cp-row"><div class="cp-preview" id="cp-preview"></div><span id="cp-hex" class="dim"></span></div>
     <canvas class="cp-pad" id="cp-pad" width="220" height="150"></canvas>
     <canvas class="cp-hue" id="cp-hue" width="220" height="18"></canvas>
-    <div class="cp-row"><button class="primary" data-action="cp-ok" data-i18n="settings.cp_apply">应用</button><button data-action="cp-cancel" data-i18n="settings.cp_cancel">取消</button></div>
+    <div class="cp-row"><div class="cp-preview" id="cp-preview"></div><input type="text" class="cp-hex-input" id="cp-hex"></div>
+    <div class="cp-row"><button data-action="cp-reset" data-i18n="settings.cp_reset">重置</button><button class="primary" id="cp-ok-btn" data-action="cp-ok" data-i18n="settings.cp_apply">应用</button><button data-action="cp-cancel" data-i18n="settings.cp_cancel">取消</button></div>
   </div>
 </div>
 <script>

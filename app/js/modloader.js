@@ -87,6 +87,7 @@ async function loadVanillaMod() {
     'data/roles.json',
     'data/cards.json',
     'data/effects.json',
+    'data/factions.json',
   ];
   for (const f of fileList) {
     try { files[f] = await fetchText(`${modBaseUrl(VANILLA)}${f}`); } catch (e) { files[f] = '{}'; }
@@ -176,7 +177,8 @@ async function applyMod(mod) {
   try {
     const roles = JSON.parse(mod.files['data/roles.json'] || '[]');
     const cards = JSON.parse(mod.files['data/cards.json'] || '[]');
-    setDefaultData(roles, cards);
+    const factions = JSON.parse(mod.files['data/factions.json'] || '[]');
+    setDefaultData(roles, cards, factions);
   } catch (e) { /* ignore */ }
   // 声音
   const soundContent = mod.files['assets/sound/sound.json'];

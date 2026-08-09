@@ -1,4 +1,4 @@
-import { $, show, toast } from './util.js';
+import { $, show, toast, screenFromPath } from './util.js';
 import { state } from './state.js';
 import { t, initLocale, setLocale, getLang } from './i18n.js';
 import { initAudio, setTypeVolume, getTypeVolume, setMasterVolume, getMasterVolume, updateBGM } from './sound.js';
@@ -7,7 +7,7 @@ import { updateEffTypes } from './data.js';
 import { startVsAI, startLocal, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice } from './pick.js';
 import { openEditor, setTab, editorActions } from './editor.js';
 import { playCardClick, endTurnClick } from './battle.js';
-import { lanCreate, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeServer, renderServerList, normalizeServerUrl } from './lan.js';
+import { lanCreate, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeServer, renderServerList, normalizeServerUrl, scanLan } from './lan.js';
 
 /* Tauri 原生窗口无网页地址相关行为（仅 web 端复制） */
 const IS_TAURI = '__TAURI__' in window;
@@ -21,15 +21,12 @@ function updateI18nElements() {
     if (val !== key) el.textContent = val;
   });
   document.title = t('menu.title');
-  const mt = document.querySelector('#sc-menu .m-title');
-  if (mt && !IS_TAURI) mt.title = t('menu.url_hint');
   const sel = $('lang-select');
   if (sel) sel.value = getLang();
 }
 
 window.addEventListener('locale-changed', () => {
   updateI18nElements();
-  renderMenuAddr();
   // Re-render current screen with new language
   if (state.PHASE_BATTLE && state.BATTLE) {
     renderBattle();
@@ -47,15 +44,18 @@ const actionMap = {
   'start-local': () => startLocal(),
   'open-lan': () => openLAN(),
   'open-editor': () => openEditor(),
+  'open-mods': () => { show('sc-mods'); renderModList(); },
   'open-settings': () => openSettings(),
   'set-accent': (el) => setAccent(el.dataset.color),
   'pick-custom': (el) => openColorPop(el),
   'cp-ok': () => applyCp(),
+  'cp-reset': () => resetCp(),
   'cp-cancel': () => closeCp(),
   'back-menu': () => backMenu(),
   'quit-battle': () => quitBattle(),
   'tab-role': () => setTab('role'),
   'tab-card': () => setTab('card'),
+  'tab-faction': () => setTab('faction'),
   'close-modal': () => closeModal(),
   'go-dice': () => goDice(),
   'lan-create': () => lanCreate(),
@@ -70,6 +70,7 @@ const actionMap = {
   'server-connect': (el) => lanConnect(el.dataset.url),
   'server-connect-input': () => lanConnect($('server-input').value),
   'server-del': (el) => removeServer(el.dataset.url),
+  'lan-scan': () => scanLan(),
   'lan-disconnect': () => lanDisconnect(),
   'set-pick': (el) => setPick(parseInt(el.dataset.slot), parseInt(el.dataset.index)),
   'pick-random': (el) => setPickRandom(parseInt(el.dataset.slot)),
@@ -109,9 +110,23 @@ $('theme-select').value = savedTheme;
 setTheme(savedTheme);
 $('theme-select').addEventListener('change', (e) => setTheme(e.target.value));
 
+// 主界面标语开关
+const splashToggle = $('splash-toggle');
+if (splashToggle) {
+  splashToggle.checked = localStorage.getItem('_show_splash') !== '0';
+  splashToggle.addEventListener('change', () => {
+    localStorage.setItem('_show_splash', splashToggle.checked ? '1' : '0');
+    renderMenuAddr();
+  });
+}
+
 /* ============ 主题色 ============ */
 const ACCENTS = ['#d9a441', '#e8833f', '#6fae4e', '#4d8fd4', '#9a6fd6', '#e96ba3', '#37a3a0'];
-const ACCENT_DEFAULT = '#d9a441';
+const ACCENT_NAMES = {
+  '#d9a441': '金色', '#e8833f': '橙色', '#6fae4e': '绿色',
+  '#4d8fd4': '蓝色', '#9a6fd6': '紫色', '#e96ba3': '粉色', '#37a3a0': '青色',
+};
+const ACCENT_DEFAULT = '#9a9a9a';
 const ACCENT_CUSTOM_KEY = 'accent_custom';
 
 function getSavedAccent() {
@@ -139,10 +154,12 @@ function renderAccentRow() {
   const current = getSavedAccent();
   const custom = getCustomAccent();
   const isPreset = ACCENTS.includes(current);
+  const hasCustom = localStorage.getItem(ACCENT_CUSTOM_KEY) !== null;
+  const customBg = hasCustom ? custom : '#555';
   row.innerHTML = ACCENTS.map(c =>
-    `<button class="accent-swatch ${c === current ? 'on' : ''}" data-action="set-accent" data-color="${c}" style="background:${c}" title="${c}"></button>`
+    `<button class="accent-swatch ${c === current ? 'on' : ''}" data-action="set-accent" data-color="${c}" style="background:${c}" title="${ACCENT_NAMES[c] || c}"></button>`
   ).join('')
-    + `<button class="accent-swatch custom ${custom === current && !isPreset ? 'on' : ''}" data-action="pick-custom" title="自定义" style="background:${custom}"></button>`;
+    + `<button class="accent-swatch custom ${custom === current && !isPreset ? 'on' : ''}" data-action="pick-custom" title="自定义" style="background:${customBg}"></button>`;
 }
 
 /* 拖拽连续选色 */
@@ -259,37 +276,61 @@ function buildShareUrl(ip) {
 const menuTitle = document.querySelector('#sc-menu .m-title');
 if (menuTitle) {
   menuTitle.addEventListener('click', () => {
-    toast(t('menu.url_copied'));
-    getLanIp(ip => {
-      copyToClipboard(buildShareUrl(ip)).then(ok => {
-        if (!ok) toast(t('menu.url_copy_failed'));
-      });
-    });
     menuTitle.classList.add('anim');
     clearTimeout(menuTitle._animT);
     menuTitle._animT = setTimeout(() => menuTitle.classList.remove('anim'), 900);
   });
 }
 
-// 菜单下方显示本机局域网地址（旧版功能回归）
+// 从本地 splash.txt 随机取一行作为提示文本
+function showSplash(label) {
+  fetch('card_duel/assets/splash.txt', { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('fail'); return r.text(); })
+    .then(text => {
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      if (lines.length && label) {
+        label.textContent = lines[Math.floor(Math.random() * lines.length)];
+      }
+    })
+    .catch(() => { /* ignore */ });
+}
+
+// 菜单下方显示地址（点击一言切换展开，点击地址复制）
 function renderMenuAddr() {
   const el = $('maddr');
   if (!el) return;
+  el.classList.remove('open');
+  el.innerHTML = '<div class="addr-label">' + t('menu.addr') + '</div><div class="addr-body"></div>';
+  const label = el.querySelector('.addr-label');
+  if (localStorage.getItem('_show_splash') !== '0') {
+    el.style.display = '';
+    showSplash(label);
+  } else {
+    el.style.display = 'none';
+    return;
+  }
+  el.querySelector('.addr-label').addEventListener('click', (e) => {
+    e.stopPropagation();
+    el.classList.toggle('open');
+  });
   getLanIp(ip => {
     const pi = ip || location.hostname || 'localhost';
     const port = location.port || '8788';
     const url = (h) => 'http://' + h + ':' + port + '/';
     const extra = ipListGlobal().filter(h => h && h !== pi);
-    let html = t('menu.addr') + '<br><b style="font-size:17px">' + url(pi) + '</b>';
-    if (extra.length) {
-      html += '<br><span class="dim" style="font-size:11px">' + extra.map(url).join(' · ') + '</span>';
-    }
-    el.innerHTML = html;
+    const extraHtml = extra.length ? '<div class="addr-extra">' + extra.map(url).join(' · ') + '</div>' : '';
+    const body = el.querySelector('.addr-body');
+    body.innerHTML = url(pi) + extraHtml;
+    body.addEventListener('click', (e) => {
+      e.stopPropagation();
+      getLanIp(ip2 => {
+        copyToClipboard(buildShareUrl(ip2)).then(ok => { if (ok) toast(t('menu.url_copied')); });
+      });
+    });
   });
 }
-renderMenuAddr();
 
-/* ============ 自定义色取色面板（方形预览，替换原生圆形） ============ */
+/* ============ 自定义色取色面板 ============ */
 const cpEl = $('cp-pop');
 const cpBox = cpEl.querySelector('.cp-box');
 const cpPad = cpEl.querySelector('#cp-pad');
@@ -315,7 +356,7 @@ function hsvToRgb(h, s, v) {
 
 function hexToRgb(hex) {
   const m = /^#?([0-9a-fA-F]{6})$/.exec(String(hex || ''));
-  if (!m) return [217, 164, 65];
+  if (!m) return [154, 154, 154];
   const n = parseInt(m[1], 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
@@ -384,7 +425,9 @@ function drawHue() {
 function cpRefresh() {
   const c = cpColor();
   cpPrev.style.background = c.rgb;
-  cpHex.textContent = c.hex;
+  cpHex.value = c.hex;
+  const btn = $('cp-ok-btn');
+  if (btn) btn.style.background = c.hex;
   drawHue();
   drawPad();
 }
@@ -409,6 +452,12 @@ function applyCp() {
   closeCp();
 }
 
+function resetCp() {
+  localStorage.removeItem(ACCENT_CUSTOM_KEY);
+  setAccent(ACCENT_DEFAULT);
+  closeCp();
+}
+
 function padPos(e) {
   const r = cpPad.getBoundingClientRect();
   cpCur.s = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
@@ -430,6 +479,16 @@ cpHue.addEventListener('pointerdown', (e) => { cpDrag = 'hue'; cpHue.setPointerC
 cpHue.addEventListener('pointermove', (e) => { if (cpDrag === 'hue') huePos(e); });
 cpHue.addEventListener('pointerup', () => { cpDrag = null; });
 
+// 手动输入 hex 值
+cpHex.addEventListener('change', () => {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(cpHex.value.trim());
+  if (!m) return;
+  const rgb = hexToRgb('#' + m[1]);
+  const hsv = rgbToHsv(rgb);
+  cpCur = { h: hsv.h, s: hsv.s, v: hsv.v };
+  cpRefresh();
+});
+
 function applyAccent() {
   document.documentElement.style.setProperty('--acc', getSavedAccent());
 }
@@ -437,7 +496,7 @@ function applyAccent() {
 /* ============ 设置页打开：tab 重置为默认 ============ */
 function resetSettingsTab() {
   document.querySelectorAll('#sc-settings .tabs .tab').forEach((b, i) => b.classList.toggle('on', i === 0));
-  ['lang', 'sound', 'mods'].forEach((id, i) => {
+  ['lang', 'sound'].forEach((id, i) => {
     const el = $('settings-' + id);
     if (el) el.style.display = i === 0 ? 'block' : 'none';
   });
@@ -466,11 +525,10 @@ document.addEventListener('click', (e) => {
   if (!tab) return;
   const t = tab.dataset.tab;
   document.querySelectorAll('#sc-settings .tabs .tab').forEach(b => b.classList.toggle('on', b === tab));
-  ['lang', 'sound', 'mods'].forEach(id => {
+  ['lang', 'sound'].forEach(id => {
     const el = $('settings-' + id);
     if (el) el.style.display = id === t ? 'block' : 'none';
   });
-  if (t === 'mods') renderModList();
 });
 
 /* 音量切换 */
@@ -495,6 +553,29 @@ document.querySelectorAll('.vol-slider').forEach(slider => {
     setFill(v);
     if (valueSpan) valueSpan.textContent = Math.round(v * 100) + '%';
   });
+  // 点击标签或数值切换静音/恢复
+  const row = slider.closest('.frow');
+  if (row) {
+    const label = row.querySelector('label');
+    const toggleMute = () => {
+      const cur = parseFloat(slider.value);
+      if (cur > 0) {
+        slider.dataset.prev = cur;
+        const v = 0;
+        if (type === 'master') setMasterVolume(v); else setTypeVolume(type, v);
+        slider.value = v; setFill(v);
+        if (valueSpan) valueSpan.textContent = '0%';
+      } else {
+        const prev = parseFloat(slider.dataset.prev) || 0.5;
+        const v = Math.min(1, Math.max(0, prev));
+        if (type === 'master') setMasterVolume(v); else setTypeVolume(type, v);
+        slider.value = v; setFill(v);
+        if (valueSpan) valueSpan.textContent = Math.round(v * 100) + '%';
+      }
+    };
+    if (label) label.addEventListener('click', toggleMute);
+    if (valueSpan) valueSpan.addEventListener('click', toggleMute);
+  }
 });
 
 /* BGM 开关 */
@@ -586,6 +667,17 @@ window.addEventListener('screen-changed', () => updateBGM());
 initAudio();
 applyAccent();
 renderAccentRow();
+// 根据 URL 路径决定初始页面（如 /settings 直接显示设置）
+const initScreen = screenFromPath(location.pathname);
+if (initScreen === 'sc-settings') {
+  show('sc-settings');
+} else if (initScreen === 'sc-edit') {
+  const savedEdit = JSON.parse(localStorage.getItem('saved_edit') || '{}');
+  if (savedEdit.tab) setTab(savedEdit.tab);
+  show('sc-edit');
+} else {
+  show(initScreen);
+}
 initLocale().then(() => {
   updateI18nElements();
   renderMenuAddr();
@@ -595,25 +687,7 @@ loadMods().then(() => {
   updateI18nElements();
   updateBGM();
   renderModList();
-}).finally(() => restoreSavedScreen());
-// 兜底：5 秒后若还没恢复则强制执行
-setTimeout(() => {
-  const saved = sessionStorage.getItem('saved_screen');
-  if (saved) restoreSavedScreen();
-}, 5000);
-
-function restoreSavedScreen() {
-  const saved = sessionStorage.getItem('saved_screen');
-  if (saved === 'sc-settings') {
-    show('sc-settings');
-  } else if (saved === 'sc-edit') {
-    const savedEdit = JSON.parse(localStorage.getItem('saved_edit') || '{}');
-    if (savedEdit.tab) setTab(savedEdit.tab);
-    show('sc-edit');
-  } else {
-    show('sc-menu');
-  }
-}
+});
 
 window.addEventListener('mods-reloaded', () => {
   updateEffTypes();

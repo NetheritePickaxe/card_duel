@@ -27,19 +27,31 @@ export function shuffle(a) {
   return a;
 }
 
+export function screenFromPath(path) {
+  const map = { '/': 'sc-menu', '/settings': 'sc-settings', '/edit': 'sc-edit', '/battle': 'sc-battle', '/select': 'sc-pick', '/lan': 'sc-lan', '/dice': 'sc-dice', '/mods': 'sc-mods' };
+  return map[path] || 'sc-menu';
+}
+
 export function show(id) {
   window.scrollTo(0, 0);
-  document.documentElement.classList.remove('init-menu', 'init-sc-settings', 'init-sc-edit');
+  document.documentElement.className = document.documentElement.className.replace(/\binit-\S+/g, '').trim();
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
   const el = $(id);
   el.classList.add('on');
   el.scrollTop = 0;
-  // 保存可恢复的屏幕到 sessionStorage（按标签页隔离，新标签页从主界面开始）
-  const saveable = ['sc-settings', 'sc-edit'];
-  if (saveable.includes(id)) sessionStorage.setItem('saved_screen', id);
-  else sessionStorage.removeItem('saved_screen');
+  const route = { 'sc-menu': '/', 'sc-settings': '/settings', 'sc-edit': '/edit', 'sc-battle': '/battle', 'sc-pick': '/select', 'sc-lan': '/lan', 'sc-dice': '/dice', 'sc-mods': '/mods' }[id];
+  if (route && location.pathname !== route) history.pushState({ screen: id }, '', route);
   window.dispatchEvent(new CustomEvent('screen-changed', { detail: { screen: id } }));
 }
+
+// 浏览器前进/后退
+window.addEventListener('popstate', () => {
+  const id = screenFromPath(location.pathname);
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+  const el = $(id);
+  if (el) { el.classList.add('on'); el.scrollTop = 0; }
+  window.dispatchEvent(new CustomEvent('screen-changed', { detail: { screen: id } }));
+});
 
 export function toast(msg) {
   const el = document.getElementById('toast');

@@ -15,8 +15,8 @@ run() {
 if [ "$1" = "--server" ]; then
     run
 else
-    echo "卡牌对决 Web 版启动中（内置 Rust 服务器，端口 8788）"
-    echo "浏览器打开 http://localhost:8788"
-    echo "其他设备打开 http://<本机IP>:8788（地址显示在主菜单下方）"
+    echo "CardDuel Web Server (port 8788)"
+    echo "Browser: http://localhost:8788"
+    echo "Other devices: see IP shown in the menu"
     run
 fi
