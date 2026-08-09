@@ -6,6 +6,7 @@ mod server;
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.contains(&"--server".to_string()) {
+        server::set_disk_mode(true);
         let state = std::sync::Arc::new(server::ServerState::default());
         let cert = args
             .iter()

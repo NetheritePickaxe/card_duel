@@ -4,24 +4,24 @@
       "stream": false,
       "volume": 1.0,
       "tracks": [
-        { "file": "sound/bgm/menu.ogg", "weight": 1, "volume": 1.0 }
+        { "file": "card_duel/assets/sound/bgm/menu.ogg", "weight": 1, "volume": 1.0 }
       ]
     },
     "battle": {
       "stream": true,
       "volume": 1.0,
       "tracks": [
-        { "file": "sound/bgm/bgm1.ogg", "weight": 1, "volume": 1.0 },
-        { "file": "sound/bgm/bgm3.ogg", "weight": 1, "volume": 1.0 },
-        { "file": "sound/bgm/bgm4.ogg", "weight": 1, "volume": 1.0 },
-        { "file": "sound/bgm/bgm5.ogg", "weight": 1, "volume": 1.0 }
+        { "file": "card_duel/assets/sound/bgm/bgm1.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "card_duel/assets/sound/bgm/bgm3.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "card_duel/assets/sound/bgm/bgm4.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "card_duel/assets/sound/bgm/bgm5.ogg", "weight": 1, "volume": 1.0 }
       ]
     },
     "tutorial": {
       "stream": false,
       "volume": 1.0,
       "tracks": [
-        { "file": "sound/bgm/tutorial.ogg", "weight": 1, "volume": 1.0 }
+        { "file": "card_duel/assets/sound/bgm/tutorial.ogg", "weight": 1, "volume": 1.0 }
       ]
     }
   },

@@ -1,15 +1,15 @@
 <div align="center">
 
-<img src="src-tauri/icons/icon.png" width="120" alt="Card Duel Logo" />
+<img src="src-tauri/icons/icon_alpha.png" width="120" alt="Card Duel Logo" />
 
 # 卡牌对决 · Card Duel
 
-[![Tauri](https://img.shields.io/badge/Tauri-2.x-ff4c15?style=for-the-badge&logo=tauri)](https://tauri.app)
+[![Tauri](https://img.shields.io/badge/Tauri-v2-ff4c15?style=for-the-badge&logo=tauri)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-1.75+-yellow?style=for-the-badge&logo=rust)](https://www.rust-lang.org)
 [![GitHub release](https://img.shields.io/github/v/release/NetheritePickaxe/card_duel?style=for-the-badge)](https://github.com/NetheritePickaxe/card_duel/releases)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Android%20%7C%20Web-4CAF50?style=for-the-badge)](https://github.com/NetheritePickaxe/card_duel)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Android%20%7Cd.%20Web-4CAF50?style=for-the-badge)](https://github.com/NetheritePickaxe/card_duel)
 [![License](https://img.shields.io/github/license/NetheritePickaxe/card_duel?style=for-the-badge)](https://github.com/NetheritePickaxe/card_duel/blob/main/LICENSE)
-[![Web Demo](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E4%BD%93%E9%AA%8C-Web%20Demo-6e40c9?style=for-the-badge&logo=githubpages)](https://NetheritePickaxe.github.io/card_duel/)
+[![Web Demo](https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E4%BD%93%E9%AA%8C-Web%20Demo-6e40c9?style=for-the-badge)](https://NetheritePickaxe.github.io/card_duel/)
 
 **跨平台卡牌对战游戏** · Tauri + Rust 后端 · 支持 Windows / Android / Web 浏览器
 

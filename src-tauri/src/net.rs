@@ -1,33 +1,56 @@
 use std::collections::HashSet;
-use std::net::{IpAddr, UdpSocket};
+use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 
-/// Enumerate non-loopback IPv4 addresses
+fn is_private(ip: &Ipv4Addr) -> bool {
+    let [a, b, _, _] = ip.octets();
+    a == 10 || (a == 172 && (16..=31).contains(&b)) || (a == 192 && b == 168)
+}
+
+/// 可用的主机地址：排除环回/组播/未指定，以及子网掩码（全 0 全 255）等垃圾
+fn is_usable(ip: &Ipv4Addr) -> bool {
+    !ip.is_loopback()
+        && !ip.is_multicast()
+        && !ip.is_unspecified()
+        && ip.octets().iter().any(|o| *o != 0 && *o != 255)
+}
+
+/// Enumerate non-loopback IPv4 addresses (default-route interface first)
 pub fn local_ips() -> Vec<String> {
-    let mut ips = HashSet::new();
+    let mut ips: HashSet<String> = HashSet::new();
+    let mut best: Option<String> = None;
 
-    // UDP socket approach
-    for suffix in ["255.255.255.255", "224.0.0.251"] {
+    // UDP 选路（不实际发包，离线也可用）：列出各网卡真实出口地址。连 8.8.8.8 拿到的是
+    // “默认路由”网卡 IP，即局域网内其他设备真正能访问到本机的那个地址。
+    for (suffix, is_best) in [
+        ("255.255.255.255:0", false),
+        ("224.0.0.251:5353", false),
+        ("8.8.8.8:80", true),
+    ] {
         if let Ok(soc) = UdpSocket::bind("0.0.0.0:0") {
             if soc.connect(suffix).is_ok() {
                 if let Ok(name) = soc.local_addr() {
-                    let ip = name.ip();
-                    if matches!(ip, IpAddr::V4(v) if !v.is_loopback() && !v.is_multicast()) {
-                        ips.insert(ip.to_string());
+                    if let IpAddr::V4(ip) = name.ip() {
+                        if is_usable(&ip) {
+                            let s = ip.to_string();
+                            if is_best {
+                                best = Some(s.clone());
+                            }
+                            ips.insert(s);
+                        }
                     }
                 }
             }
         }
     }
 
-    // Windows: parse ipconfig output
-    #[cfg(windows)]
+    // 双 Windows: 解析 ipconfig，只收内网/私有地址，规避子网掩码（255.255.255.0）等噪声。
     {
         if let Ok(out) = std::process::Command::new("ipconfig").output() {
             let text = String::from_utf8_lossy(&out.stdout);
             for line in text.lines() {
                 for part in line.split_whitespace() {
-                    if let Ok(ip) = part.parse::<std::net::Ipv4Addr>() {
-                        if !ip.is_loopback() && !ip.is_multicast() && !ip.is_unspecified() {
+                    if let Ok(ip) = part.parse::<Ipv4Addr>() {
+                        if is_private(&ip) {
                             ips.insert(ip.to_string());
                         }
                     }
@@ -36,105 +59,28 @@ pub fn local_ips() -> Vec<String> {
         }
     }
 
-    // Sort: LAN first
-    let mut ips: Vec<String> = ips.into_iter().collect();
-    ips.sort_by_key(|ip| {
-        !(ip.starts_with("192.168.") || ip.starts_with("10.") || ip.starts_with("172."))
-    });
-    ips
+    let mut list: Vec<String> = ips.into_iter().collect();
+    // 默认路由网卡 IP 放最前
+    if let Some(b) = &best {
+        if let Some(pos) = list.iter().position(|x| x == b) {
+            list.remove(pos);
+            list.insert(0, b.clone());
+        }
+    } else {
+        // 无默认路由信息时，内网优先排序
+        list.sort_by_key(|ip| {
+            !(ip.starts_with("192.168.") || ip.starts_with("10.") || ip.starts_with("172."))
+        });
+    }
+    list
 }
 
-/// Virtual network prefixes to skip when choosing the best LAN IP
-#[cfg(windows)]
-const VIRTUAL_NET_PREFIXES: &[&str] = &[
-    "192.168.182.",
-    "192.168.9.",
-    "192.168.56.",
-    "192.168.137.",
-    "169.254.",
-];
-
-/// Get the best LAN IP for phones to connect
+/// Get the best LAN IP for phones to connect (default-route interface first)
 pub fn lan_ip() -> String {
-    #[cfg(windows)]
-    {
-        if let Some(ip) = parse_ipconfig_for_best_ip() {
-            return ip;
-        }
-    }
-
-    // Fallback: first non-loopback
-    let ips = local_ips();
-    ips.first()
+    local_ips()
+        .first()
         .cloned()
         .unwrap_or_else(|| "127.0.0.1".to_string())
-}
-
-#[cfg(windows)]
-fn parse_ipconfig_for_best_ip() -> Option<String> {
-    let out = std::process::Command::new("ipconfig").output().ok()?;
-    let text = String::from_utf8_lossy(&out.stdout);
-    let lines: Vec<&str> = text.lines().collect();
-
-    let mut blocks: Vec<Vec<&str>> = Vec::new();
-    let mut cur: Vec<&str> = Vec::new();
-    for ln in &lines {
-        if ln.trim().is_empty() {
-            if !cur.is_empty() {
-                blocks.push(std::mem::take(&mut cur));
-            }
-        } else {
-            cur.push(ln);
-        }
-    }
-    if !cur.is_empty() {
-        blocks.push(cur);
-    }
-
-    let mut gw: Vec<String> = Vec::new();
-    let mut cands: Vec<String> = Vec::new();
-
-    for blk in &blocks {
-        let mut ip: Option<String> = None;
-        let mut has_gw = false;
-        for ln in blk {
-            for part in ln.split_whitespace() {
-                if let Ok(parsed) = part.parse::<std::net::Ipv4Addr>() {
-                    if !parsed.is_loopback() && !parsed.is_multicast() && ip.is_none() {
-                        ip = Some(parsed.to_string());
-                    }
-                }
-            }
-            if ln.contains("默认网关") {
-                has_gw = true;
-            }
-        }
-        if let Some(ip) = ip {
-            cands.push(ip.clone());
-            if has_gw {
-                gw.push(ip);
-            }
-        }
-    }
-
-    // Prefer gateway IPs on LAN subnets
-    for ip in &gw {
-        if ip.starts_with("192.168.") || ip.starts_with("10.") || ip.starts_with("172.") {
-            return Some(ip.clone());
-        }
-    }
-    if !gw.is_empty() {
-        return Some(gw[0].clone());
-    }
-
-    // Skip virtual network prefixes
-    for ip in &cands {
-        let is_lan = ip.starts_with("192.168.") || ip.starts_with("10.") || ip.starts_with("172.");
-        if is_lan && !VIRTUAL_NET_PREFIXES.iter().any(|b| ip.starts_with(b)) {
-            return Some(ip.clone());
-        }
-    }
-    cands.first().cloned()
 }
 
 #[cfg(test)]

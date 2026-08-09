@@ -8,12 +8,27 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
+<script>
+(function(){
+  var s = sessionStorage.getItem('saved_screen');
+  if (s === 'sc-settings' || s === 'sc-edit') {
+    document.documentElement.classList.add('init-' + s);
+  } else {
+    document.documentElement.classList.add('init-menu');
+  }
+  var t = localStorage.getItem('theme') || 'dark';
+  if (t === 'light') document.documentElement.dataset.theme = 'light';
+  else if (t === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches) document.documentElement.dataset.theme = 'light';
+})();
+</script>
 </head>
 <body>
 
-<div class="screen on" id="sc-menu">
+<div class="screen" id="sc-menu">
   <div class="menu">
-    <h1><span data-i18n="menu.title">卡牌对决</span></h1>
+    <button class="m-title">
+        <span class="tt-l" data-i18n="menu.title_l">卡牌</span><span class="tt-r" data-i18n="menu.title_r">对决</span>
+      </button>
     <div class="mbtn" data-action="start-ai"><span data-i18n="menu.ai">单人对战 · AI</span><small data-i18n="menu.ai_hint">与电脑对战</small></div>
     <div class="mbtn" data-action="start-local"><span data-i18n="menu.local">本地对战</span><small data-i18n="menu.local_hint">同屏轮流操作</small></div>
     <div class="mbtn" data-action="open-lan"><span data-i18n="menu.lan">局域网对战</span><small data-i18n="menu.lan_hint">电脑与手机联机</small></div>
@@ -25,11 +40,11 @@
 </div>
 
 <div class="screen" id="sc-settings">
-  <div class="hd"><button data-action="back-menu">← 返回</button><h1 data-i18n="settings.title">设置</h1></div>
+  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="settings.title">设置</h1></div>
   <div class="tabs">
-    <button class="tab on" data-action="settings-tab" data-tab="lang">语言</button>
-    <button class="tab" data-action="settings-tab" data-tab="volume">音量</button>
-    <button class="tab" data-action="settings-tab" data-tab="mods">模组</button>
+    <button class="tab on" data-action="settings-tab" data-tab="lang" data-i18n="settings.lang">语言</button>
+    <button class="tab" data-action="settings-tab" data-tab="sound" data-i18n="settings.sound">声音</button>
+    <button class="tab" data-action="settings-tab" data-tab="mods" data-i18n="settings.mods">模组</button>
   </div>
   <div id="settings-lang">
     <div style="max-width:400px;margin:10px auto">
@@ -40,13 +55,27 @@
           <option value="en_us" data-i18n="settings.lang_en">English</option>
         </select>
       </div>
+      <div class="frow">
+        <label data-i18n="settings.theme">主题</label>
+        <select id="theme-select">
+          <option value="light" data-i18n="settings.theme_light">浅色</option>
+          <option value="dark" data-i18n="settings.theme_dark">深色</option>
+          <option value="system" data-i18n="settings.theme_system">跟随系统</option>
+        </select>
+      </div>
+      <div class="frow">
+        <label data-i18n="settings.accent">主题色</label>
+        <div class="accent-row" id="accent-row"></div>
+      </div>
     </div>
   </div>
-  <div id="settings-volume" style="display:none">
+  <div id="settings-sound" style="display:none">
     <div style="max-width:400px;margin:10px auto">
-      <div class="frow"><label data-i18n="settings.vol_bgm">音乐音量</label><input type="range" class="vol-slider" data-type="bgm" min="0" max="1" step="0.05" value="0.3"></div>
-      <div class="frow"><label data-i18n="settings.vol_sfx">音效音量</label><input type="range" class="vol-slider" data-type="sfx" min="0" max="1" step="0.05" value="0.8"></div>
-      <div class="frow"><label data-i18n="settings.vol_voice">语音音量</label><input type="range" class="vol-slider" data-type="voice" min="0" max="1" step="0.05" value="0.8"></div>
+      <div class="frow"><label data-i18n="settings.master_vol">主音量</label><input type="range" class="vol-slider" data-type="master" min="0" max="1" step="0.05" value="1.0"><span class="vol-value">100%</span></div>
+      <div style="margin:10px 0;border-top:1px solid var(--ln)"></div>
+      <div class="frow"><label data-i18n="settings.vol_bgm">音乐音量</label><input type="range" class="vol-slider" data-type="bgm" min="0" max="1" step="0.05" value="0.3"><span class="vol-value">30%</span></div>
+      <div class="frow"><label data-i18n="settings.vol_sfx">音效音量</label><input type="range" class="vol-slider" data-type="sfx" min="0" max="1" step="0.05" value="0.8"><span class="vol-value">80%</span></div>
+      <div class="frow"><label data-i18n="settings.vol_voice">语音音量</label><input type="range" class="vol-slider" data-type="voice" min="0" max="1" step="0.05" value="0.8"><span class="vol-value">80%</span></div>
     </div>
   </div>
   <div id="settings-mods" style="display:none">
@@ -62,7 +91,7 @@
 </div>
 
 <div class="screen" id="sc-edit">
-  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="edit.title">数据编辑</h1><span class="sp"></span><span class="dim" data-i18n="auto_save">自动保存</span></div>
+  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="edit.title">数据编辑</h1></div>
   <div class="tabs">
     <button class="tab on" data-action="tab-role"><span data-i18n="edit.tab_role">角色</span></button>
     <button class="tab" data-action="tab-card"><span data-i18n="edit.tab_card">技能卡牌</span></button>
@@ -115,9 +144,9 @@
 
     <div id="add-server-section">
       <div class="frow"><label data-i18n="lan.server_addr">服务器地址</label><input id="server-input" placeholder="192.168.1.100" value=""></div>
-      <div style="display:flex;gap:8px">
-        <button class="primary" data-action="server-add" style="flex:1" data-i18n="lan.add_server">添加服务器</button>
-        <button data-action="server-connect-input" style="flex:1" data-i18n="lan.connect">连接</button>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button class="primary" data-action="server-add" style="padding:5px 16px" data-i18n="lan.add_server">添加服务器</button>
+        <button data-action="server-connect-input" style="padding:5px 16px" data-i18n="lan.connect_input">直接连接</button>
       </div>
     </div>
 
@@ -153,7 +182,21 @@
 <div id="fx-layer"><div id="fly-card"></div></div>
 <div id="modal"><div class="mback" data-action="close-modal"></div><div class="mbox" id="mbox"></div></div>
 
-<audio id="bgm" loop preload="auto"></audio>
+<audio id="bgm" preload="auto"></audio>
+<div id="toast"></div>
+<div id="cp-pop" style="display:none">
+  <div class="cp-back" data-action="cp-cancel"></div>
+  <div class="cp-box">
+    <div class="cp-row"><div class="cp-preview" id="cp-preview"></div><span id="cp-hex" class="dim"></span></div>
+    <canvas class="cp-pad" id="cp-pad" width="220" height="150"></canvas>
+    <canvas class="cp-hue" id="cp-hue" width="220" height="18"></canvas>
+    <div class="cp-row"><button class="primary" data-action="cp-ok" data-i18n="settings.cp_apply">应用</button><button data-action="cp-cancel" data-i18n="settings.cp_cancel">取消</button></div>
+  </div>
+</div>
+<script>
+  const __IP_LIST__ = [];
+  const __PHONE_IP__ = "";
+</script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

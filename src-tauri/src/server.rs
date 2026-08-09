@@ -1,11 +1,64 @@
 use std::collections::HashMap;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use tiny_http::{Header, Request, Response, Server, StatusCode};
+
+/// Web 启动模式（--server）：静态文件只从磁盘读，支持热重载；
+/// 桌面模式默认 false：只用 exe 内嵌副本，不碰磁盘。
+static DISK_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[allow(dead_code)]
+pub fn set_disk_mode(on: bool) {
+    DISK_MODE.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+fn is_disk_mode() -> bool {
+    DISK_MODE.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// 前端静态文件根目录（仅 web 模式使用）。启动后自动定位一次。
+static WEB_ROOT: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
+
+fn web_root() -> Option<&'static PathBuf> {
+    WEB_ROOT
+        .get_or_init(|| {
+            let mut candidates: Vec<PathBuf> = Vec::new();
+            if let Ok(exe) = std::env::current_exe() {
+                if let Some(dir) = exe.parent() {
+                    candidates.push(dir.join("..").join("..").join("app"));
+                    candidates.push(dir.join("..").join("..").join("..").join("app"));
+                    candidates.push(dir.join("app"));
+                }
+            }
+            if let Ok(cwd) = std::env::current_dir() {
+                candidates.push(cwd.join("app"));
+            }
+            for c in candidates {
+                if c.join("index.html").exists() {
+                    return Some(c);
+                }
+            }
+            None
+        })
+        .as_ref()
+}
+
+/// Windows 控制台默认 GBK，先切到 UTF-8，避免中文打印乱码
+#[cfg(windows)]
+fn set_utf8_console() {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn SetConsoleOutputCP(cp: u32) -> i32;
+    }
+    unsafe {
+        SetConsoleOutputCP(65001);
+    }
+}
 
 /// Start the LAN server in a background daemon thread (used by desktop & Android).
 pub fn start_background_server() {
@@ -124,11 +177,16 @@ impl ServerState {
     }
 
     fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
+        #[cfg(windows)]
+        set_utf8_console();
+        if is_disk_mode() && web_root().is_none() {
+            eprintln!("警告：未找到 app/ 目录，网页静态文件将无法加载。请从项目目录运行。");
+        }
         let server: Server = match tls {
             #[cfg(feature = "tls")]
             Some((cert, key)) => {
                 let cert_pem = std::fs::read_to_string(&cert).unwrap_or_else(|e| {
-                    eprintln!("Failed to read cert file {}: {}", cert, e);
+                    eprintln!("读取证书文件失败 {}: {}", cert, e);
                     std::process::exit(1);
                 });
                 let key_pem = std::fs::read_to_string(&key).unwrap_or_else(|e| {
@@ -150,26 +208,26 @@ impl ServerState {
                 match Server::https(("0.0.0.0", PORT), builder.build()) {
                     Ok(s) => s,
                     Err(e) => {
-                        eprintln!("Failed to start HTTPS server on port {}: {}", PORT, e);
-                        std::process::exit(1);
+                        eprintln!("端口 {} 启动 HTTPS 服务器失败: {}", PORT, e);
+                        return;
                     }
                 }
-            }
+            },
             #[cfg(not(feature = "tls"))]
             Some(_) => {
-                eprintln!("HTTPS support not compiled in. Build with --features tls.");
-                std::process::exit(1);
+                eprintln!("未启用 HTTPS 支持，请使用 --features tls 重新构建。");
+                return;
             }
             None => match Server::http(("0.0.0.0", PORT)) {
                 Ok(s) => s,
                 Err(e) => {
-                    eprintln!("Failed to start server on port {}: {}", PORT, e);
+                    eprintln!("端口 {} 启动服务器失败（可能被占用）: {}", PORT, e);
                     return;
                 }
             },
         };
         let proto = if tls.is_some() { "https" } else { "http" };
-        println!("Server started on {}://0.0.0.0:{}", proto, PORT);
+        println!("服务器已启动: {}://0.0.0.0:{}", proto, PORT);
 
         // Cleanup thread
         let cleanup_rooms = self.rooms.clone();
@@ -251,7 +309,7 @@ impl ServerState {
     }
 
     fn serve_file(&self, request: Request, path: &str, content_type: &str) {
-        let content = match static_file(path) {
+        let content = match load_static(path) {
             Some(bytes) => bytes,
             None => {
                 self.respond_json(
@@ -268,7 +326,7 @@ impl ServerState {
             let ips = crate::net::local_ips();
             let ip = crate::net::lan_ip();
             let ip_list = serde_json::to_string(&ips).unwrap_or_else(|_| "[]".to_string());
-            let html = String::from_utf8_lossy(content);
+            let html = String::from_utf8_lossy(&content);
             html.replace(
                 "const __IP_LIST__ = [];",
                 &format!("const __IP_LIST__ = {};", ip_list),
@@ -279,7 +337,7 @@ impl ServerState {
             )
             .into_bytes()
         } else {
-            content.to_vec()
+            content
         };
 
         let headers = vec![
@@ -852,7 +910,22 @@ fn base64_encode(data: &[u8]) -> String {
     out
 }
 
-fn static_file(path: &str) -> Option<&'static [u8]> {
+/// 静态文件加载，两种模式互不混合：
+/// - web 模式（--server）：只从磁盘读，读不到=404，绝不回退内嵌副本（避免静默旧文件）
+/// - 桌面模式：只用 exe 内嵌副本，不碰磁盘
+fn load_static(path: &str) -> Option<Vec<u8>> {
+    let rel = path.trim_start_matches('/');
+    if rel.contains("..") {
+        return None;
+    }
+    if is_disk_mode() {
+        web_root().and_then(|root| std::fs::read(root.join(rel)).ok())
+    } else {
+        embedded_static_file(path).map(|bytes| bytes.to_vec())
+    }
+}
+
+fn embedded_static_file(path: &str) -> Option<&'static [u8]> {
     Some(match path {
         "/index.html" => include_bytes!("../../app/index.html"),
         "/manifest.json" => include_bytes!("../../app/manifest.json"),

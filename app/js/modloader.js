@@ -95,16 +95,18 @@ async function loadVanillaMod() {
 }
 
 async function loadPlayerMods() {
-  const keys = await idbKeys();
-  const mods = [];
-  for (const id of keys) {
-    const rec = await idbGet(id);
-    if (!rec || !rec.meta) continue;
-    const order = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
-    const enabled = order.includes(id) ? true : (rec.enabled ?? true);
-    mods.push({ id, meta: rec.meta, builtin: false, files: rec.files, enabled });
-  }
-  return mods;
+  try {
+    const keys = await idbKeys();
+    const mods = [];
+    for (const id of keys) {
+      const rec = await idbGet(id);
+      if (!rec || !rec.meta) continue;
+      const order = JSON.parse(localStorage.getItem(ORDER_KEY) || '[]');
+      const enabled = order.includes(id) ? true : (rec.enabled ?? true);
+      mods.push({ id, meta: rec.meta, builtin: false, files: rec.files, enabled });
+    }
+    return mods;
+  } catch (e) { return []; }
 }
 
 function getPriorityOrder() {

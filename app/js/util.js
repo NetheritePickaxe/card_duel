@@ -28,7 +28,24 @@ export function shuffle(a) {
 }
 
 export function show(id) {
+  window.scrollTo(0, 0);
+  document.documentElement.classList.remove('init-menu', 'init-sc-settings', 'init-sc-edit');
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
-  $(id).classList.add('on');
+  const el = $(id);
+  el.classList.add('on');
+  el.scrollTop = 0;
+  // 保存可恢复的屏幕到 sessionStorage（按标签页隔离，新标签页从主界面开始）
+  const saveable = ['sc-settings', 'sc-edit'];
+  if (saveable.includes(id)) sessionStorage.setItem('saved_screen', id);
+  else sessionStorage.removeItem('saved_screen');
   window.dispatchEvent(new CustomEvent('screen-changed', { detail: { screen: id } }));
+}
+
+export function toast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 1800);
 }

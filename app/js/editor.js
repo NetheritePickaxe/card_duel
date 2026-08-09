@@ -1,8 +1,14 @@
-import { $, esc, IS_MOBILE } from './util.js';
+import { $, esc, IS_MOBILE, toast } from './util.js';
 import { state } from './state.js';
 import { DB, saveDB, EFF_TYPES, FX_FORMS, defaultFx, compressImage, genDesc } from './data.js';
 import { t } from './i18n.js';
 import { show } from './util.js';
+
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
 
 export function openEditor() {
   state.EDIT = { tab: 'role', sel: null };
@@ -13,6 +19,7 @@ export function openEditor() {
 export function setTab(tab) {
   state.EDIT.tab = tab;
   state.EDIT.sel = null;
+  saveEditState();
   $('edit-role').style.display = tab === 'role' ? 'flex' : 'none';
   $('edit-card').style.display = tab === 'card' ? 'flex' : 'none';
   document.querySelectorAll('.tab').forEach((b, i) => b.classList.toggle('on', i === (tab === 'role' ? 0 : 1)));
@@ -25,21 +32,28 @@ export function renderEditList() {
       `<button class="item ${state.EDIT.sel === r.id ? 'sel' : ''}" data-action="edit-sel-role" data-index="${i}">
         <div class="thumb">${r.img ? `<img src="${r.img}">` : ''}</div><div><b>${esc(r.name)}</b><div class="dim" style="font-size:11px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div></div></button>`).join('')
       + (!IS_MOBILE ? `<button data-action="new-role" style="padding:8px">${t('edit.new_role')}</button>` : '');
-    const r = DB.roles.find(x => x.id === state.EDIT.sel);
-    renderRoleForm(r || DB.roles[0]);
+    const r = DB.roles.find(x => x.id === state.EDIT.sel) || DB.roles[0];
+    if (r) { renderRoleForm(r); $('role-form').style.display = ''; }
+    else $('role-form').style.display = 'none';
   } else {
     $('card-list').innerHTML = DB.cards.map((c, i) =>
       `<button class="item ${state.EDIT.sel === c.id ? 'sel' : ''}" data-action="edit-sel-card" data-index="${i}">
         <div class="thumb">${c.img ? `<img src="${c.img}">` : ''}</div><div><b>${esc(c.name)}</b><div class="dim" style="font-size:11px">${c.cost}${t('edit.cost')} · ${esc(c.desc || genDesc(c.effects))}</div></div></button>`).join('')
       + (!IS_MOBILE ? `<button data-action="new-card" style="padding:8px">${t('edit.new_card')}</button>` : '');
-    const c = DB.cards.find(x => x.id === state.EDIT.sel);
-    renderCardForm(c || DB.cards[0]);
+    const c = DB.cards.find(x => x.id === state.EDIT.sel) || DB.cards[0];
+    if (c) { renderCardForm(c); $('card-form').style.display = ''; }
+    else $('card-form').style.display = 'none';
   }
 }
 
 function editSel(tab, i) {
   state.EDIT.sel = (tab === 'role' ? DB.roles[i].id : DB.cards[i].id);
+  saveEditState();
   renderEditList();
+}
+
+function saveEditState() {
+  localStorage.setItem('saved_edit', JSON.stringify({ tab: state.EDIT.tab, sel: state.EDIT.sel }));
 }
 
 function newRole() {
@@ -96,8 +110,9 @@ function renderRoleForm(r) {
     <div class="frow"><label>${t('edit.img')}</label><input id="rf-img" placeholder="${t('edit.img_placeholder')}" value="${esc(r.img || '')}"><input type="file" accept="image/*" data-action="load-img-role"></div>
     <div class="frow"><label>${t('edit.deck')}</label><span class="dim" style="font-size:11px">${t('edit.deck_hint')}</span></div>
     <div class="deck-box" id="deck-box"></div>
-    <div class="frow"><button class="primary" data-action="save-role">${t('edit.save_role')}</button><button data-action="new-role">${t('edit.new_role_btn')}</button><button style="color:var(--red)" data-action="del-role">${t('edit.del_role_btn')}</button></div>`;
+    <div class="frow"><button class="primary" data-action="save-role">${t('edit.save_role')}</button><button style="color:var(--red)" data-action="del-role">${t('edit.del_role_btn')}</button></div>`;
   renderDeckBox(r);
+  autoGrow($('rf-intro'));
 }
 
 function renderDeckBox(r) {
@@ -137,8 +152,9 @@ function renderCardForm(c) {
     <div class="frow"><label>${t('edit.effects')}</label><button data-action="add-eff">${t('edit.add_eff')}</button><span class="dim" style="font-size:11px">${t('edit.eff_hint')}</span></div>
     <div id="eff-list"></div>
     <div class="frow"><label>${t('edit.desc')}</label><textarea id="cf-desc" rows="2" placeholder="${t('edit.desc_placeholder')}">${esc(c.desc || '')}</textarea></div>
-    <div class="frow"><button class="primary" data-action="save-card">${t('edit.save_card')}</button><button data-action="new-card">${t('edit.new_card_btn')}</button><button style="color:var(--red)" data-action="del-card">${t('edit.del_card_btn')}</button></div>`;
+    <div class="frow"><button class="primary" data-action="save-card">${t('edit.save_card')}</button><button style="color:var(--red)" data-action="del-card">${t('edit.del_card_btn')}</button></div>`;
   c.effects.forEach(e => addEffRow(e));
+  autoGrow($('cf-desc'));
 }
 
 function addEffRow(e) {
@@ -194,6 +210,7 @@ function saveRole() {
   r.deck = r.deck || [];
   saveDB();
   renderEditList();
+  toast(t('edit.saved'));
 }
 
 function saveCard() {
@@ -207,6 +224,7 @@ function saveCard() {
   c.desc = manual || genDesc(c.effects);
   saveDB();
   renderEditList();
+  toast(t('edit.saved'));
 }
 
 function loadImg(kind) {
