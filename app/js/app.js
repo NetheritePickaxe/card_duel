@@ -3,12 +3,13 @@ import { state } from './state.js?v=__VERSION__';
 import { t, initLocale, setLocale, getLang } from './i18n.js?v=__VERSION__';
 import { initAudio, setTypeVolume, getTypeVolume, setMasterVolume, getMasterVolume, updateBGM } from './sound.js?v=__VERSION__';
 import { loadMods, reloadMods, getMods, getModConfigSchema, renderModConfig, importMod, deleteMod, getModOrder, setModOrder, setModEnabled, isModEnabled } from './modloader.js?v=__VERSION__';
-import { updateEffTypes } from './data.js?v=__VERSION__';
-import { startVsAI, startLocal, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice } from './pick.js?v=__VERSION__';
+import { initEffectMeta } from './data.js?v=__VERSION__';
+import { loadEngine } from './engine.js?v=__VERSION__';
+import { startVsCPU, startLocal, startLocalMulti, startCustom, setCustomMode, customNext, customPlayerCount, refreshCustomScreen, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice, updatePlayerCount, togglePickTeam, togglePickHuman } from './pick.js?v=__VERSION__';
 import { openEditor, setTab, editorActions } from './editor.js?v=__VERSION__';
 import { openLibrary, libraryActions } from './library.js?v=__VERSION__';
 import { playCardClick, endTurnClick } from './battle.js?v=__VERSION__';
-import { lanCreate, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeServer, renderServerList, normalizeServerUrl, scanLan } from './lan.js?v=__VERSION__';
+import { lanCreate, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeServer, renderServerList, normalizeServerUrl, scanLan, lanSetTeam, lanSetReady, lanAddCpu } from './lan.js?v=__VERSION__';
 
 /* Tauri 原生窗口无网页地址相关行为（仅 web 端复制） */
 const IS_TAURI = '__TAURI__' in window;
@@ -35,14 +36,20 @@ window.addEventListener('locale-changed', () => {
     renderEditList();
   } else if ($('sc-pick').classList.contains('on')) {
     renderSlots();
+  } else if ($('sc-custom').classList.contains('on')) {
+    refreshCustomScreen();
   }
 });
 
 /* ============ 事件委托 ============ */
 
 const actionMap = {
-  'start-ai': () => startVsAI(),
+  'start-cpu': () => startVsCPU(),
   'start-local': () => startLocal(),
+  'start-local-multi': () => startLocalMulti(),
+  'start-custom': () => startCustom(),
+  'custom-mode': (el) => setCustomMode(el.dataset.mode),
+  'custom-next': () => customNext(),
   'open-lan': () => openLAN(),
   'open-editor': () => openEditor(),
   'open-library': () => openLibrary(),
@@ -73,6 +80,13 @@ const actionMap = {
   'server-del': (el) => removeServer(el.dataset.url),
   'lan-scan': () => scanLan(),
   'lan-disconnect': () => lanDisconnect(),
+  'lan-add-cpu': (el) => lanAddCpu(parseInt(el.dataset.side)),
+  'lan-set-team': (el) => lanSetTeam(parseInt(el.dataset.side), parseInt(el.dataset.team)),
+  'lan-trigger-ready': () => {
+    const mySide = state.LAN.side;
+    const myReady = state.LAN.ready[mySide];
+    lanSetReady(mySide, !myReady);
+  },
   'set-pick': (el) => setPick(parseInt(el.dataset.slot), parseInt(el.dataset.index)),
   'pick-random': (el) => setPickRandom(parseInt(el.dataset.slot)),
   ...editorActions,
@@ -533,7 +547,7 @@ document.addEventListener('click', (e) => {
   });
 });
 
-/* 音量切换 */
+// 音量切换
 document.querySelectorAll('.vol-slider').forEach(slider => {
   const type = slider.dataset.type;
   if (type === 'master') {
@@ -581,6 +595,31 @@ document.querySelectorAll('.vol-slider').forEach(slider => {
 });
 
 /* BGM 开关 */
+
+/* 多人混战人数选择 */
+document.addEventListener('change', e => {
+  if (e.target.id === 'pk-player-count') {
+    updatePlayerCount();
+  }
+});
+
+/* 自定义游戏人数选择 */
+document.addEventListener('change', e => {
+  if (e.target.id === 'custom-player-count') {
+    customPlayerCount();
+  }
+});
+
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-action="toggle-pick-team"]')) {
+    const el = e.target.closest('[data-action="toggle-pick-team"]');
+    togglePickTeam(parseInt(el.dataset.slot));
+  }
+  if (e.target.closest('[data-action="toggle-pick-human"]')) {
+    const el = e.target.closest('[data-action="toggle-pick-human"]');
+    togglePickHuman(parseInt(el.dataset.slot));
+  }
+});
 
 /* 模组管理 */
 function renderModList() {
@@ -684,19 +723,21 @@ const initLocaleLoaded = initLocale().then(() => {
   renderMenuAddr();
 });
 const loadModsLoaded = loadMods().then(() => {
-  updateEffTypes();
   updateBGM();
   renderModList();
+});
+const engineLoaded = loadEngine().then(() => {
+  initEffectMeta();
 });
 // 等 locale 与 mod 都加载完毕后再统一应用 i18n，
 // 避免 loadMods 开头 clearTranslations() 清空 strings 后、
 // initLocale 的 fetch 尚未返回时，updateI18nElements 读到空表而保留 HTML 兜底文本。
-Promise.allSettled([initLocaleLoaded, loadModsLoaded]).then(() => {
+Promise.allSettled([initLocaleLoaded, loadModsLoaded, engineLoaded]).then(() => {
   updateI18nElements();
 });
 
 window.addEventListener('mods-reloaded', () => {
-  updateEffTypes();
+  initEffectMeta();
   updateI18nElements();
   updateBGM();
   renderModList();

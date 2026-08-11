@@ -1,6 +1,6 @@
 import { $, esc, IS_MOBILE, toast } from './util.js?v=__VERSION__';
 import { state } from './state.js?v=__VERSION__';
-import { DB, saveDB, EFF_TYPES, FX_FORMS, defaultFx, compressImage, genDesc, getFaction } from './data.js?v=__VERSION__';
+import { DB, saveDB, EFF_TYPES, FX_FORMS, defaultFx, compressImage, genDesc, getFaction, effMeta } from './data.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
 import { show } from './util.js?v=__VERSION__';
 
@@ -238,8 +238,9 @@ function addEff() { addEffRow(null); }
 
 function updateEffRow(box) {
   const t = box.querySelector('.et').value;
-  const noV = ['skip_turn', 'extra_turn'].includes(t);
-  const noD = ['damage', 'heal', 'draw', 'force_discard', 'energy', 'skip_turn', 'extra_turn'].includes(t);
+  const meta = effMeta(t);
+  const noV = meta && !meta.hasValue;
+  const noD = meta && !meta.hasDuration;
   box.querySelector('.ev').style.display = noV ? 'none' : '';
   box.querySelector('.ed').style.display = noD ? 'none' : '';
   box.querySelector('.ep').style.display = t === 'damage' ? '' : 'none';

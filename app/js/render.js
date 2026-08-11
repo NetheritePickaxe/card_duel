@@ -2,7 +2,7 @@ import { $, esc, show } from './util.js?v=__VERSION__';
 import { state } from './state.js?v=__VERSION__';
 import { genDesc, buffName, effFx } from './data.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
-import { cardCost, canOperate } from './core.js?v=__VERSION__';
+import { cardCost, canOperate, lanMyIndex } from './core.js?v=__VERSION__';
 import { updateBGM } from './sound.js?v=__VERSION__';
 
 export function flyCardHTML(c) {
@@ -12,7 +12,7 @@ export function flyCardHTML(c) {
 }
 
 export function playFx(pi, fx) {
-  const el = $('pzone-' + (pi === 0 ? 'up' : 'dn')).querySelector('.avatar');
+  const el = $('pzone-' + pi)?.querySelector('.avatar');
   if (!el) return;
   el.style.setProperty('--fx-color', fx.color || '#ff3b30');
   el.classList.remove('fx', 'fx-flash', 'fx-overlay', 'fx-pulse', 'hit');
@@ -41,8 +41,9 @@ export function renderP(pi, el) {
   const b = state.BATTLE, P = b.players[pi];
   const acting = pi === b.actor && !b.winner;
   el.className = 'pzone' + (acting ? ' acting' : '');
+  el.id = 'pzone-' + pi;
   const canAct = acting && canOperate(pi);
-  const reveal = Array.isArray(P.hand) && pi === b.actor && !(b.mode === 'ai' && pi === 0);
+  const reveal = Array.isArray(P.hand) && pi === b.actor && !(b.mode === 'cpu' && !b.humans[pi]);
   const handN = Array.isArray(P.hand) ? P.hand.length : (P.handCount || 0);
   const drawN = Array.isArray(P.draw) ? P.draw.length : (P.drawCount || 0);
   let handHTML;
@@ -56,11 +57,12 @@ export function renderP(pi, el) {
   } else {
     handHTML = `<div class="card back" style="opacity:.35">${t('battle.no_hand')}</div>`;
   }
+  const cpuLabel = b.mode === 'cpu' && !b.humans[pi] ? `<span class="dim" style="font-size:10px">（${t('battle.mode_cpu')}）</span>` : '';
   el.innerHTML = `
     <div class="panel">
       <div class="avatar">${P.role.img ? `<img src="${P.role.img}">` : esc((P.role.name || '?')[0])}</div>
       <div style="flex:1">
-        <div style="display:flex;gap:8px;align-items:baseline"><b>${esc(P.role.name)}</b><span class="dim" style="font-size:11px">${b.mode === 'ai' && pi === 0 ? '（AI）' : ''}${esc(P.role.intro || '')}</span></div>
+        <div style="display:flex;gap:8px;align-items:baseline"><b>${esc(P.role.name)}</b>${cpuLabel}<span class="dim" style="font-size:11px">${esc(P.role.intro || '')}</span></div>
         <div class="bar"><i style="width:${Math.max(0, P.hp) / P.role.hp * 100}%"></i></div>
         <div class="stat">
           <span>${t('battle.hp')} <b>${P.hp}/${P.role.hp}</b></span>
@@ -85,21 +87,100 @@ function formatLog(entry) {
 export function renderBattle() {
   const b = state.BATTLE;
   if (!b) return;
-  renderP(0, $('pzone-up'));
-  renderP(1, $('pzone-dn'));
-  const modeLabel = b.mode === 'ai' ? t('battle.mode_ai') : b.mode === 'local' ? t('battle.mode_local') : t('battle.mode_lan');
-  $('bt-title').textContent = t('battle.title', { mode: modeLabel });
+
+  if (b.players.length === 2) {
+    // Legacy 2-player layout
+    $('battle-teams').style.display = 'none';
+    $('battle-grid').style.display = 'grid';
+    renderP(0, $('pzone-up'));
+    renderP(1, $('pzone-dn'));
+    $('bt-title').textContent = t('battle.title', { mode: modeLabel(b) });
+    renderTurnInfo(b, $('battle-log'));
+    updateBGM();
+    return;
+  }
+
+  // Multi-player team layout
+  $('battle-grid').style.display = 'none';
+  $('battle-teams').style.display = 'flex';
+
+  // Determine myTeam: for LAN, local side's team; for local, team 0
+  let myTeam = 0;
+  if (b.mode === 'lan' && state.LAN) {
+    myTeam = b.teams[lanMyIndex(b)];
+  } else {
+    for (let i = 0; i < b.players.length; i++) {
+      if (b.humans && b.humans[i]) { myTeam = b.teams[i]; break; }
+    }
+  }
+  const enemyTeam = myTeam === 0 ? 1 : 0;
+
+  // Render top = enemy team, bottom = my team
+  const topEl = $('team-top');
+  const botEl = $('team-bot');
+  topEl.innerHTML = '';
+  botEl.innerHTML = '';
+  const topPlayers = [];
+  const botPlayers = [];
+  for (let i = 0; i < b.players.length; i++) {
+    if (b.teams[i] === enemyTeam) topPlayers.push(i);
+    else botPlayers.push(i);
+  }
+
+  // Top team (enemy) — compact, no hands
+  for (const pi of topPlayers) {
+    const P = b.players[pi];
+    const acting = pi === b.actor && !b.winner;
+    const div = document.createElement('div');
+    div.className = 'pzone compact' + (acting ? ' acting' : '');
+    div.id = 'pzone-' + pi;
+    div.innerHTML = `<div class="panel compact">
+      <div class="avatar">${P.role.img ? `<img src="${P.role.img}">` : esc((P.role.name || '?')[0])}</div>
+      <div class="cp-info">
+        <b>${esc(P.role.name)}</b>
+        <div class="bar"><i style="width:${Math.max(0, P.hp) / P.role.hp * 100}%"></i></div>
+        <div class="stat tiny">
+          <span>${t('battle.hp')} ${P.hp}/${P.role.hp}</span>
+          <span>${t('battle.def')} ${P.def}</span>
+          <span>${t('battle.energy')} ${P.energy}/${P.role.eng}</span>
+        </div>
+        <div class="buffs">${P.buffs.map(x => `<span class="buff">${buffName(x)}</span>`).join('') || ''}</div>
+      </div>
+    </div>`;
+    topEl.appendChild(div);
+  }
+
+  // Bottom team (my team) — full panels with hands
+  for (const pi of botPlayers) {
+    const div = document.createElement('div');
+    div.id = 'pzone-' + pi;
+    renderP(pi, div);
+    botEl.appendChild(div);
+  }
+
+  $('bt-title').textContent = t('battle.title', { mode: modeLabel(b) });
+  renderTurnInfo(b, $('battle-log-teams'));
+  updateBGM();
+}
+
+function modeLabel(b) {
+  if (b.mode === 'cpu') return t('battle.mode_cpu');
+  if (b.mode === 'local') return t('battle.mode_local');
+  return t('battle.mode_lan');
+}
+
+function renderTurnInfo(b, logEl) {
   $('bt-turn').textContent = b.winner != null
     ? t('battle.win', { name: b.players[b.winner].role.name })
     : (b.phase === 'awaiting' && b.mode === 'lan' ? t('battle.waiting') : t('battle.turn', { n: b.turn, name: b.players[b.actor].role.name }));
-  const el = $('battle-log');
+  const el = logEl;
   el.innerHTML = b.log.slice(-80).map(l => `<div class="${l.includes('获胜') || l.includes('回合') || l.includes('wins') || l.includes('Turn') ? 't' : ''}">${formatLog(l)}</div>`).join('');
   el.scrollTop = el.scrollHeight;
   if (b.winner != null && !state._bannerShown) {
     state._bannerShown = true;
-    el.insertAdjacentHTML('beforeend', `<div class="win-banner">${t('battle.winner', { name: b.players[b.winner].role.name })}</div>`);
+    const winnerNames = b.players.filter((p, i) => b.teams[i] === b.teams[b.winner]).map(p => p.role.name).join(' / ');
+    el.insertAdjacentHTML('beforeend', `<div class="win-banner">${t('battle.winner', { name: winnerNames })}</div>`);
   }
-  updateBGM();
 }
 
 export function showBattle() {
@@ -114,6 +195,52 @@ export function slotHTML(r) {
 }
 
 export function renderSlots() {
-  for (let i = 0; i < 2; i++) $('slot-' + i).innerHTML = slotHTML(state.PICK[i]);
-  $('pk-go').style.display = (state.PICK[0] && state.PICK[1]) ? '' : 'none';
+  const n = state.PICK ? state.PICK.length : 2;
+  for (let i = 0; i < 4; i++) {
+    const slot = $('slot-' + i);
+    if (!slot) continue;
+    if (i < n) {
+      slot.style.display = '';
+      slot.innerHTML = slotHTML(state.PICK[i]);
+    } else {
+      slot.style.display = 'none';
+    }
+  }
+  // Show player count selector for local multi mode
+  const multiOpts = $('pk-multi-opts');
+  if (state.MULTI) {
+    multiOpts.style.display = 'flex';
+  } else {
+    multiOpts.style.display = 'none';
+  }
+  // Show go button only when all seats filled
+  const allFilled = state.PICK && state.PICK.every(p => p != null);
+  $('pk-go').style.display = allFilled && state.MODE !== 'lan' ? '' : 'none';
 }
+
+export function openTargetModal(opponents, callback) {
+  const box = $('target-box');
+  box.innerHTML = `<div class="mhead">${t('battle.select_target')}</div>
+    ${opponents.map(i => {
+      const P = state.BATTLE.players[i];
+      return `<div class="mrole" data-target="${i}">
+        <div class="av sm">${P.role.img ? `<img src="${P.role.img}">` : esc((P.role.name || '?')[0])}</div>
+        <div><b>${esc(P.role.name)}</b><div class="dim" style="font-size:11px">${t('battle.hp')}${P.hp}/${P.role.hp}</div></div>
+      </div>`;
+    }).join('')}`;
+  box.onclick = e => {
+    const el = e.target.closest('[data-target]');
+    if (!el) return;
+    const tgt = parseInt(el.dataset.target);
+    $('target-modal').style.display = 'none';
+    callback(tgt);
+  };
+  $('target-modal').style.display = 'block';
+}
+
+// Close target modal
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-action="close-target-modal"]')) {
+    $('target-modal').style.display = 'none';
+  }
+});

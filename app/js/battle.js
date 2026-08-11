@@ -2,71 +2,58 @@ import { state } from './state.js?v=__VERSION__';
 import { $, show } from './util.js?v=__VERSION__';
 import { rollPair } from './util.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
-import { log, logT, cardCost, drawCards, resolveEffects, tickBuffs } from './core.js?v=__VERSION__';
-import { renderBattle, showBattle, renderSlots, playCardAnim } from './render.js?v=__VERSION__';
+import { log, logT, cardCost, resolveEffects, canOperate, advanceActor, checkTeamWinner, playCard as corePlayCard, endTurn as coreEndTurn, startTurn as coreStartTurn, cpuStep as coreCpuStep } from './core.js?v=__VERSION__';
+import { renderBattle, showBattle, renderSlots, playCardAnim, openTargetModal } from './render.js?v=__VERSION__';
 import { lanPost } from './lan.js?v=__VERSION__';
 
 export function startTurn(b) {
-  const pi = b.actor, P = b.players[pi];
-  if (P.hp <= 0) { b.winner = 1 - pi; renderBattle(); return; }
-  const sk = P.buffs.findIndex(x => x.type === 'skip_turn');
-  if (sk >= 0) {
-    P.buffs.splice(sk, 1);
-    logT(b, 'log.blocked', { name: P.role.name });
-    b.actor = 1 - pi;
-    b.turn++;
-    if (b.mode === 'lan') { lanPost(); return; }
-    startTurn(b);
-    return;
-  }
-  tickBuffs(b, pi);
-  P.energy = P.role.eng;
-  drawCards(b, pi, b.turn === 1 ? 5 : 2);
-  logT(b, 'log.turn', { n: b.turn, name: P.role.name });
+  if (b.winner) { renderBattle(); return; }
+  coreStartTurn();
   renderBattle();
-  if (b.mode === 'ai' && b.actor === 0 && !b.winner) aiThink();
+  if (b.mode === 'cpu' && b.humans && !b.humans[b.actor] && !b.winner) cpuThink();
 }
 
-export function playCard(b, pi, idx) {
+export function playCard(b, pi, idx, target) {
   const P = b.players[pi];
   const card = P.hand[idx];
   const cost = cardCost(b, pi, card);
   if (P.energy < cost || b.winner || state.animBusy) return;
   state.animBusy = true;
-  P.energy -= cost;
-  P.hand.splice(idx, 1);
-  const events = resolveEffects(b, pi, card);
+  const events = corePlayCard(b, pi, idx, target);
   b.lastPlay = { pi, card, events, atSeq: b.seq + 1 };
-  P.discard.push(card);
-  if (!b.winner) logT(b, 'log.play_card', { name: P.role.name, card: card.name });
   renderBattle();
   playCardAnim(pi, card, events, () => {
     state.animBusy = false;
     renderBattle();
     if (b.mode === 'lan') { lanPost(); return; }
-    if (b.mode === 'ai' && pi === 0 && !b.winner) setTimeout(() => aiActOnce(b), 450);
+    if (b.mode === 'cpu' && b.humans && !b.humans[pi] && !b.winner) setTimeout(() => cpuActOnce(b), 450);
   });
 }
 
 export function endTurn(b, pi) {
-  const P = b.players[pi];
-  const ex = P.buffs.findIndex(x => x.type === 'extra_turn');
-  if (ex >= 0) {
-    P.buffs.splice(ex, 1);
-    logT(b, 'log.haste', { name: P.role.name });
-    if (b.mode === 'lan') { const pre = b.seq; startTurn(b); if (b.seq === pre) lanPost(); return; }
-    startTurn(b);
-    return;
-  }
-  b.actor = 1 - pi;
-  b.turn++;
+  coreEndTurn(pi);
+  renderBattle();
   if (b.mode === 'lan') { b.phase = 'awaiting'; lanPost(); return; }
-  startTurn(b);
+  if (b.mode === 'cpu' && b.humans && !b.humans[b.actor] && !b.winner) cpuThink();
+}
+
+function needsTarget(b, pi, card) {
+  const opps = b.players.map((p, i) => i).filter(i => i !== pi && b.teams[i] !== b.teams[pi] && b.players[i].hp > 0);
+  if (opps.length <= 1) return null;
+  const hasEnemy = card.effects.some(e => e.target !== 'self');
+  return hasEnemy ? opps : null;
 }
 
 export function playCardClick(pi, idx) {
   if (!canOperate(pi)) return;
-  playCard(state.BATTLE, pi, idx);
+  const b = state.BATTLE;
+  const card = b.players[pi].hand[idx];
+  const opps = needsTarget(b, pi, card);
+  if (opps) {
+    openTargetModal(opps, tgt => playCard(b, pi, idx, tgt));
+    return;
+  }
+  playCard(b, pi, idx);
 }
 
 export function endTurnClick(pi) {
@@ -74,45 +61,19 @@ export function endTurnClick(pi) {
   endTurn(state.BATTLE, pi);
 }
 
-function scoreCard(b, c) {
-  let s = 0;
-  for (const e of c.effects) {
-    switch (e.type) {
-      case 'damage': s += e.value * (e.pierce ? 1.4 : 1); break;
-      case 'heal': s += (b.players[0].hp < b.players[0].role.hp * 0.7) ? e.value * 0.9 : -2; break;
-      case 'gain_def': s += e.value * 0.8; break;
-      case 'gain_atk': s += e.value * 0.6; break;
-      case 'weaken_def': s += e.value * 0.5; break;
-      case 'cost_up': s += e.value * 1.3; break;
-      case 'dmg_reduce': s += e.value * 0.4; break;
-      case 'skip_turn': s += 3.5; break;
-      case 'extra_turn': s += 4; break;
-      case 'draw': s += e.value * 1.6; break;
-      case 'force_discard': s += e.value * 1.2; break;
-      case 'energy': s += e.value * 0.5; break;
-    }
-  }
-  return s;
-}
-
-function aiThink() {
+function cpuThink() {
   const b = state.BATTLE;
   if (!b || b.winner) return;
   $('bt-turn').textContent = t('battle.thinking');
-  setTimeout(() => aiActOnce(b), 750);
+  setTimeout(() => cpuActOnce(b), 750);
 }
 
-function aiActOnce(b) {
+function cpuActOnce(b) {
   if (!b || b.winner) return;
-  const P = b.players[0];
-  if (P.hand.length === 0) { setTimeout(() => endTurn(b, 0), 350); return; }
-  let bi = -1, bs = -1e9;
-  for (let i = 0; i < P.hand.length; i++) {
-    const c = P.hand[i];
-    if (cardCost(b, 0, c) <= P.energy) { const s = scoreCard(b, c); if (s > bs) { bs = s; bi = i; } }
-  }
-  if (bi < 0) { setTimeout(() => endTurn(b, 0), 350); return; }
-  playCard(b, 0, bi);
+  const pi = b.actor;
+  const P = b.players[pi];
+  if (P.hand.length === 0) { setTimeout(() => endTurn(b, pi), 350); return; }
+  coreCpuStep();
+  renderBattle();
+  if (b.mode === 'cpu' && b.humans && !b.humans[b.actor] && !b.winner) setTimeout(() => cpuActOnce(b), 350);
 }
-
-import { canOperate } from './core.js?v=__VERSION__';

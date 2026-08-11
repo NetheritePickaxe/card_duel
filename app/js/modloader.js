@@ -1,5 +1,4 @@
 import { registerTrack, deregisterTrack } from './sound.js?v=__VERSION__';
-import { registerEffect, getEffect } from './effect_registry.js?v=__VERSION__';
 import { addTranslation, clearTranslations } from './i18n.js?v=__VERSION__';
 import { setDefaultData } from './data.js?v=__VERSION__';
 
@@ -162,16 +161,6 @@ async function applyMod(mod) {
     if (content) {
       try { addTranslation(f.includes('zh_cn') ? 'zh_cn' : 'en_us', JSON.parse(content)); } catch (e) { /* ignore */ }
     }
-  }
-  // 效果
-  const effContent = mod.files['data/effects.json'];
-  if (effContent) {
-    try {
-      const effects = JSON.parse(effContent);
-      for (const [type, cfg] of Object.entries(effects)) {
-        if (!getEffect(type)) registerEffect(type, cfg);
-      }
-    } catch (e) { /* ignore */ }
   }
   // 数据
   try {

@@ -56,9 +56,9 @@ fn run_cli() {
     println!("=== 卡牌对决 CLI 模式 ===");
     println!("可用子阵营:\n{}", game::list_subfactions(&defs));
 
-    // 选择 P0 子阵营
+    // 选择 P0 子阵营（电脑）
     let p0 = loop {
-        print!("选择 P0 子阵营 (0-{}): ", defs.subfactions.len() - 1);
+        print!("选择 电脑(P0) 子阵营 (0-{}): ", defs.subfactions.len() - 1);
         io::stdout().flush().ok();
         let mut line = String::new();
         io::stdin().read_line(&mut line).ok();
@@ -82,7 +82,8 @@ fn run_cli() {
 
     println!("\n对战开始: {} vs {}\n", defs.subfactions[p0].name, defs.subfactions[p1].name);
 
-    let mut b = game::new_battle("ai", &defs, p0, p1);
+    let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos() as u64;
+    let mut b = game::new_battle("cpu", &defs, p0, p1, seed);
     game::start_turn(&mut b);
 
     loop {
@@ -93,21 +94,21 @@ fn run_cli() {
         if b.actor == 0 {
             loop {
                 if b.winner.is_some() { break; }
-                let action = game::choose_ai_action(&mut b);
+                let action = game::choose_cpu_action(&mut b);
                 match action {
-                    game::AiAction::PlayCard(idx) => {
+                    game::CpuAction::PlayCard(idx, tgt) => {
                         let name = if idx < b.players[0].hand.len() {
                             b.players[0].hand[idx].name.clone()
                         } else { String::from("?") };
-                        if let Err(e) = game::play_card(&mut b, 0, idx) {
-                            println!("AI 出牌错误: {}", e);
+                        if let Err(e) = game::play_card_target(&mut b, 0, idx, tgt) {
+                            println!("电脑 出牌错误: {}", e);
                             break;
                         }
-                        println!("AI 打出: {}", name);
+                        println!("电脑 打出: {}", name);
                     }
-                    game::AiAction::EndTurn => {
+                    game::CpuAction::EndTurn => {
                         game::end_turn(&mut b, 0);
-                        println!("AI 结束回合");
+                        println!("电脑 结束回合");
                         break;
                     }
                 }
@@ -137,7 +138,7 @@ fn run_cli() {
             let idx = line[5..].trim().parse::<usize>().ok();
             if let Some(idx) = idx {
                 match game::play_card(&mut b, 1, idx) {
-                    Ok(()) => {
+                    Ok(_) => {
                         println!("出牌成功");
                         if b.winner.is_some() { break; }
                     }
@@ -159,5 +160,5 @@ fn run_cli() {
     if let Some(w) = b.winner {
         println!("{} 获胜！", b.players[w].role.name);
     }
-    println!("完整日志:\n{}", b.log.join("\n"));
+    println!("完整日志:\n{}", game::format_log(&b));
 }

@@ -17,9 +17,10 @@ input[type=range]::-moz-range-track{height:8px;border-radius:0;background:var(--
 input[type=range]::-moz-range-progress{height:8px;border-radius:0;background:var(--acc)}
 input[type=range]::-moz-range-thumb{width:7px;height:20px;border-radius:0;background:var(--acc);border:none;box-shadow:0 0 0 2px var(--bg),0 2px 0 rgba(0,0,0,.4);cursor:pointer}
 input[type=range]:focus{outline:none}
-html,body{overflow:hidden;height:100%}
-.screen{position:fixed;top:0;left:0;right:0;bottom:0;display:none;max-width:1080px;margin:0 auto;padding:48px 18px 18px;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.screen.on,.init-menu #sc-menu,.init-sc-settings #sc-settings,.init-sc-edit #sc-edit,.init-sc-mods #sc-mods,.init-sc-pick #sc-pick,.init-sc-battle #sc-battle,.init-sc-lan #sc-lan,.init-sc-dice #sc-dice,.init-sc-library #sc-library{display:block}
+html{overflow-y:auto;height:100%}
+body{min-height:100%}
+.screen{display:none;max-width:1080px;margin:0 auto;padding:48px 18px 18px;min-height:100vh}
+.screen.on,.init-menu #sc-menu,.init-sc-settings #sc-settings,.init-sc-edit #sc-edit,.init-sc-mods #sc-mods,.init-sc-pick #sc-pick,.init-sc-battle #sc-battle,.init-sc-lan #sc-lan,.init-sc-dice #sc-dice,.init-sc-library #sc-library,.init-sc-custom #sc-custom{display:block}
 .hd{display:flex;align-items:center;gap:10px;margin-bottom:28px}
 .hd h1{font-size:20px;font-weight:700;letter-spacing:1px}
 .hd .sp{flex:1}
@@ -132,7 +133,7 @@ html,body{overflow:hidden;height:100%}
 .deck-item .dn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .deck-item button{width:24px;height:24px;padding:0;flex-shrink:0}
 .deck-item b{width:16px;text-align:center;color:var(--acc)}
-.pick-wrap{display:flex;gap:20px;margin-bottom:20px}
+.pick-wrap{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px}
 .slot{flex:1;background:var(--p);border:1px solid var(--ln);padding:18px;text-align:center;cursor:pointer;min-height:170px}
 .slot:hover{border-color:var(--acc)}
 .slot .av{width:80px;height:80px;margin:0 auto 8px;background:var(--p2);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;overflow:hidden}
@@ -276,3 +277,43 @@ input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--a
  #fly-card .cname{font-size:14px}
  #fly-card .cdesc{font-size:10px}
 }
+
+/* ============ 多人对战（团队上下布局） ============ */
+.battle-teams{display:flex;flex-direction:column;gap:12px;height:100%}
+.team-zone{display:flex;flex-direction:column;gap:12px}
+.team-zone .pzone{width:100%}
+.pzone.compact .panel{min-height:0}
+.panel.compact{align-items:center}
+.panel.compact .avatar{width:44px;height:44px;font-size:20px}
+.cp-info{flex:1}
+.cp-info .stat.tiny{display:flex;gap:10px;font-size:11px;flex-wrap:wrap}
+
+/* ============ 选人队伍徽章 ============ */
+.team-badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:3px;border:1px solid}
+.team-badge.t0{color:#4d8fd4;border-color:#4d8fd4}
+.team-badge.t1{color:#e8833f;border-color:#e8833f}
+
+/* ============ 选人控制区 ============ */
+.pick-wrap{flex-wrap:wrap}
+.pk-controls{margin-top:12px;text-align:center}
+.pk-controls .frow{justify-content:center}
+.slot-cpu-btn{margin-top:8px;font-size:11px;padding:3px 10px;background:var(--p2);border:1px solid var(--ln);cursor:pointer}
+.slot-cpu-btn:hover{border-color:var(--acc)}
+
+/* ============ 自定义游戏 ============ */
+.custom-wrap{max-width:440px;margin:20px auto}
+.custom-section{margin-bottom:20px}
+.custom-label{font-size:13px;color:var(--dim);margin-bottom:10px}
+.mode-row{display:flex;gap:6px;flex-wrap:wrap}
+.mode-btn{padding:8px 16px;border:1px solid var(--ln);background:var(--p);cursor:pointer;font-size:13px;border-radius:0}
+.mode-btn:hover{border-color:var(--acc)}
+.mode-btn.on{background:var(--acc);color:#1a1a1a;border-color:var(--acc);font-weight:600}
+#custom-count-sec .frow{justify-content:center}
+#custom-count-sec .frow label{width:auto;margin-right:6px}
+#custom-team-select{text-align:center;margin-bottom:16px;gap:8px;flex-wrap:wrap}
+#custom-go{display:block;margin:24px auto 0;padding:10px 32px;font-size:15px}
+#custom-go:disabled{opacity:.5;cursor:not-allowed}
+
+/* ============ 目标选择弹窗 ============ */
+#target-modal{position:fixed;inset:0;z-index:100}
+#target-modal .mbox{max-width:380px}

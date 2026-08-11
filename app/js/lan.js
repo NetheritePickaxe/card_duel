@@ -2,7 +2,7 @@ import { $, show, esc, toast } from './util.js?v=__VERSION__';
 import { state } from './state.js?v=__VERSION__';
 import { DB, getDefaultCardIds } from './data.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
-import { newBattle, logT, forceDiscard } from './core.js?v=__VERSION__';
+import { newBattle, logT, forceDiscard, checkTeamWinner, lanMyIndex } from './core.js?v=__VERSION__';
 import { renderBattle, showBattle, renderSlots, slotHTML, playCardAnim } from './render.js?v=__VERSION__';
 import { startTurn } from './battle.js?v=__VERSION__';
 import { goDice, openPick } from './pick.js?v=__VERSION__';
@@ -12,19 +12,17 @@ const IS_HTTPS = location.protocol === 'https:';
 let currentServer = '';
 let cachedRooms = [];
 let roomCounts = {}; // 扫描时记录每个服务器的房间数
+const CAPACITY = 4;
 
 /* ============ 服务器地址管理 ============ */
 
 export function normalizeServerUrl(input) {
   input = input.trim();
   if (!input) return '';
-  // 已包含协议
   if (input.startsWith('http://') || input.startsWith('https://')) {
-    // 确保有端口
     if (!input.includes(':', 8)) return input + ':8788';
     return input.replace(/\/+$/, '');
   }
-  // 纯 IP 或域名
   return `http://${input}:8788`;
 }
 
@@ -74,7 +72,6 @@ export function renderServerList() {
     : `<div class="dim" style="padding:8px;text-align:center">${t('lan.no_servers')}</div>`;
 }
 
-// 局域网扫描
 function isPrivateIp(ip) {
   return /^10\./.test(ip) || /^172\.(1[6-9]|2\d|3[01])\./.test(ip) || /^192\.168\./.test(ip);
 }
@@ -93,7 +90,6 @@ export function scanLan() {
         found.forEach(ip => { if (addServer('http://' + ip + ':8788')) added++; });
         renderServerList();
         if (added) toast(t('lan.scan_found', { n: added }));
-        // 逐个查询每个服务器的房间数
         found.forEach(ip => {
           const url = 'http://' + ip + ':8788';
           fetch(url + '/rooms', { cache: 'no-store' })
@@ -116,7 +112,6 @@ export function scanLan() {
 export function lanConnect(url) {
   const base = normalizeServerUrl(url);
   if (!base) { alert(t('lan.connect_fail')); return; }
-  // 混合内容提示
   if (IS_HTTPS && base.startsWith('http://')) {
     $('mixed-content-warning').style.display = 'block';
   } else {
@@ -164,6 +159,21 @@ function hideServerPanel() {
 
 /* ============ 房间操作 ============ */
 
+function initLan() {
+  return {
+    picks: new Array(CAPACITY).fill(null),
+    teams: new Array(CAPACITY).fill(null),
+    ready: new Array(CAPACITY).fill(false),
+    capacity: CAPACITY,
+  };
+}
+
+function lanMeta() {
+  // 从 LAN 状态合并 meta（picks/teams/ready），供 buildDefs 使用
+  state.LAN.teamsArr = state.LAN.teams || new Array(CAPACITY).fill(null);
+  state.LAN.readyArr = state.LAN.ready || new Array(CAPACITY).fill(false);
+}
+
 export function lanCreate() {
   const gameName = t('lan.new_game_name') || '卡牌对决';
   const modsEnabled = $('mods-toggle')?.checked ?? false;
@@ -172,12 +182,12 @@ export function lanCreate() {
     body: JSON.stringify({ name: gameName, mods: modsEnabled }), cache: 'no-store',
   }).then(r => r.json()).then(d => {
     if (!d.ok) { alert(t('lan.alert_create_fail')); return; }
-    state.LAN = { base: currentServer, room: d.room, gameName, mods: modsEnabled, side: 0, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
+    state.LAN = { base: currentServer, room: d.room, gameName, mods: modsEnabled, side: 0, lastSeq: 0, timer: null, ...initLan(), hostData: null };
     state.MODE = 'lan';
     stopRoomList();
+    lanMeta();
     $('lan-info').textContent = t('lan.waiting');
     openPick();
-    $('pk-title').textContent = t('pick.lan_p0_title');
     renderSlots();
     lanPoll();
   }).catch(() => alert(t('lan.alert_conn_fail')));
@@ -186,15 +196,15 @@ export function lanCreate() {
 export function lanJoinRoom(room) {
   fetch(currentServer + '/join?room=' + room, { cache: 'no-store' }).then(r => r.json()).then(d => {
     if (!d.ok) { alert(t('lan.alert_join_fail', { err: d.err })); return; }
-    // 从房间列表缓存中找到该房间的 mods 标志
     const roomData = cachedRooms.find(r => r.room === room);
     const mods = roomData?.mods ?? true;
-    state.LAN = { base: currentServer, room, mods, side: 1, lastSeq: 0, timer: null, picks: [null, null], hostData: null };
+    const side = d.side ?? 1;
+    state.LAN = { base: currentServer, room, mods, side, lastSeq: 0, timer: null, ...initLan(), hostData: null };
     state.MODE = 'lan';
     stopRoomList();
+    lanMeta();
     $('lan-info').textContent = t('lan.waiting');
     openPick();
-    $('pk-title').textContent = t('pick.lan_p1_title');
     renderSlots();
     lanPoll();
   }).catch(() => alert(t('lan.alert_conn_fail2')));
@@ -217,7 +227,11 @@ export function lanPoll() {
       show('sc-menu');
       return;
     }
-    state.LAN.picks = d.picks || [null, null];
+    state.LAN.picks = d.picks || new Array(CAPACITY).fill(null);
+    state.LAN.teams = d.teams || new Array(CAPACITY).fill(null);
+    state.LAN.ready = d.ready || new Array(CAPACITY).fill(false);
+    state.LAN.capacity = d.capacity || CAPACITY;
+    lanMeta();
     if (d.state && d.state.seq !== state.LAN.lastSeq) {
       state.LAN.lastSeq = d.state.seq;
       if (!state.BATTLE || state.BATTLE.seq === 0) enterBattleFromState(d.state);
@@ -230,39 +244,139 @@ export function lanPoll() {
 
 export function renderLanPick() {
   const mySide = state.LAN.side;
-  const both = state.LAN.picks[0] && state.LAN.picks[1];
-  $('lan-hint').innerHTML = `${mySide === 0 ? t('pick.lan_p0') : t('pick.lan_p1')}<br><span style="font-size:12px">${t('pick.lan_status')}P0 ${state.LAN.picks[0] ? t('pick.lan_ready') : t('pick.lan_pending')} · P1 ${state.LAN.picks[1] ? t('pick.lan_ready') : t('pick.lan_pending')}${both ? ` · ${t('pick.lan_ready2')}` : ''}</span>`;
-  const p0 = mySide === 0 ? state.PICK[0] : (state.LAN.picks[0] ? state.LAN.picks[0].role : null);
-  $('slot-0').innerHTML = p0 ? slotHTML(p0) : `<div class="av" style="opacity:.4">?</div><div class="dim">${mySide === 0 ? t('pick.slot_choose') : t('pick.slot_wait_host')}</div>`;
-  const p1 = mySide === 1 ? state.PICK[1] : (state.LAN.picks[1] ? state.LAN.picks[1].role : null);
-  $('slot-1').innerHTML = p1 ? slotHTML(p1) : `<div class="av" style="opacity:.4">?</div><div class="dim">${mySide === 1 ? t('pick.slot_choose') : t('pick.slot_wait_guest')}</div>`;
-  if (mySide === 0 && both) {
-    $('pk-go').style.display = '';
-    $('pk-go').textContent = t('pick.lan_both_ready');
-    if (!state.LAN._auto) { state.LAN._auto = true; setTimeout(() => { if (state.LAN && state.LAN.picks && state.LAN.picks[0] && state.LAN.picks[1] && !state.BATTLE) goDice(); }, 1500); }
+  const picks = state.LAN.picks;
+  const teams = state.LAN.teams;
+  const ready = state.LAN.ready;
+  const cap = state.LAN.capacity || CAPACITY;
+
+  // 渲染 4 席
+  for (let i = 0; i < cap; i++) {
+    const slot = $('slot-' + i);
+    if (!slot) continue;
+    const pick = mySide === i ? state.PICK[i] : (picks[i] ? picks[i].role : null);
+    const isHuman = picks[i] ? picks[i].is_human !== false : (mySide === i);
+    const team = teams[i];
+    const teamLabel = team != null ? `<span class="team-badge t${team}">${t('pick.team')} ${(team + 1)}</span>` : '';
+    const cpuLabel = isHuman ? '' : `<span class="dim" style="font-size:10px">${t('pick.cpu_label')}</span>`;
+    const readyLabel = (i !== 0 && ready[i]) ? `<span class="dim" style="font-size:10px;color:var(--green)">✓ ${t('pick.ready')}</span>` : '';
+    let body;
+    if (pick) {
+      body = slotHTML(pick) + `<div style="display:flex;align-items:center;gap:4px;margin-top:4px">${teamLabel}${cpuLabel}${readyLabel}</div>`;
+    } else if (!isHuman && i !== 0) {
+      body = `<div class="av" style="opacity:.4">?</div><div class="dim" style="font-size:11px">${t('pick.slot_empty')}</div>`;
+    } else {
+      const hint = i === mySide ? t('pick.slot_choose') : (i === 0 ? t('pick.slot_wait_host') : (isHuman ? t('pick.slot_wait_guest') : t('pick.slot_empty')));
+      body = `<div class="av" style="opacity:.4">?</div><div class="dim" style="font-size:11px">${hint}</div>`;
+    }
+    slot.innerHTML = body;
+  }
+
+  // 房主：可标记空席为电脑
+  if (mySide === 0) {
+    for (let i = 1; i < cap; i++) {
+      if (!picks[i]) {
+        const btn = $('slot-' + i).querySelector('.slot-cpu-btn');
+        if (!btn) {
+          const b = document.createElement('button');
+          b.className = 'slot-cpu-btn';
+          b.textContent = t('pick.add_cpu');
+          b.dataset.action = 'lan-add-cpu';
+          b.dataset.side = i;
+          $('slot-' + i).appendChild(b);
+        }
+      }
+    }
+  }
+
+  // 底部状态 + 就绪/开始按钮
+  const filled = picks.filter(Boolean).length;
+  const hint = $('lan-hint');
+  hint.innerHTML = `<span style="font-size:12px">${filled}/${cap} ${t('pick.lan_status')}<br>${t('pick.lan_team_hint')}</span>`;
+
+  if (mySide === 0) {
+    // 房主：开始按钮
+    const canStart = canStartRoom();
+    let go = $('pk-go');
+    go.style.display = '';
+    go.textContent = t('pick.lan_host_start');
+    go.disabled = !canStart;
+    go.className = canStart ? 'primary' : '';
+    go.dataset.action = 'go-dice';
   } else {
-    $('pk-go').style.display = 'none';
+    // 非房主：就绪按钮
+    const myReady = ready[mySide];
+    let go = $('pk-go');
+    go.style.display = '';
+    go.textContent = myReady ? t('pick.lan_cancel_ready') : t('pick.lan_ready_btn');
+    go.className = myReady ? '' : 'primary';
+    go.dataset.action = 'lan-trigger-ready';
   }
 }
 
-export function lanPickPost(side, role) {
+function canStartRoom() {
+  const picks = state.LAN.picks;
+  const teams = state.LAN.teams;
+  const ready = state.LAN.ready;
+  const cap = state.LAN.capacity || CAPACITY;
+  let filled = 0, t0 = 0, t1 = 0, allReady = true;
+  for (let i = 0; i < cap; i++) {
+    if (!picks[i]) continue;
+    filled++;
+    if (i !== 0 && !ready[i] && picks[i].is_human !== false) allReady = false;
+    const team = teams[i];
+    if (team === 0) t0++; else if (team === 1) t1++;
+  }
+  return filled >= 2 && t0 >= 1 && t1 >= 1 && allReady;
+}
+
+export function lanPickPost(side, role, isHuman) {
   const deckIds = (role.deck && role.deck.length) ? role.deck : null;
   let cards = deckIds ? deckIds.map(id => DB.cards.find(c => c.id === id)).filter(Boolean) : [...DB.cards];
-  // 模组关闭时只保留原版卡牌
   if (!state.LAN.mods) {
     const vanillaIds = getDefaultCardIds();
     cards = cards.filter(c => vanillaIds.has(c.id));
   }
   const effectTypes = [...new Set(cards.flatMap(c => (c.effects || []).map(e => e.type)))];
+  const team = state.LAN.teams ? state.LAN.teams[side] : null;
   fetch(state.LAN.base + '/pick', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ room: state.LAN.room, side, role, cards, effects: effectTypes }),
+    body: JSON.stringify({ room: state.LAN.room, side, role, cards, effects: effectTypes, is_human: isHuman !== false, team }),
   }).then(r => r.json()).then(d => {
     if (d && !d.ok) alert(t('lan.alert_upload_fail', { err: d.err }));
   }).catch(() => alert(t('lan.alert_upload_fail2')));
 }
 
+export function lanSetTeam(side, team) {
+  fetch(state.LAN.base + '/team', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ room: state.LAN.room, side, team }),
+  }).then(r => r.json()).catch(() => {});
+}
+
+export function lanSetReady(side, ready) {
+  fetch(state.LAN.base + '/ready', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ room: state.LAN.room, side, ready }),
+  }).then(r => r.json()).catch(() => {});
+}
+
+export function lanAddCpu(side) {
+  // 房主为空席随机选一个角色并标记为电脑
+  const opts = state.PICK_OPTIONS[side] || DB.subfactions;
+  const r = opts[Math.floor(Math.random() * opts.length)];
+  state.PICK[side] = JSON.parse(JSON.stringify(r));
+  state.LAN.teams[side] = state.LAN.teams[side] ?? (side % 2 === 0 ? 0 : 1);
+  lanPickPost(side, state.PICK[side], false);
+  lanSetReady(side, true);
+  renderSlots();
+  renderLanPick();
+}
+
 /* ============ 战斗同步 ============ */
+
+function isCpuSeat(b, i) {
+  return b.humans && !b.humans[i];
+}
 
 function publicState(b) {
   const play = b.lastPlay ? { seq: b.lastPlay.atSeq, pi: b.lastPlay.pi, card: b.lastPlay.card, events: b.lastPlay.events } : null;
@@ -294,24 +408,34 @@ function enterBattleFromState(pub) {
 
 function applyPublic(pub) {
   const b = state.BATTLE;
+  const myIdx = lanMyIndex(b);
   b.seq = pub.seq; b.turn = pub.turn; b.actor = pub.actor; b.winner = pub.winner; b.phase = pub.phase; b.log = pub.log;
   b.players.forEach((P, i) => {
     P.hp = pub.p[i].hp; P.def = pub.p[i].def; P.energy = pub.p[i].energy; P.buffs = pub.p[i].buffs;
-    if (i !== state.LAN.side) { P.drawCount = pub.p[i].drawCount; P.handCount = pub.p[i].handCount; P.discard = pub.p[i].discard; P.hand = null; }
+    if (i !== myIdx) { P.drawCount = pub.p[i].drawCount; P.handCount = pub.p[i].handCount; P.discard = pub.p[i].discard; P.hand = null; }
   });
   if (!$('sc-battle').classList.contains('on')) showBattle(); else renderBattle();
-  if (pub.play && pub.play.seq === pub.seq && pub.play.card && pub.play.pi !== state.LAN.side) playCardAnim(pub.play.pi, pub.play.card, pub.play.events, () => { });
-  if (pub.fd && pub.fd.seq === pub.seq && pub.fd.side === state.LAN.side) {
+  if (pub.play && pub.play.seq === pub.seq && pub.play.card && pub.play.pi !== myIdx) playCardAnim(pub.play.pi, pub.play.card, pub.play.events, () => { });
+  if (pub.fd && pub.fd.seq === pub.seq && pub.fd.side === myIdx) {
     const pre = b.seq;
-    forceDiscard(b, state.LAN.side, pub.fd.count);
+    forceDiscard(b, myIdx, pub.fd.count);
     renderBattle();
     if (b.seq === pre) lanPost();
   }
-  if (!b.winner && b.phase === 'awaiting' && b.actor === state.LAN.side) {
+  if (!b.winner && b.phase === 'awaiting' && b.actor === myIdx) {
     b.phase = 'playing';
     const preSeq = b.seq;
     startTurn(b);
     if (b.seq === preSeq) lanPost();
+  }
+  // 房主代跑空席电脑
+  if (state.LAN.side === 0 && !b.winner && isCpuSeat(b, b.actor) && b.phase === 'awaiting') {
+    import('./battle.js?v=__VERSION__').then(m => {
+      b.phase = 'playing';
+      const preSeq = b.seq;
+      m.cpuActOnce(b);
+      if (b.seq === preSeq) lanPost();
+    });
   }
 }
 
@@ -340,7 +464,7 @@ function roomListTick() {
     list.innerHTML = cachedRooms.map(r => {
       const modsLabel = r.mods ? '' : `<span class="dim" style="font-size:10px">[模组关闭]</span>`;
       return `<div class="room-row">
-        <div><b>${esc(r.name || r.room)}</b> ${modsLabel}<span class="dim" style="font-size:11px"> · ${r.picks}/2 ${t('lan.ready')}</span></div>
+        <div><b>${esc(r.name || r.room)}</b> ${modsLabel}<span class="dim" style="font-size:11px"> · ${r.picks}/${r.capacity || 4} ${t('lan.ready')}</span></div>
         <span style="display:flex;align-items:center;gap:8px">
           <span class="dim" style="font-size:11px">${r.playing ? t('lan.playing') : t('lan.wait_join')}</span>
           ${r.playing ? '' : `<button class="primary" data-action="lan-join-room" data-room="${r.room}">${t('lan.join')}</button>`}

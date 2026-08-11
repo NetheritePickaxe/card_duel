@@ -11,7 +11,7 @@
 <script>
 (function(){
   var p = location.pathname;
-  var m = { '/settings':'sc-settings', '/edit':'sc-edit', '/mods':'sc-mods', '/select':'sc-pick', '/battle':'sc-battle', '/lan':'sc-lan', '/dice':'sc-dice', '/library':'sc-library' };
+  var m = { '/settings':'sc-settings', '/edit':'sc-edit', '/mods':'sc-mods', '/select':'sc-pick', '/battle':'sc-battle', '/lan':'sc-lan', '/dice':'sc-dice', '/library':'sc-library', '/custom':'sc-custom' };
   document.documentElement.classList.add(m[p] ? 'init-' + m[p] : 'init-menu');
   var t = localStorage.getItem('theme') || 'dark';
   if (t === 'light') document.documentElement.dataset.theme = 'light';
@@ -26,8 +26,10 @@
     <button class="m-title">
         <span class="tt-l" data-i18n="menu.title_l">卡牌</span><span class="tt-r" data-i18n="menu.title_r">对决</span>
       </button>
-    <div class="mbtn" data-action="start-ai"><span data-i18n="menu.ai">单人对战 · AI</span><small data-i18n="menu.ai_hint">与电脑对战</small></div>
+    <div class="mbtn" data-action="start-cpu"><span data-i18n="menu.cpu">单人对战 · 电脑</span><small data-i18n="menu.cpu_hint">与电脑对战</small></div>
     <div class="mbtn" data-action="start-local"><span data-i18n="menu.local">本地对战</span><small data-i18n="menu.local_hint">同屏轮流操作</small></div>
+    <div class="mbtn" data-action="start-local-multi"><span data-i18n="menu.local_multi">多人混战</span><small data-i18n="menu.local_multi_hint">2-4 人混战</small></div>
+    <div class="mbtn" data-action="start-custom"><span data-i18n="menu.custom">自定义游戏</span><small data-i18n="menu.custom_hint">选择游戏模式</small></div>
     <div class="mbtn" data-action="open-lan"><span data-i18n="menu.lan">局域网对战</span><small data-i18n="menu.lan_hint">电脑与手机联机</small></div>
     <div class="mbtn" data-action="open-editor"><span data-i18n="menu.edit">子阵营与卡牌编辑</span><small data-i18n="menu.edit_hint">自定义数据，自动保存</small></div>
     <div class="mbtn" data-action="open-library"><span data-i18n="menu.library">卡牌库</span><small data-i18n="menu.library_hint">浏览阵营与卡牌</small></div>
@@ -125,14 +127,37 @@
   </div>
 </div>
 
+<div class="screen" id="sc-custom">
+  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="custom.title">自定义游戏</h1></div>
+  <div class="custom-wrap">
+    <div class="custom-section">
+      <div class="custom-label" data-i18n="custom.mode">游戏模式</div>
+      <div class="mode-row" id="custom-modes"></div>
+    </div>
+    <div class="custom-section" id="custom-count-sec" style="display:none">
+      <div class="frow"><label data-i18n="pick.player_count">人数</label><select id="custom-player-count"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
+    </div>
+    <div class="custom-section" id="custom-team-select" style="display:none"></div>
+    <button class="primary" id="custom-go" data-action="custom-next" data-i18n="custom.next">下一步</button>
+  </div>
+</div>
+
 <div class="screen" id="sc-pick">
   <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 id="pk-title">选择子阵营</h1></div>
   <div class="dim" style="text-align:center;margin-bottom:12px;font-size:14px" id="lan-hint"></div>
-  <div class="pick-wrap">
+  <div class="pick-wrap" id="pk-wrap">
     <div class="slot" data-action="pick-role" data-slot="0" id="slot-0"></div>
     <div class="slot" data-action="pick-role" data-slot="1" id="slot-1"></div>
+    <div class="slot" data-action="pick-role" data-slot="2" id="slot-2"></div>
+    <div class="slot" data-action="pick-role" data-slot="3" id="slot-3"></div>
   </div>
-  <div style="text-align:center"><button class="primary" id="pk-go" style="display:none" data-action="go-dice" data-i18n="pick.roll">掷骰子决定先手</button></div>
+  <div class="pk-controls">
+    <div id="pk-multi-opts" style="display:none;margin-bottom:8px;gap:8px;align-items:center;flex-wrap:wrap">
+      <label><span data-i18n="pick.player_count">人数</span> <select id="pk-player-count"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
+    </div>
+    <button class="primary" id="pk-go" style="display:none" data-action="go-dice" data-i18n="pick.roll">掷骰子决定先手</button>
+  </div>
+  <div id="pk-team-select" style="display:none;text-align:center;margin-top:8px;gap:8px;flex-wrap:wrap"></div>
 </div>
 
 <div class="screen" id="sc-dice">
@@ -191,15 +216,21 @@
 
 <div class="screen" id="sc-battle">
   <div class="hd"><button data-action="quit-battle"><span data-i18n="quit">← 退出</span></button><h1 id="bt-title">对战</h1><span class="sp"></span><span id="bt-turn" class="dim"></span></div>
-  <div class="battle-grid">
+  <div class="battle-grid" id="battle-grid">
     <div class="pzone" id="pzone-up"></div>
     <div class="log" id="battle-log"></div>
     <div class="pzone" id="pzone-dn"></div>
+  </div>
+  <div class="battle-teams" id="battle-teams" style="display:none">
+    <div class="team-zone" id="team-top"></div>
+    <div class="log" id="battle-log-teams"></div>
+    <div class="team-zone" id="team-bot"></div>
   </div>
 </div>
 
 <div id="fx-layer"><div id="fly-card"></div></div>
 <div id="modal"><div class="mback" data-action="close-modal"></div><div class="mbox" id="mbox"></div></div>
+<div id="target-modal" style="display:none"><div class="mback" data-action="close-target-modal"></div><div class="mbox" id="target-box"></div></div>
 
 <audio id="bgm" preload="auto"></audio>
 <div id="toast"></div>

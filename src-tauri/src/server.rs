@@ -171,7 +171,10 @@ pub struct Room {
     pub name: String,
     pub mods: bool,
     pub state: Option<State>,
-    pub picks: [Option<Pick>; 2],
+    pub picks: [Option<Pick>; 4],
+    pub teams: [Option<u8>; 4],
+    pub ready: [bool; 4],
+    pub capacity: u8,
     pub t: f64,
     pub data: Option<serde_json::Value>,
 }
@@ -237,6 +240,8 @@ pub struct Pick {
     pub subfaction: serde_json::Value,
     pub cards: Vec<serde_json::Value>,
     pub effects: Vec<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_human: Option<bool>,
 }
 
 pub struct ServerState {
@@ -381,6 +386,9 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             path if path.starts_with("/js/") && path.ends_with(".js") => {
                 self.serve_file(request, path, "application/javascript; charset=utf-8")
             }
+            path if path.starts_with("/js/") && path.ends_with(".wasm") => {
+                self.serve_file(request, path, "application/wasm")
+            }
             path if path.starts_with("/js/") && path.ends_with(".map") => {
                 self.serve_file(request, path, "application/json")
             }
@@ -409,6 +417,8 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             "/ping" => self.handle_ping(request),
             "/discover" => self.handle_discover(request),
             "/pick" => self.handle_pick(request),
+            "/team" => self.handle_team(request),
+            "/ready" => self.handle_ready(request),
             "/leave" => self.handle_leave(request),
             "/api/mod/list" => self.handle_mod_list(request),
             "/api/mod/upload" => self.handle_mod_upload(request),
@@ -500,6 +510,7 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             Ok(content) => {
                 let ext = path.rsplit('.').next().unwrap_or("");
                 let ct = match ext {
+                    "wasm" => "application/wasm",
                     "json" => "application/json",
                     "ogg" => "audio/ogg",
                     "png" => "image/png",
@@ -586,7 +597,10 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                     name,
                     mods,
                     state: None,
-                    picks: [None, None],
+                    picks: [None, None, None, None],
+                    teams: [None, None, None, None],
+                    ready: [false, false, false, false],
+                    capacity: 4,
                     t: elapsed(),
                     data: None,
                 },
@@ -609,11 +623,26 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
         {
             let mut rooms = self.rooms.lock().unwrap();
             if let Some(r) = rooms.get_mut(&room) {
-                r.t = elapsed();
+                if r.state.is_some() {
+                    self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "game already started"}));
+                    return;
+                }
+                // Assign first empty seat
+                let side = r.picks.iter().position(|p| p.is_none());
+                match side {
+                    Some(s) => {
+                        r.t = elapsed();
+                        self.slog(&format!("JOIN room={} side={}", room, s));
+                        self.respond_json(request, 200, &serde_json::json!({"ok": true, "side": s}));
+                    }
+                    None => {
+                        self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "room full"}));
+                    }
+                }
+            } else {
+                self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "room not found"}));
             }
         }
-        self.slog(&format!("JOIN room={}", room));
-        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
     fn handle_rooms(&self, request: Request) {
@@ -624,11 +653,14 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             .filter(|(_, r)| now - r.t <= LIST_TTL.as_secs_f64())
             .map(|(code, r)| {
                 let picks = r.picks.iter().filter(|x| x.is_some()).count();
+                let ready_count = r.ready.iter().filter(|x| **x).count();
                 serde_json::json!({
                     "room": code,
                     "name": r.name,
                     "mods": r.mods,
                     "picks": picks,
+                    "capacity": r.capacity,
+                    "ready": ready_count,
                     "playing": r.state.is_some()
                 })
             })
@@ -670,7 +702,10 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                         &serde_json::json!({
                             "ok": true,
                             "state": state,
-                            "picks": r.picks
+                            "picks": r.picks,
+                            "teams": r.teams,
+                            "ready": r.ready,
+                            "capacity": r.capacity
                         }),
                     );
                     return;
@@ -765,44 +800,95 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             .unwrap_or("")
             .to_uppercase();
         let side: u8 = data.get("side").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
-        if side > 1 {
-            self.respond_json(
-                request,
-                400,
-                &serde_json::json!({"ok": false, "err": "side invalid"}),
-            );
-            return;
-        }
+        {
+            let mut rooms = self.rooms.lock().unwrap();
+            let r = match rooms.get_mut(&room) {
+                Some(r) => r,
+                None => {
+                    self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "room not found"}));
+                    return;
+                }
+            };
+            if side >= r.capacity {
+                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "side invalid"}));
+                return;
+            }
 
-        let cards = match data
-            .get("cards")
-            .cloned()
-            .unwrap_or(serde_json::Value::Array(vec![]))
-        {
-            serde_json::Value::Array(arr) => arr,
-            _ => Vec::new(),
+            let cards = match data
+                .get("cards")
+                .cloned()
+                .unwrap_or(serde_json::Value::Array(vec![]))
+            {
+                serde_json::Value::Array(arr) => arr,
+                _ => Vec::new(),
+            };
+            let effects = match data
+                .get("effects")
+                .cloned()
+                .unwrap_or(serde_json::Value::Array(vec![]))
+            {
+                serde_json::Value::Array(arr) => arr,
+                _ => Vec::new(),
+            };
+            let pick = Pick {
+                subfaction: data.get("subfaction").cloned().unwrap_or(data.get("role").cloned().unwrap_or_default()),
+                cards,
+                effects,
+                is_human: data.get("is_human").and_then(|v| v.as_bool()),
+            };
+            r.picks[side as usize] = Some(pick);
+            if let Some(team) = data.get("team").and_then(|v| v.as_u64()) {
+                r.teams[side as usize] = Some(team as u8);
+            }
+            r.t = elapsed();
+        }
+        self.slog(&format!("PICK room={} side={}", room, side));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
+    }
+
+    fn handle_team(&self, mut request: Request) {
+        let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
+            Ok(d) => d,
+            Err(_) => {
+                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "bad json"}));
+                return;
+            }
         };
-        let effects = match data
-            .get("effects")
-            .cloned()
-            .unwrap_or(serde_json::Value::Array(vec![]))
-        {
-            serde_json::Value::Array(arr) => arr,
-            _ => Vec::new(),
-        };
-        let pick = Pick {
-            subfaction: data.get("subfaction").cloned().unwrap_or(data.get("role").cloned().unwrap_or_default()),
-            cards,
-            effects,
-        };
+        let room = data.get("room").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
+        let side = data.get("side").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
+        let team = data.get("team").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
         {
             let mut rooms = self.rooms.lock().unwrap();
             if let Some(r) = rooms.get_mut(&room) {
-                r.picks[side as usize] = Some(pick);
-                r.t = elapsed();
+                if side < r.capacity {
+                    r.teams[side as usize] = Some(team);
+                    r.t = elapsed();
+                }
             }
         }
-        self.slog(&format!("PICK room={} side={}", room, side));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
+    }
+
+    fn handle_ready(&self, mut request: Request) {
+        let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
+            Ok(d) => d,
+            Err(_) => {
+                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "bad json"}));
+                return;
+            }
+        };
+        let room = data.get("room").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
+        let side = data.get("side").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
+        let ready = data.get("ready").and_then(|v| v.as_bool()).unwrap_or(true);
+        {
+            let mut rooms = self.rooms.lock().unwrap();
+            if let Some(r) = rooms.get_mut(&room) {
+                if side < r.capacity {
+                    r.ready[side as usize] = ready;
+                    r.t = elapsed();
+                }
+            }
+        }
         self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
@@ -1011,7 +1097,8 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             .unwrap_or(0);
         let p1 = crate::game::get_subfaction_index(&defs, Self::extract_param(query, "p1"))
             .unwrap_or(if defs.subfactions.len() > 1 { 1 } else { 0 });
-        let mut b = crate::game::new_battle("ai", &defs, p0, p1);
+        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos() as u64;
+        let mut b = crate::game::new_battle("cpu", &defs, p0, p1, seed);
         crate::game::start_turn(&mut b);
         let id = format!("g{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs());
         self.games.lock().unwrap().insert(id.clone(), b);
@@ -1049,7 +1136,7 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             match action_type.as_str() {
                 "play" => {
                     match crate::game::play_card(b, player, card_idx) {
-                        Ok(()) => self.respond_json(req, 200, &serde_json::json!({"ok": true, "winner": b.winner, "state": crate::game::format_battle_state(b)})),
+                        Ok(_) => self.respond_json(req, 200, &serde_json::json!({"ok": true, "winner": b.winner, "state": crate::game::format_battle_state(b)})),
                         Err(e) => self.respond_json(req, 400, &serde_json::json!({"ok": false, "err": e})),
                     }
                 }
@@ -1057,21 +1144,21 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                     crate::game::end_turn(b, player);
                     self.respond_json(req, 200, &serde_json::json!({"ok": true, "state": crate::game::format_battle_state(b)}));
                 }
-                "ai" => {
+                "cpu" => {
                     if b.actor != 0 {
-                        self.respond_json(req, 400, &serde_json::json!({"ok": false, "err": "not AI turn"}));
+                        self.respond_json(req, 400, &serde_json::json!({"ok": false, "err": "not CPU turn"}));
                         return;
                     }
-                    let action_name = match crate::game::choose_ai_action(b) {
-                        crate::game::AiAction::PlayCard(i) => {
-                            if crate::game::play_card(b, 0, i).is_ok() {
+                    let action_name = match crate::game::choose_cpu_action(b) {
+                        crate::game::CpuAction::PlayCard(i, tgt) => {
+                            if crate::game::play_card_target(b, 0, i, tgt).is_ok() {
                                 format!("play {}", i)
                             } else {
                                 crate::game::end_turn(b, 0);
                                 "endturn".to_string()
                             }
                         }
-                        crate::game::AiAction::EndTurn => {
+                        crate::game::CpuAction::EndTurn => {
                             crate::game::end_turn(b, 0);
                             "endturn".to_string()
                         }
@@ -1235,9 +1322,11 @@ fn embedded_static_file(path: &str) -> Option<&'static [u8]> {
         "/js/library.js" => include_bytes!("../../app/js/library.js"),
         "/js/i18n.js" => include_bytes!("../../app/js/i18n.js"),
         "/js/sound.js" => include_bytes!("../../app/js/sound.js"),
-        "/js/effect_registry.js" => include_bytes!("../../app/js/effect_registry.js"),
         "/js/modloader.js" => include_bytes!("../../app/js/modloader.js"),
         "/js/jszip.min.js" => include_bytes!("../../app/js/jszip.min.js"),
+        "/js/engine.js" => include_bytes!("../../app/js/engine.js"),
+        "/js/card_duel_wasm.js" => include_bytes!("../../app/js/card_duel_wasm.js"),
+        "/js/card_duel_wasm_bg.wasm" => include_bytes!("../../app/js/card_duel_wasm_bg.wasm"),
         _ => return None,
     })
 }

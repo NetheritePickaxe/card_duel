@@ -4,6 +4,9 @@ mod game;
 mod net;
 mod server;
 
+#[cfg(target_arch = "wasm32")]
+pub mod bindings;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Start the LAN server in a background thread

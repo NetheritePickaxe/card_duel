@@ -28,7 +28,7 @@ export function shuffle(a) {
 }
 
 export function screenFromPath(path) {
-  const map = { '/': 'sc-menu', '/settings': 'sc-settings', '/edit': 'sc-edit', '/battle': 'sc-battle', '/select': 'sc-pick', '/lan': 'sc-lan', '/dice': 'sc-dice', '/mods': 'sc-mods', '/library': 'sc-library' };
+  const map = { '/': 'sc-menu', '/settings': 'sc-settings', '/edit': 'sc-edit', '/battle': 'sc-battle', '/select': 'sc-pick', '/lan': 'sc-lan', '/dice': 'sc-dice', '/mods': 'sc-mods', '/library': 'sc-library', '/custom': 'sc-custom' };
   return map[path] || 'sc-menu';
 }
 
@@ -39,7 +39,7 @@ export function show(id) {
   const el = $(id);
   el.classList.add('on');
   el.scrollTop = 0;
-  const route = { 'sc-menu': '/', 'sc-settings': '/settings', 'sc-edit': '/edit', 'sc-battle': '/battle', 'sc-pick': '/select', 'sc-lan': '/lan', 'sc-dice': '/dice', 'sc-mods': '/mods', 'sc-library': '/library' }[id];
+  const route = { 'sc-menu': '/', 'sc-settings': '/settings', 'sc-edit': '/edit', 'sc-battle': '/battle', 'sc-pick': '/select', 'sc-lan': '/lan', 'sc-dice': '/dice', 'sc-mods': '/mods', 'sc-library': '/library', 'sc-custom': '/custom' }[id];
   if (route && location.pathname !== route) history.pushState({ screen: id }, '', route);
   window.dispatchEvent(new CustomEvent('screen-changed', { detail: { screen: id } }));
 }

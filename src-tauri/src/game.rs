@@ -1,6 +1,7 @@
 #![allow(dead_code)]
+use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::Rng;
+use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::fs;
 
@@ -74,6 +75,12 @@ pub struct PlayerState {
     pub discard: Vec<Card>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct LogEvent {
+    pub key: String,
+    pub params: serde_json::Value,
+}
+
 #[derive(Debug, Clone)]
 pub struct Battle {
     pub mode: String,
@@ -81,8 +88,11 @@ pub struct Battle {
     pub turn: i32,
     pub actor: usize,
     pub winner: Option<usize>,
-    pub players: [PlayerState; 2],
-    pub log: Vec<String>,
+    pub players: Vec<PlayerState>,
+    pub teams: Vec<usize>,
+    pub order: Vec<usize>,
+    pub log: Vec<LogEvent>,
+    pub rng: StdRng,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,33 +104,88 @@ pub struct GameDefs {
 
 const HAND_MAX: i32 = 7;
 
-// ============ Utility ============
-
-fn shuffle<T: Clone>(v: &mut Vec<T>) {
-    let mut rng = rand::thread_rng();
-    v.shuffle(&mut rng);
+fn log_event(b: &mut Battle, key: &str, params: serde_json::Value) {
+    b.log.push(LogEvent { key: key.to_string(), params });
 }
 
-fn rand_int(n: usize) -> usize {
+// ============ Utility ============
+
+fn shuffle<T: Clone>(v: &mut Vec<T>, rng: &mut impl Rng) {
+    v.shuffle(rng);
+}
+
+fn rand_int(rng: &mut impl Rng, n: usize) -> usize {
     if n == 0 { return 0; }
-    rand::thread_rng().gen_range(0..n)
+    rng.gen_range(0..n)
+}
+
+fn build_order(teams: &[usize]) -> Vec<usize> {
+    let team0: Vec<usize> = teams.iter().enumerate()
+        .filter(|(_, t)| **t == 0).map(|(i, _)| i).collect();
+    let team1: Vec<usize> = teams.iter().enumerate()
+        .filter(|(_, t)| **t == 1).map(|(i, _)| i).collect();
+    let mut order = Vec::new();
+    let max_len = team0.len().max(team1.len());
+    for i in 0..max_len {
+        if i < team0.len() { order.push(team0[i]); }
+        if i < team1.len() { order.push(team1[i]); }
+    }
+    order
+}
+
+fn advance_actor(b: &mut Battle) {
+    if b.players.is_empty() || b.order.is_empty() { return; }
+    let pos = b.order.iter().position(|&x| x == b.actor).unwrap_or(0);
+    for i in 1..b.order.len() {
+        let next = b.order[(pos + i) % b.order.len()];
+        if b.players[next].hp > 0 {
+            b.actor = next;
+            return;
+        }
+    }
+}
+
+fn check_team_winner(b: &mut Battle) -> bool {
+    if b.winner.is_some() { return true; }
+    let alive_teams: std::collections::HashSet<usize> = b.players.iter().enumerate()
+        .filter(|(_, p)| p.hp > 0)
+        .map(|(i, _)| b.teams[i])
+        .collect();
+    if alive_teams.len() <= 1 {
+        if let Some(winner) = b.players.iter().position(|p| p.hp > 0) {
+            b.winner = Some(winner);
+            return true;
+        }
+    }
+    false
 }
 
 // ============ Battle engine ============
 
-pub fn new_battle(mode: &str, defs: &GameDefs, p0: usize, p1: usize) -> Battle {
-    let sub0 = &defs.subfactions[p0];
-    let sub1 = &defs.subfactions[p1];
-    let players = [make_player(sub0, defs), make_player(sub1, defs)];
-    Battle {
+pub fn new_battle(mode: &str, defs: &GameDefs, p0: usize, p1: usize, seed: u64) -> Battle {
+    new_battle_teams(mode, defs, vec![p0, p1], vec![0, 1], seed)
+}
+
+pub fn new_battle_teams(mode: &str, defs: &GameDefs, indices: Vec<usize>, teams: Vec<usize>, seed: u64) -> Battle {
+    let order = build_order(&teams);
+    let mut b = Battle {
         mode: mode.to_string(),
         seq: 0,
         turn: 1,
-        actor: 0,
+        actor: order.first().copied().unwrap_or(0),
         winner: None,
-        players,
+        players: vec![],
+        teams,
+        order,
         log: vec![],
+        rng: StdRng::seed_from_u64(seed),
+    };
+    for &i in &indices {
+        let mut p = make_player(&defs.subfactions[i], defs);
+        shuffle(&mut p.draw, &mut b.rng);
+        b.players.push(p);
     }
+    b
 }
 
 fn make_player(r: &SubfactionDef, defs: &GameDefs) -> PlayerState {
@@ -137,7 +202,6 @@ fn make_player(r: &SubfactionDef, defs: &GameDefs) -> PlayerState {
             d.push(c.clone());
         }
     }
-    shuffle(&mut d);
     PlayerState {
         role: r.clone(),
         hp: r.hp,
@@ -173,7 +237,7 @@ pub fn draw_cards(b: &mut Battle, pi: usize, n: i32, overflow: bool) {
         if P.draw.is_empty() {
             if P.discard.is_empty() { break; }
             let mut rd = std::mem::take(&mut P.discard);
-            shuffle(&mut rd);
+            shuffle(&mut rd, &mut b.rng);
             P.draw = rd;
         }
         if let Some(c) = P.draw.pop() {
@@ -187,23 +251,28 @@ pub fn force_discard(b: &mut Battle, t: usize, n: i32) {
     let P = &mut b.players[t];
     for _ in 0..n {
         if P.hand.is_empty() { break; }
-        let idx = rand_int(P.hand.len());
+        let idx = rand_int(&mut b.rng, P.hand.len());
         let c = P.hand.remove(idx);
         P.discard.push(c);
     }
 }
 
 pub fn start_turn(b: &mut Battle) {
+    if b.winner.is_some() { return; }
     let pi = b.actor;
     if b.players[pi].hp <= 0 {
-        b.winner = Some(1 - pi);
+        advance_actor(b);
+        if check_team_winner(b) { return; }
+        b.turn += 1;
+        start_turn(b);
         return;
     }
     let sk = b.players[pi].buffs.iter().position(|x| x.kind == "skip_turn");
     if let Some(idx) = sk {
         b.players[pi].buffs.remove(idx);
-        b.log.push(format!("{} 被禁行，本回合跳过", b.players[pi].role.name));
-        b.actor = 1 - pi;
+        log_event(b, "log.blocked", serde_json::json!({ "name": b.players[pi].role.name.clone() }));
+        advance_actor(b);
+        if check_team_winner(b) { return; }
         b.turn += 1;
         start_turn(b);
         return;
@@ -212,24 +281,35 @@ pub fn start_turn(b: &mut Battle) {
     b.players[pi].energy = b.players[pi].role.eng;
     let count = if b.turn == 1 { 5 } else { 2 };
     draw_cards(b, pi, count, false);
-    b.log.push(format!("—— 第 {} 回合 · {} ——", b.turn, b.players[pi].role.name));
-    // Check for extra_turn after end_turn triggers it
+    log_event(b, "log.turn", serde_json::json!({ "n": b.turn, "name": b.players[pi].role.name.clone() }));
 }
 
 pub fn end_turn(b: &mut Battle, pi: usize) {
     let ex = b.players[pi].buffs.iter().position(|x| x.kind == "extra_turn");
     if let Some(idx) = ex {
         b.players[pi].buffs.remove(idx);
-        b.log.push(format!("{} 发动【时间裂隙】继续行动", b.players[pi].role.name));
+        log_event(b, "log.haste", serde_json::json!({ "name": b.players[pi].role.name.clone() }));
         start_turn(b);
         return;
     }
-    b.actor = 1 - pi;
+    advance_actor(b);
+    if check_team_winner(b) { return; }
     b.turn += 1;
     start_turn(b);
 }
 
-pub fn play_card(b: &mut Battle, pi: usize, idx: usize) -> Result<(), String> {
+/// Find the first alive opponent (different team) for default targeting.
+fn first_opponent(b: &Battle, pi: usize) -> Option<usize> {
+    b.players.iter().enumerate()
+        .find(|(i, p)| *i != pi && b.teams[*i] != b.teams[pi] && p.hp > 0)
+        .map(|(i, _)| i)
+}
+
+pub fn play_card(b: &mut Battle, pi: usize, idx: usize) -> Result<Vec<(usize, String, String)>, String> {
+    play_card_target(b, pi, idx, None)
+}
+
+pub fn play_card_target(b: &mut Battle, pi: usize, idx: usize, target: Option<usize>) -> Result<Vec<(usize, String, String)>, String> {
     let cost = {
         let P = &b.players[pi];
         if idx >= P.hand.len() { return Err("invalid card index".into()); }
@@ -240,24 +320,30 @@ pub fn play_card(b: &mut Battle, pi: usize, idx: usize) -> Result<(), String> {
     };
     let card = b.players[pi].hand.remove(idx);
     b.players[pi].energy -= cost;
-    let _events = resolve_effects(b, pi, &card);
-    b.log.push(format!("{} 打出【{}】", b.players[pi].role.name, card.name));
+    let events = resolve_effects_target(b, pi, &card, target);
+    let card_name = card.name.clone();
+    log_event(b, "log.play_card", serde_json::json!({ "name": b.players[pi].role.name.clone(), "card": card_name }));
     b.players[pi].discard.push(card);
-    if b.winner.is_some() {
-        let w = b.winner.unwrap();
-        b.log.push(format!("{} 生命归零，{} 获胜！", b.players[1 - w].role.name, b.players[w].role.name));
-    }
-    Ok(())
+    Ok(events)
 }
 
-pub fn resolve_effects(b: &mut Battle, pi: usize, card: &Card) -> Vec<(usize, String)> {
-    let foe = 1 - pi;
+pub fn resolve_effects(b: &mut Battle, pi: usize, card: &Card) -> Vec<(usize, String, String)> {
+    resolve_effects_target(b, pi, card, None)
+}
+
+pub fn resolve_effects_target(b: &mut Battle, pi: usize, card: &Card, target: Option<usize>) -> Vec<(usize, String, String)> {
     let mut events = vec![];
     for e in &card.effects {
         if b.winner.is_some() { break; }
-        let tgt = if e.target.as_deref() == Some("self") { pi } else { foe };
+        let tgt = if e.target.as_deref() == Some("self") {
+            pi
+        } else {
+            target.unwrap_or_else(|| first_opponent(b, pi).unwrap_or_else(|| {
+                (0..b.players.len()).find(|&i| i != pi).unwrap_or(0)
+            }))
+        };
         apply_effect(b, pi, tgt, e);
-        events.push((tgt, eff_fx(e)));
+        events.push((tgt, eff_fx(e), e.kind.clone()));
     }
     events
 }
@@ -301,6 +387,23 @@ fn eff_fx(e: &Effect) -> String {
     }
 }
 
+pub fn effect_metadata_map() -> serde_json::Value {
+    serde_json::json!({
+        "damage": { "hasValue": true, "hasDuration": false, "hasPierce": true, "fx": {"form":"flash","color":"#ff3b30"}, "descKey":"desc.damage", "descKeyPierce":"desc.damage_pierce", "buffKey": null, "cpuWeight": 1.0 },
+        "heal": { "hasValue": true, "hasDuration": false, "hasPierce": false, "fx": {"form":"flash","color":"#34c759"}, "descKey":"desc.heal", "descKeyPierce": null, "buffKey": null, "cpuWeight": 0.9 },
+        "gain_def": { "hasValue": true, "hasDuration": true, "hasPierce": false, "fx": {"form":"overlay","color":"#e6b800"}, "descKey":"desc.gain_def", "descKeyPierce": null, "buffKey":"buff.def_up", "cpuWeight": 0.8 },
+        "gain_atk": { "hasValue": true, "hasDuration": true, "hasPierce": false, "fx": {"form":"pulse","color":"#e6b800"}, "descKey":"desc.gain_atk", "descKeyPierce": null, "buffKey":"buff.atk_up", "cpuWeight": 0.6 },
+        "weaken_def": { "hasValue": true, "hasDuration": true, "hasPierce": false, "fx": {"form":"overlay","color":"#bf5af2"}, "descKey":"desc.weaken_def", "descKeyPierce": null, "buffKey":"buff.armor_break", "cpuWeight": 0.5 },
+        "cost_up": { "hasValue": true, "hasDuration": true, "hasPierce": false, "fx": {"form":"overlay","color":"#bf5af2"}, "descKey":"desc.cost_up", "descKeyPierce": null, "buffKey":"buff.cost_up", "cpuWeight": 1.3 },
+        "dmg_reduce": { "hasValue": true, "hasDuration": true, "hasPierce": false, "fx": {"form":"overlay","color":"#e6b800"}, "descKey":"desc.dmg_reduce", "descKeyPierce": null, "buffKey":"buff.dmg_reduce", "cpuWeight": 0.4 },
+        "skip_turn": { "hasValue": false, "hasDuration": false, "hasPierce": false, "fx": {"form":"pulse","color":"#bf5af2"}, "descKey":"desc.skip_turn", "descKeyPierce": null, "buffKey":"buff.skip_turn", "cpuWeight": 3.5 },
+        "extra_turn": { "hasValue": false, "hasDuration": false, "hasPierce": false, "fx": {"form":"pulse","color":"#e6b800"}, "descKey":"desc.extra_turn", "descKeyPierce": null, "buffKey":"buff.extra_turn", "cpuWeight": 4.0 },
+        "draw": { "hasValue": true, "hasDuration": false, "hasPierce": false, "fx": {"form":"flash","color":"#0a84ff"}, "descKey":"desc.draw", "descKeyPierce": null, "buffKey": null, "cpuWeight": 1.6 },
+        "force_discard": { "hasValue": true, "hasDuration": false, "hasPierce": false, "fx": {"form":"overlay","color":"#bf5af2"}, "descKey":"desc.force_discard", "descKeyPierce": null, "buffKey": null, "cpuWeight": 1.2 },
+        "energy": { "hasValue": true, "hasDuration": false, "hasPierce": false, "fx": {"form":"flash","color":"#0a84ff"}, "descKey":"desc.energy", "descKeyPierce": null, "buffKey": null, "cpuWeight": 0.5 }
+    })
+}
+
 fn apply_effect(b: &mut Battle, a: usize, tp: usize, e: &Effect) {
     match e.kind.as_str() {
         "damage" => apply_damage(b, a, tp, e),
@@ -326,10 +429,17 @@ fn apply_damage(b: &mut Battle, a: usize, tp: usize, e: &Effect) {
     };
     b.players[tp].hp -= dmg;
     let pierce = e.pierce.unwrap_or(false);
-    b.log.push(format!("{} 对 {} 造成 {} 点伤害{}", b.players[a].role.name, b.players[tp].role.name, dmg, if pierce { "（真伤）" } else { "" }));
+    if pierce {
+        log_event(b, "log.damage_pierce", serde_json::json!({ "attacker": b.players[a].role.name.clone(), "target": b.players[tp].role.name.clone(), "dmg": dmg }));
+    } else {
+        log_event(b, "log.damage", serde_json::json!({ "attacker": b.players[a].role.name.clone(), "target": b.players[tp].role.name.clone(), "dmg": dmg }));
+    }
     if b.players[tp].hp <= 0 {
         b.players[tp].hp = 0;
-        b.winner = Some(a);
+        if check_team_winner(b) {
+            let w = b.winner.unwrap();
+            log_event(b, "log.win", serde_json::json!({ "winner": b.players[w].role.name.clone(), "loser": b.players[tp].role.name.clone() }));
+        }
     }
 }
 
@@ -337,7 +447,7 @@ fn apply_heal(b: &mut Battle, tp: usize, e: &Effect) {
     let v = e.value.unwrap_or(0);
     let max_hp = b.players[tp].role.hp;
     b.players[tp].hp = (b.players[tp].hp + v).min(max_hp);
-    b.log.push(format!("{} 恢复 {} 点生命", b.players[tp].role.name, v));
+    log_event(b, "log.heal", serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v }));
 }
 
 fn apply_gain_def(b: &mut Battle, tp: usize, e: &Effect) {
@@ -345,76 +455,83 @@ fn apply_gain_def(b: &mut Battle, tp: usize, e: &Effect) {
     let dur = e.duration.unwrap_or(999);
     b.players[tp].def += v;
     b.players[tp].buffs.push(Buff { kind: "gain_def".into(), value: v, duration: dur });
-    b.log.push(format!("{} 防御+{}", b.players[tp].role.name, v));
+    log_event(b, "log.def_up", serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v }));
 }
 
 fn apply_gain_atk(b: &mut Battle, tp: usize, e: &Effect) {
     let v = e.value.unwrap_or(0);
     let dur = e.duration.unwrap_or(999);
     b.players[tp].buffs.push(Buff { kind: "gain_atk".into(), value: v, duration: dur });
-    b.log.push(format!("{} 攻击+{}", b.players[tp].role.name, v));
+    log_event(b, "log.atk_up", serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v }));
 }
 
 fn apply_weaken_def(b: &mut Battle, tp: usize, e: &Effect) {
     let v = e.value.unwrap_or(0);
     let dur = e.duration.unwrap_or(3);
     b.players[tp].buffs.push(Buff { kind: "weaken_def".into(), value: v, duration: dur });
-    b.log.push(format!("{} 防御-{}（{}回合）", b.players[tp].role.name, v, dur));
+    log_event(b, "log.def_down", serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v, "dur": dur }));
 }
 
 fn apply_cost_up(b: &mut Battle, tp: usize, e: &Effect) {
     let v = e.value.unwrap_or(0);
     let dur = e.duration.unwrap_or(2);
     b.players[tp].buffs.push(Buff { kind: "cost_up".into(), value: v, duration: dur });
-    b.log.push(format!("{} 卡牌费用+{}（{}回合）", b.players[tp].role.name, v, dur));
+    log_event(b, "log.cost_up", serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v, "dur": dur }));
 }
 
 fn apply_dmg_reduce(b: &mut Battle, tp: usize, e: &Effect) {
     let v = e.value.unwrap_or(0);
     let dur = e.duration.unwrap_or(3);
     b.players[tp].buffs.push(Buff { kind: "dmg_reduce".into(), value: v, duration: dur });
-    b.log.push(format!("{} 获得 {}% 减伤（{}回合）", b.players[tp].role.name, v, dur));
+    log_event(b, "log.dmg_reduce", serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v, "dur": dur }));
 }
 
 fn apply_skip_turn(b: &mut Battle, tp: usize) {
     b.players[tp].buffs.push(Buff { kind: "skip_turn".into(), value: 0, duration: 0 });
-    b.log.push(format!("{} 下一回合被跳过", b.players[tp].role.name));
+    log_event(b, "log.skip_turn", serde_json::json!({ "target": b.players[tp].role.name.clone() }));
 }
 
 fn apply_extra_turn(b: &mut Battle, a: usize) {
     b.players[a].buffs.push(Buff { kind: "extra_turn".into(), value: 0, duration: 0 });
-    b.log.push(format!("{} 获得额外回合", b.players[a].role.name));
+    log_event(b, "log.extra_turn", serde_json::json!({ "target": b.players[a].role.name.clone() }));
 }
 
 fn apply_draw(b: &mut Battle, a: usize, e: &Effect) {
     let v = e.value.unwrap_or(0);
     draw_cards(b, a, v, true);
-    b.log.push(format!("{} 抽 {} 张牌", b.players[a].role.name, v));
+    log_event(b, "log.draw", serde_json::json!({ "target": b.players[a].role.name.clone(), "value": v }));
 }
 
 fn apply_force_discard(b: &mut Battle, tp: usize, e: &Effect) {
     let v = e.value.unwrap_or(0);
     force_discard(b, tp, v);
-    b.log.push(format!("{} 被迫弃置 {} 张手牌", b.players[tp].role.name, v));
+    log_event(b, "log.force_discard", serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v }));
 }
 
 fn apply_energy(b: &mut Battle, a: usize, e: &Effect) {
     let v = e.value.unwrap_or(0);
     b.players[a].energy = (b.players[a].energy + v).max(0);
     let sign = if v >= 0 { "+" } else { "" };
-    b.log.push(format!("{} 能量{}{}", b.players[a].role.name, sign, v));
+    log_event(b, "log.energy", serde_json::json!({ "target": b.players[a].role.name.clone(), "sign": sign, "value": v }));
 }
 
-// ============ AI ============
+// ============ CPU AI ============
 
-fn score_card(b: &Battle, c: &Card) -> f64 {
+fn cpu_target(b: &Battle, pi: usize) -> Option<usize> {
+    b.players.iter().enumerate()
+        .filter(|(i, p)| *i != pi && b.teams[*i] != b.teams[pi] && p.hp > 0)
+        .min_by_key(|(_, p)| p.hp)
+        .map(|(i, _)| i)
+}
+
+fn score_card(b: &Battle, pi: usize, c: &Card) -> f64 {
     let mut s = 0.0;
     for e in &c.effects {
         let v = e.value.unwrap_or(0) as f64;
         s += match e.kind.as_str() {
             "damage" => v * if e.pierce.unwrap_or(false) { 1.4 } else { 1.0 },
             "heal" => {
-                if (b.players[0].hp as f64) < b.players[0].role.hp as f64 * 0.7 { v * 0.9 } else { -2.0 }
+                if (b.players[pi].hp as f64) < b.players[pi].role.hp as f64 * 0.7 { v * 0.9 } else { -2.0 }
             }
             "gain_def" => v * 0.8,
             "gain_atk" => v * 0.6,
@@ -432,16 +549,17 @@ fn score_card(b: &Battle, c: &Card) -> f64 {
     s
 }
 
-pub fn choose_ai_action(b: &mut Battle) -> AiAction {
-    let P = &b.players[0];
+pub fn choose_cpu_action(b: &mut Battle) -> CpuAction {
+    let pi = b.actor;
+    let P = &b.players[pi];
     if P.hand.is_empty() {
-        return AiAction::EndTurn;
+        return CpuAction::EndTurn;
     }
     let mut best_idx = None;
     let mut best_score = -1e9f64;
     for (i, c) in P.hand.iter().enumerate() {
-        if card_cost(b, 0, c) <= P.energy {
-            let s = score_card(b, c);
+        if card_cost(b, pi, c) <= P.energy {
+            let s = score_card(b, pi, c);
             if s > best_score {
                 best_score = s;
                 best_idx = Some(i);
@@ -449,14 +567,17 @@ pub fn choose_ai_action(b: &mut Battle) -> AiAction {
         }
     }
     match best_idx {
-        Some(idx) => AiAction::PlayCard(idx),
-        None => AiAction::EndTurn,
+        Some(idx) => {
+            let tgt = cpu_target(b, pi);
+            CpuAction::PlayCard(idx, tgt)
+        }
+        None => CpuAction::EndTurn,
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum AiAction {
-    PlayCard(usize),
+pub enum CpuAction {
+    PlayCard(usize, Option<usize>),
     EndTurn,
 }
 
@@ -468,68 +589,99 @@ pub fn format_battle_state(b: &Battle) -> String {
 
 pub fn format_battle_state_for(b: &Battle, local_player: usize) -> String {
     let mut s = String::new();
-    let foe = 1 - local_player;
     s.push_str(&format!("=== 回合 {} — {} 行动 ===\n\n", b.turn,
         b.players[b.actor].role.name));
 
-    // 对手（上半屏），不暴露手牌内容
-    let fp = &b.players[foe];
-    s.push_str(&format!("对手 {}: HP {}/{}  DEF {}  能量 {}/{}\n",
-        fp.role.name, fp.hp, fp.role.hp, fp.def, fp.energy, fp.role.eng));
-    if !fp.hand.is_empty() {
-        s.push_str(&format!("手牌: {} 张\n", fp.hand.len()));
+    for (i, p) in b.players.iter().enumerate() {
+        let team_label = if i < b.teams.len() { format!("(队{})", b.teams[i]) } else { String::new() };
+        if i == local_player {
+            s.push_str(&format!("你 {} {}: HP {}/{}  DEF {}  能量 {}/{}\n",
+                p.role.name, team_label, p.hp, p.role.hp, p.def, p.energy, p.role.eng));
+            let hand: Vec<String> = p.hand.iter().enumerate()
+                .map(|(j, c)| format!("{}({})", c.name, j)).collect();
+            if !hand.is_empty() {
+                s.push_str(&format!("手牌: {}\n", hand.join(" ")));
+            }
+            s.push_str(&format!("牌堆 {} 张 | 弃牌 {} 张\n", p.draw.len(), p.discard.len()));
+        } else {
+            s.push_str(&format!("{} {}: HP {}/{}  DEF {}  能量 {}/{}\n",
+                p.role.name, team_label, p.hp, p.role.hp, p.def, p.energy, p.role.eng));
+            if !p.hand.is_empty() {
+                s.push_str(&format!("手牌: {} 张\n", p.hand.len()));
+            }
+            s.push_str(&format!("牌堆 {} 张 | 弃牌 {} 张\n", p.draw.len(), p.discard.len()));
+        }
+        if !p.buffs.is_empty() {
+            let buffs: Vec<String> = p.buffs.iter().map(|b| format!("{}", b.kind)).collect();
+            s.push_str(&format!("状态: {}\n", buffs.join(", ")));
+        }
+        s.push_str("\n");
     }
-    s.push_str(&format!("牌堆 {} 张 | 弃牌 {} 张\n", fp.draw.len(), fp.discard.len()));
-    if !fp.buffs.is_empty() {
-        let buffs: Vec<String> = fp.buffs.iter().map(|b| format!("{}", b.kind)).collect();
-        s.push_str(&format!("状态: {}\n", buffs.join(", ")));
-    }
-    s.push_str("\n");
-
-    // 本地玩家（下半屏），显示完整手牌
-    let lp = &b.players[local_player];
-    s.push_str(&format!("你 {}: HP {}/{}  DEF {}  能量 {}/{}\n",
-        lp.role.name, lp.hp, lp.role.hp, lp.def, lp.energy, lp.role.eng));
-    let hand: Vec<String> = lp.hand.iter().enumerate()
-        .map(|(j, c)| format!("{}({})", c.name, j)).collect();
-    if !hand.is_empty() {
-        s.push_str(&format!("手牌: {}\n", hand.join(" ")));
-    }
-    s.push_str(&format!("牌堆 {} 张 | 弃牌 {} 张\n", lp.draw.len(), lp.discard.len()));
-    if !lp.buffs.is_empty() {
-        let buffs: Vec<String> = lp.buffs.iter().map(|b| format!("{}", b.kind)).collect();
-        s.push_str(&format!("状态: {}\n", buffs.join(", ")));
-    }
-    s.push_str("\n");
 
     if b.winner.is_some() {
         let w = b.winner.unwrap();
-        s.push_str(&format!("{} 获胜！\n", b.players[w].role.name));
+        if w < b.players.len() {
+            s.push_str(&format!("{} 获胜！\n", b.players[w].role.name));
+        }
     }
     s
 }
 
 pub fn format_log(b: &Battle) -> String {
     let start = if b.log.len() > 10 { b.log.len() - 10 } else { 0 };
-    b.log[start..].join("\n")
+    b.log[start..].iter().map(|e| render_log(e)).collect::<Vec<_>>().join("\n")
+}
+
+fn render_log(e: &LogEvent) -> String {
+    let p = &e.params;
+    match e.key.as_str() {
+        "log.damage" => format!("{} 对 {} 造成 {} 点伤害", p["attacker"].as_str().unwrap_or("?"), p["target"].as_str().unwrap_or("?"), p["dmg"].as_i64().unwrap_or(0)),
+        "log.damage_pierce" => format!("{} 对 {} 造成 {} 点伤害（真伤）", p["attacker"].as_str().unwrap_or("?"), p["target"].as_str().unwrap_or("?"), p["dmg"].as_i64().unwrap_or(0)),
+        "log.win" => format!("{} 生命归零，{} 获胜！", p["loser"].as_str().unwrap_or("?"), p["winner"].as_str().unwrap_or("?")),
+        "log.heal" => format!("{} 恢复 {} 点生命", p["target"].as_str().unwrap_or("?"), p["value"].as_i64().unwrap_or(0)),
+        "log.def_up" => format!("{} 防御+{}", p["target"].as_str().unwrap_or("?"), p["value"].as_i64().unwrap_or(0)),
+        "log.atk_up" => format!("{} 攻击+{}", p["target"].as_str().unwrap_or("?"), p["value"].as_i64().unwrap_or(0)),
+        "log.def_down" => format!("{} 防御-{}（{}回合）", p["target"].as_str().unwrap_or("?"), p["value"].as_i64().unwrap_or(0), p["dur"].as_i64().unwrap_or(0)),
+        "log.cost_up" => format!("{} 卡牌费用+{}（{}回合）", p["target"].as_str().unwrap_or("?"), p["value"].as_i64().unwrap_or(0), p["dur"].as_i64().unwrap_or(0)),
+        "log.dmg_reduce" => format!("{} 获得 {}% 减伤（{}回合）", p["target"].as_str().unwrap_or("?"), p["value"].as_i64().unwrap_or(0), p["dur"].as_i64().unwrap_or(0)),
+        "log.skip_turn" => format!("{} 下一回合被跳过", p["target"].as_str().unwrap_or("?")),
+        "log.extra_turn" => format!("{} 获得额外回合", p["target"].as_str().unwrap_or("?")),
+        "log.draw" => format!("{} 抽 {} 张牌", p["target"].as_str().unwrap_or("?"), p["value"].as_i64().unwrap_or(0)),
+        "log.force_discard" => format!("{} 被迫弃置 {} 张手牌", p["target"].as_str().unwrap_or("?"), p["value"].as_i64().unwrap_or(0)),
+        "log.energy" => format!("{} 能量{}{}", p["target"].as_str().unwrap_or("?"), p["sign"].as_str().unwrap_or("+"), p["value"].as_i64().unwrap_or(0)),
+        "log.blocked" => format!("{} 被禁行，本回合跳过", p["name"].as_str().unwrap_or("?")),
+        "log.turn" => format!("—— 第 {} 回合 · {} ——", p["n"].as_i64().unwrap_or(0), p["name"].as_str().unwrap_or("?")),
+        "log.play_card" => format!("{} 打出【{}】", p["name"].as_str().unwrap_or("?"), p["card"].as_str().unwrap_or("?")),
+        "log.haste" => format!("{} 发动【时间裂隙】继续行动", p["name"].as_str().unwrap_or("?")),
+        _ => format!("[{}] {:?}", e.key, e.params),
+    }
 }
 
 // ============ Data loading ============
 
-pub fn load_defs(app_dir: &str) -> Result<GameDefs, String> {
-    let subfactions: Vec<SubfactionDef> = serde_json::from_str(
-        &fs::read_to_string(format!("{}/card_duel/data/subfactions.json", app_dir))
-            .map_err(|e| format!("subfactions.json: {}", e))?)
+pub fn defs_from_strings(cards_json: &str, subfactions_json: &str, factions_json: &str) -> Result<GameDefs, String> {
+    let subfactions: Vec<SubfactionDef> = serde_json::from_str(subfactions_json)
         .map_err(|e| format!("subfactions.json parse: {}", e))?;
-    let cards: Vec<Card> = serde_json::from_str(
-        &fs::read_to_string(format!("{}/card_duel/data/cards.json", app_dir))
-            .map_err(|e| format!("cards.json: {}", e))?)
+    let cards: Vec<Card> = serde_json::from_str(cards_json)
         .map_err(|e| format!("cards.json parse: {}", e))?;
-    let factions: Vec<FactionDef> = serde_json::from_str(
-        &fs::read_to_string(format!("{}/card_duel/data/factions.json", app_dir))
-            .map_err(|e| format!("factions.json: {}", e))?)
+    let factions: Vec<FactionDef> = serde_json::from_str(factions_json)
         .map_err(|e| format!("factions.json parse: {}", e))?;
     Ok(GameDefs { subfactions, cards, factions })
+}
+
+/// Parse a single JSON object `{ "subfactions": [...], "cards": [...], "factions": [...] }`.
+pub fn defs_from_json(defs_json: &str) -> Result<GameDefs, String> {
+    serde_json::from_str(defs_json).map_err(|e| format!("defs parse: {}", e))
+}
+
+pub fn load_defs(app_dir: &str) -> Result<GameDefs, String> {
+    let subfactions = fs::read_to_string(format!("{}/card_duel/data/subfactions.json", app_dir))
+        .map_err(|e| format!("subfactions.json: {}", e))?;
+    let cards = fs::read_to_string(format!("{}/card_duel/data/cards.json", app_dir))
+        .map_err(|e| format!("cards.json: {}", e))?;
+    let factions = fs::read_to_string(format!("{}/card_duel/data/factions.json", app_dir))
+        .map_err(|e| format!("factions.json: {}", e))?;
+    defs_from_strings(&cards, &subfactions, &factions)
 }
 
 pub fn list_subfactions(defs: &GameDefs) -> String {
@@ -544,4 +696,88 @@ pub fn list_subfactions(defs: &GameDefs) -> String {
 
 pub fn get_subfaction_index(defs: &GameDefs, name: &str) -> Option<usize> {
     defs.subfactions.iter().position(|s| s.name == name || s.id == name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_defs() -> GameDefs {
+        let sub = SubfactionDef {
+            id: "test".into(), name: "Test".into(), faction: None,
+            hp: 30, def: 2, eng: 3, intro: "".into(), img: "".into(), deck: None,
+        };
+        let card = Card {
+            id: "strike".into(), name: "Strike".into(), cost: 1, img: "".into(),
+            desc: "".into(),
+            effects: vec![
+                Effect { kind: "damage".into(), value: Some(5), duration: None, pierce: None, target: None, fx: None },
+                Effect { kind: "draw".into(), value: Some(1), duration: None, pierce: None, target: None, fx: None },
+            ],
+        };
+        let card2 = Card {
+            id: "defend".into(), name: "Defend".into(), cost: 1, img: "".into(),
+            desc: "".into(),
+            effects: vec![
+                Effect { kind: "gain_def".into(), value: Some(3), duration: Some(2), pierce: None, target: None, fx: None },
+            ],
+        };
+        GameDefs {
+            subfactions: vec![sub; 2],
+            cards: vec![card, card2],
+            factions: vec![],
+        }
+    }
+
+    #[test]
+    fn test_calc_damage_basic() {
+        let d = test_defs();
+        let mut b = new_battle("cpu", &d, 0, 1, 42);
+        let dmg = calc_damage(&b.players[0], &b.players[1], 5, false);
+        assert_eq!(dmg, 3, "damage with def reduction");
+    }
+
+    #[test]
+    fn test_calc_damage_pierce() {
+        let d = test_defs();
+        let mut b = new_battle("cpu", &d, 0, 1, 42);
+        let dmg = calc_damage(&b.players[0], &b.players[1], 5, true);
+        assert_eq!(dmg, 5, "pierce ignores def");
+    }
+
+    #[test]
+    fn test_play_card_damage() {
+        let d = test_defs();
+        let mut b = new_battle("cpu", &d, 0, 1, 42);
+        start_turn(&mut b);
+        assert!(!b.players[0].hand.is_empty(), "should have cards after start_turn");
+        let idx = b.players[0].hand.iter().position(|c| c.id == "strike").unwrap_or(0);
+        let hp_before = b.players[1].hp;
+        let _ = play_card_target(&mut b, 0, idx, Some(1));
+        assert!(b.players[1].hp < hp_before, "target should take damage");
+    }
+
+    #[test]
+    fn test_effect_metadata() {
+        let meta = effect_metadata_map();
+        assert!(meta.get("damage").is_some(), "damage effect should exist");
+        assert!(meta.get("heal").is_some(), "heal effect should exist");
+        let dmg = meta.get("damage").unwrap();
+        assert_eq!(dmg["hasValue"], true);
+        assert_eq!(dmg["hasPierce"], true);
+    }
+
+    #[test]
+    fn test_log_events() {
+        let d = test_defs();
+        let mut b = new_battle("cpu", &d, 0, 1, 42);
+        start_turn(&mut b);
+        let idx = b.players[0].hand.iter().position(|c| c.id == "strike").unwrap_or(0);
+        let _ = play_card_target(&mut b, 0, idx, Some(1));
+        assert!(!b.log.is_empty(), "log should have entries");
+        assert!(b.log.iter().any(|e| e.key == "log.turn"), "log should contain turn event");
+        assert!(b.log.iter().any(|e| e.key == "log.play_card"), "log should contain play_card event");
+        let rendered = format_log(&b);
+        assert!(rendered.len() > 10, "rendered log should not be empty");
+    }
 }
