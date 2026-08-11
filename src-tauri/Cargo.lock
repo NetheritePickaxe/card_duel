@@ -243,6 +243,7 @@ dependencies = [
 name = "card-duel"
 version = "1.0.0"
 dependencies = [
+ "flate2",
  "openssl",
  "rand",
  "serde",

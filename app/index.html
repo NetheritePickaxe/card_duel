@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#141517">
 <title>卡牌对决</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=__VERSION__">
 <link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 <script>
 (function(){
   var p = location.pathname;
-  var m = { '/settings':'sc-settings', '/edit':'sc-edit', '/mods':'sc-mods', '/select':'sc-pick', '/battle':'sc-battle', '/lan':'sc-lan', '/dice':'sc-dice' };
+  var m = { '/settings':'sc-settings', '/edit':'sc-edit', '/mods':'sc-mods', '/select':'sc-pick', '/battle':'sc-battle', '/lan':'sc-lan', '/dice':'sc-dice', '/library':'sc-library' };
   document.documentElement.classList.add(m[p] ? 'init-' + m[p] : 'init-menu');
   var t = localStorage.getItem('theme') || 'dark';
   if (t === 'light') document.documentElement.dataset.theme = 'light';
@@ -29,7 +29,8 @@
     <div class="mbtn" data-action="start-ai"><span data-i18n="menu.ai">单人对战 · AI</span><small data-i18n="menu.ai_hint">与电脑对战</small></div>
     <div class="mbtn" data-action="start-local"><span data-i18n="menu.local">本地对战</span><small data-i18n="menu.local_hint">同屏轮流操作</small></div>
     <div class="mbtn" data-action="open-lan"><span data-i18n="menu.lan">局域网对战</span><small data-i18n="menu.lan_hint">电脑与手机联机</small></div>
-    <div class="mbtn" data-action="open-editor"><span data-i18n="menu.edit">角色与卡牌编辑</span><small data-i18n="menu.edit_hint">自定义数据，自动保存</small></div>
+    <div class="mbtn" data-action="open-editor"><span data-i18n="menu.edit">子阵营与卡牌编辑</span><small data-i18n="menu.edit_hint">自定义数据，自动保存</small></div>
+    <div class="mbtn" data-action="open-library"><span data-i18n="menu.library">卡牌库</span><small data-i18n="menu.library_hint">浏览阵营与卡牌</small></div>
     <div class="mbtn" data-action="open-mods"><span data-i18n="menu.mods">模组</span><small data-i18n="menu.mods_hint">管理模组</small></div>
     <div class="mbtn" data-action="open-settings"><span data-i18n="menu.settings">设置</span><small></small></div>
     <div class="maddr" id="maddr"></div>
@@ -93,29 +94,39 @@
   </div>
 </div>
 
+<div class="screen" id="sc-library">
+  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="library.title">卡牌库</h1></div>
+  <div class="lib-wrap">
+    <div class="lib-filter" id="lib-filter"></div>
+    <div class="lib-main">
+      <div class="lib-flat" id="lib-flat"></div>
+      <div class="lib-detail" id="lib-detail">
+        <div class="lib-placeholder" data-i18n="library.placeholder">选择一个卡牌查看详情</div>
+      </div>
+    </div>
+    <div class="deck-editor" id="deck-editor" style="display:none"></div>
+  </div>
+</div>
+
 <div class="screen" id="sc-edit">
   <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="edit.title">数据编辑</h1></div>
   <div class="tabs edit-tabs">
-    <button class="tab on" data-action="tab-role"><span data-i18n="edit.tab_role">角色</span></button>
+    <button class="tab on" data-action="tab-subfaction"><span data-i18n="edit.tab_subfaction_faction">阵营与子阵营</span></button>
     <button class="tab" data-action="tab-card"><span data-i18n="edit.tab_card">技能卡牌</span></button>
-    <button class="tab" data-action="tab-faction"><span data-i18n="edit.tab_faction">阵营</span></button>
   </div>
-  <div class="edit-wrap" id="edit-role">
-    <div class="list" id="role-list"></div>
-    <div class="form" id="role-form"></div>
+  <div class="edit-wrap" id="edit-subfaction">
+    <div class="list" id="subfaction-list"></div>
+    <div class="form" id="subfaction-form"></div>
+    <div class="form" id="faction-form" style="display:none"></div>
   </div>
   <div class="edit-wrap" id="edit-card" style="display:none">
     <div class="list" id="card-list"></div>
     <div class="form" id="card-form"></div>
   </div>
-  <div class="edit-wrap" id="edit-faction" style="display:none">
-    <div class="list" id="faction-list"></div>
-    <div class="form" id="faction-form"></div>
-  </div>
 </div>
 
 <div class="screen" id="sc-pick">
-  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 id="pk-title">选择角色</h1></div>
+  <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 id="pk-title">选择子阵营</h1></div>
   <div class="dim" style="text-align:center;margin-bottom:12px;font-size:14px" id="lan-hint"></div>
   <div class="pick-wrap">
     <div class="slot" data-action="pick-role" data-slot="0" id="slot-0"></div>
@@ -205,6 +216,6 @@
   const __IP_LIST__ = [];
   const __PHONE_IP__ = "";
 </script>
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js?v=__VERSION__"></script>
 </body>
 </html>

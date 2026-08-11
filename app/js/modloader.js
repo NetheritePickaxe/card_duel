@@ -1,7 +1,7 @@
-import { registerTrack, deregisterTrack } from './sound.js';
-import { registerEffect, getEffect } from './effect_registry.js';
-import { addTranslation, clearTranslations } from './i18n.js';
-import { setDefaultData } from './data.js';
+import { registerTrack, deregisterTrack } from './sound.js?v=__VERSION__';
+import { registerEffect, getEffect } from './effect_registry.js?v=__VERSION__';
+import { addTranslation, clearTranslations } from './i18n.js?v=__VERSION__';
+import { setDefaultData } from './data.js?v=__VERSION__';
 
 const DB_NAME = 'card_duel_mods';
 const STORE = 'mods';
@@ -65,7 +65,7 @@ async function idbDelete(key) {
 
 /* ============ 读取文件工具 ============ */
 async function fetchText(url) {
-  const res = await fetch(url);
+  const res = await fetch(url, { cache: 'no-store' });
   if (!res.ok) throw new Error('404');
   return res.text();
 }
@@ -84,7 +84,7 @@ async function loadVanillaMod() {
     'assets/sound/sound.json',
     'assets/lang/zh_cn.json',
     'assets/lang/en_us.json',
-    'data/roles.json',
+    'data/subfactions.json',
     'data/cards.json',
     'data/effects.json',
     'data/factions.json',
@@ -175,10 +175,10 @@ async function applyMod(mod) {
   }
   // 数据
   try {
-    const roles = JSON.parse(mod.files['data/roles.json'] || '[]');
+    const subfactions = JSON.parse(mod.files['data/subfactions.json'] || mod.files['data/roles.json'] || '[]');
     const cards = JSON.parse(mod.files['data/cards.json'] || '[]');
     const factions = JSON.parse(mod.files['data/factions.json'] || '[]');
-    setDefaultData(roles, cards, factions);
+    setDefaultData(subfactions, cards, factions);
   } catch (e) { /* ignore */ }
   // 声音
   const soundContent = mod.files['assets/sound/sound.json'];

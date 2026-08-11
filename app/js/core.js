@@ -1,6 +1,6 @@
-import { state } from './state.js';
-import { shuffle } from './util.js';
-import { applyEffect, effFx } from './effect_registry.js';
+import { state } from './state.js?v=__VERSION__';
+import { shuffle } from './util.js?v=__VERSION__';
+import { applyEffect, effFx } from './effect_registry.js?v=__VERSION__';
 
 export const log = (b, msg) => b.log.push(msg);
 
@@ -12,7 +12,7 @@ export function newBattle(mode, defs) {
   const b = {
     mode, seq: 0, turn: 1, actor: 0, phase: 'awaiting', winner: null, defs, log: [],
     players: [0, 1].map(i => {
-      const r = defs.roles[i];
+      const r = defs.subfactions[i];
       const d = [];
       const deck = Array.isArray(r.deck) && r.deck.length ? r.deck : null;
       if (deck) {

@@ -212,7 +212,6 @@ card_duel/
 │   ├── icon-192.png            # PWA 图标
 │   ├── icon-512.png
 │   ├── manifest.json           # PWA 配置
-│   └── sw.js                   # Service Worker
 ├── src-tauri/                  # Tauri / Rust 后端
 │   ├── src/
 │   │   ├── main.rs             # Windows/桌面入口 (含 --server 头部模式)
@@ -247,6 +246,12 @@ card_duel/
 本项目基于 [南宫墨铭](https://github.com/NanGongXunLi) 的原版 Web 实现移植至 Tauri 跨平台架构。
 
 > 原版项目以纯 Web 技术栈实现局域网对战核心逻辑，Tauri 版本在其基础上增加了原生桌面与移动端打包能力，并将局域网服务器内置至 Rust 后端。
+
+---
+
+## 免责声明
+
+本项目为 AI 辅助开发的 vibecoding 作品。
 
 ---
 

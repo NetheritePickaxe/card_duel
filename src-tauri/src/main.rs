@@ -25,7 +25,8 @@ fn main() {
         return;
     }
 
-    // Desktop: start server in background + launch Tauri app
+    // Desktop: LAN server reads from disk (hot reload for LAN players)
+    server::set_disk_mode(true);
     server::start_background_server();
 
     tauri::Builder::default()

@@ -1,3 +1,5 @@
+import { state } from './state.js?v=__VERSION__';
+
 const VOL_KEYS = { master: 'vol_master', bgm: 'vol_bgm', sfx: 'vol_sfx', voice: 'vol_voice' };
 const VOL_DEFAULTS = { master: 1.0, bgm: 0.3, sfx: 0.8, voice: 0.8 };
 
@@ -88,6 +90,10 @@ export function playTrack(id) {
 
 export function updateBGM() {
   if (!audio) return;
+  if (state.BATTLE && state.BATTLE.winner != null) {
+    if (currentId !== 'bgm/defeat') playTrack('bgm/defeat');
+    return;
+  }
   const inBattle = document.getElementById('sc-battle').classList.contains('on');
   if (inBattle) {
     if (currentId !== 'bgm/battle') playTrack('bgm/battle');

@@ -14,7 +14,6 @@ exit /b
 if not exist "%SERVER_EXE%" goto build
 echo CardDuel Web Server (port 8788)
 echo Browser: http://localhost:8788
-echo Other devices: see IP shown in the menu
 explorer.exe "http://localhost:8788"
 "%SERVER_EXE%"
 pause

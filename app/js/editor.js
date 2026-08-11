@@ -1,8 +1,8 @@
-import { $, esc, IS_MOBILE, toast } from './util.js';
-import { state } from './state.js';
-import { DB, saveDB, EFF_TYPES, FX_FORMS, defaultFx, compressImage, genDesc, getFaction } from './data.js';
-import { t } from './i18n.js';
-import { show } from './util.js';
+import { $, esc, IS_MOBILE, toast } from './util.js?v=__VERSION__';
+import { state } from './state.js?v=__VERSION__';
+import { DB, saveDB, EFF_TYPES, FX_FORMS, defaultFx, compressImage, genDesc, getFaction } from './data.js?v=__VERSION__';
+import { t } from './i18n.js?v=__VERSION__';
+import { show } from './util.js?v=__VERSION__';
 
 function autoGrow(el) {
   if (!el) return;
@@ -11,8 +11,8 @@ function autoGrow(el) {
 }
 
 export function openEditor() {
-  state.EDIT = { tab: 'role', sel: null, factionSel: null };
-  setTab('role');
+  state.EDIT = { tab: 'subfaction', sel: null, factionSel: null };
+  setTab('subfaction');
   show('sc-edit');
 }
 
@@ -21,25 +21,27 @@ export function setTab(tab) {
   state.EDIT.sel = null;
   state.EDIT.factionSel = null;
   saveEditState();
-  $('edit-role').style.display = tab === 'role' ? 'flex' : 'none';
+  $('edit-subfaction').style.display = tab === 'subfaction' ? 'flex' : 'none';
   $('edit-card').style.display = tab === 'card' ? 'flex' : 'none';
-  $('edit-faction').style.display = tab === 'faction' ? 'flex' : 'none';
   const tabs = document.querySelectorAll('.edit-tabs .tab');
-  const idx = tab === 'role' ? 0 : tab === 'card' ? 1 : 2;
+  const idx = tab === 'subfaction' ? 0 : 1;
   tabs.forEach((b, i) => b.classList.toggle('on', i === idx));
   renderEditList();
 }
 
 export function renderEditList() {
-  if (state.EDIT.tab === 'faction') {
-    renderFactionList();
-    return;
-  }
-  if (state.EDIT.tab === 'role') {
-    renderRoleList();
-    const r = DB.roles.find(x => x.id === state.EDIT.sel) || DB.roles[0];
-    if (r) { renderRoleForm(r); $('role-form').style.display = ''; }
-    else $('role-form').style.display = 'none';
+  if (state.EDIT.tab === 'subfaction') {
+    renderSubfactionTree();
+    if (state.EDIT.factionSel) {
+      renderFactionForm(DB.factions.find(x => x.id === state.EDIT.factionSel));
+      $('faction-form').style.display = '';
+      $('subfaction-form').style.display = 'none';
+    } else {
+      const r = DB.subfactions.find(x => x.id === state.EDIT.sel) || DB.subfactions[0];
+      if (r) { renderSubfactionForm(r); $('subfaction-form').style.display = ''; }
+      else $('subfaction-form').style.display = 'none';
+      $('faction-form').style.display = 'none';
+    }
   } else {
     $('card-list').innerHTML = DB.cards.map((c, i) =>
       `<button class="item ${state.EDIT.sel === c.id ? 'sel' : ''}" data-action="edit-sel-card" data-index="${i}">
@@ -51,33 +53,57 @@ export function renderEditList() {
   }
 }
 
-function renderRoleList() {
-  const groups = getRoleGroups();
-  $('role-list').innerHTML = groups.map((g, gi) => `
-    <div class="faction-header">${esc(g.name)}</div>
-    ${g.roles.map((r, ri) => {
-      const idx = DB.roles.indexOf(r);
-      return `<button class="item ${state.EDIT.sel === r.id ? 'sel' : ''}" data-action="edit-sel-role" data-index="${idx}">
-        <div class="thumb">${r.img ? `<img src="${r.img}">` : ''}</div><div><b>${esc(r.name)}</b><div class="dim" style="font-size:11px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div></div></button>`;
-    }).join('')}
-  `).join('')
-  + (!IS_MOBILE ? `<button data-action="new-role" style="padding:8px">${t('edit.new_role')}</button>` : '');
+function renderSubfactionTree() {
+  const fid = new Set(DB.factions.map(f => f.id));
+  const openFactions = new Set((state.EDIT.openFactions || '').split(',').filter(Boolean));
+  $('subfaction-list').innerHTML = DB.factions.map(f => {
+    const subs = DB.subfactions.filter(r => r.faction === f.id);
+    const isOpen = openFactions.has(f.id);
+    return `<div class="tree-faction ${isOpen ? 'open' : ''}">
+      <div class="tree-row tree-faction-row" data-action="edit-faction" data-fid="${f.id}">
+        <span class="tree-toggle" data-action="tree-toggle-faction" data-fid="${f.id}">${isOpen ? '▾' : '▸'}</span>
+        <span class="tree-name">${esc(f.name)}</span>
+        <span class="tree-count">${subs.length}</span>
+      </div>
+      <div class="tree-children">${subs.map(r => {
+        const idx = DB.subfactions.indexOf(r);
+        return `<div class="tree-sub-row tree-row ${state.EDIT.sel === r.id ? 'sel' : ''}" data-action="edit-sel-subfaction" data-index="${idx}">
+          <span class="tree-dot"></span>
+          <span class="tree-name">${esc(r.name)}</span>
+          <span class="tree-count">${t('edit.stat_hp')}${r.hp}</span>
+        </div>`;
+      }).join('')}${isOpen && !IS_MOBILE ? `<div class="tree-new" data-action="new-subfaction" data-faction="${f.id}" style="cursor:pointer">${t('edit.new_subfaction')}</div>` : ''}</div>
+    </div>`;
+  }).join('')
+  + (DB.factions.length ? `<div class="tree-faction ${openFactions.has('__none__') ? 'open' : ''}">
+    <div class="tree-row tree-faction-row" data-action="edit-faction" data-fid="__none__">
+      <span class="tree-toggle" data-action="tree-toggle-faction" data-fid="__none__">${openFactions.has('__none__') ? '▾' : '▸'}</span>
+      <span class="tree-name">${t('edit.faction_none')}</span>
+      <span class="tree-count">${DB.subfactions.filter(r => !r.faction || !fid.has(r.faction)).length}</span>
+    </div>
+    <div class="tree-children">${DB.subfactions.filter(r => !r.faction || !fid.has(r.faction)).map(r => {
+      const idx = DB.subfactions.indexOf(r);
+      return `<div class="tree-sub-row tree-row ${state.EDIT.sel === r.id ? 'sel' : ''}" data-action="edit-sel-subfaction" data-index="${idx}">
+        <span class="tree-dot"></span>
+        <span class="tree-name">${esc(r.name)}</span>
+        <span class="tree-count">${t('edit.stat_hp')}${r.hp}</span>
+      </div>`;
+    }).join('')}${openFactions.has('__none__') && !IS_MOBILE ? `<div class="tree-new" data-action="new-subfaction" data-faction="" style="cursor:pointer">${t('edit.new_subfaction')}</div>` : ''}</div>
+  </div>` : '')
+  + (!IS_MOBILE ? `<div class="tree-new" data-action="new-faction" style="cursor:pointer">${t('edit.new_faction')}</div>` : '');
 }
 
-function getRoleGroups() {
-  const fid = new Set(DB.factions.map(f => f.id));
-  const groups = [];
-  for (const f of DB.factions) {
-    const roles = DB.roles.filter(r => r.faction === f.id);
-    if (roles.length) groups.push({ name: f.name, roles });
-  }
-  const freelancers = DB.roles.filter(r => !r.faction || !fid.has(r.faction));
-  if (freelancers.length) groups.push({ name: t('edit.faction_none'), roles: freelancers });
-  return groups;
+function toggleTreeFaction(fid) {
+  const key = 'openFactions';
+  const set = new Set((state.EDIT[key] || '').split(',').filter(Boolean));
+  if (set.has(fid)) set.delete(fid); else set.add(fid);
+  state.EDIT[key] = [...set].join(',');
+  renderSubfactionTree();
 }
 
 function editSel(tab, i) {
-  state.EDIT.sel = (tab === 'role' ? DB.roles[i].id : DB.cards[i].id);
+  state.EDIT.sel = (tab === 'subfaction' ? DB.subfactions[i].id : DB.cards[i].id);
+  state.EDIT.factionSel = null;
   saveEditState();
   renderEditList();
 }
@@ -86,9 +112,10 @@ function saveEditState() {
   localStorage.setItem('saved_edit', JSON.stringify({ tab: state.EDIT.tab, sel: state.EDIT.sel }));
 }
 
-function newRole() {
-  const r = { id: 'r' + Date.now(), name: t('edit.default_role_name'), faction: null, hp: 40, def: 2, eng: 3, intro: '', img: '', deck: [] };
-  DB.roles.push(r);
+function newSubfaction(el) {
+  const faction = el ? el.dataset.faction || null : null;
+  const r = { id: 'r' + Date.now(), name: t('edit.default_subfaction_name'), faction, hp: 40, def: 2, eng: 3, intro: '', img: '', deck: [] };
+  DB.subfactions.push(r);
   state.EDIT.sel = r.id;
   renderEditList();
 }
@@ -100,9 +127,9 @@ function newCard() {
   renderEditList();
 }
 
-function delRole() {
-  if (!confirm(t('edit.confirm_del_role'))) return;
-  DB.roles = DB.roles.filter(x => x.id !== state.EDIT.sel);
+function delSubfaction() {
+  if (!confirm(t('edit.confirm_del_subfaction'))) return;
+  DB.subfactions = DB.subfactions.filter(x => x.id !== state.EDIT.sel);
   state.EDIT.sel = null;
   saveDB();
   renderEditList();
@@ -116,32 +143,32 @@ function delCard() {
   renderEditList();
 }
 
-function renderRoleForm(r) {
+function renderSubfactionForm(r) {
   if (!r) return;
-  state.DECK_ROLE = r;
+  state.DECK_SUBFACTION = r;
   if (IS_MOBILE) {
-    $('role-form').innerHTML = `
+    $('subfaction-form').innerHTML = `
       <div class="frow"><label>${t('edit.name')}</label><span>${esc(r.name)}</span></div>
       <div class="frow"><label>${t('edit.hp')}</label><span>${r.hp}</span></div>
       <div class="frow"><label>${t('edit.def')}</label><span>${r.def}</span></div>
       <div class="frow"><label>${t('edit.energy')}</label><span>${r.eng}</span></div>
       <div class="frow"><label>${t('edit.intro')}</label><span class="dim">${esc(r.intro || '')}</span></div>
       <div class="frow"><label>${t('edit.deck')}</label><span>${(r.deck || []).length} ${t('edit.stat_count')}</span></div>
-      <div class="frow"><button style="color:var(--red)" data-action="del-role">${t('edit.del_role')}</button></div>
+      <div class="frow"><button style="color:var(--red)" data-action="del-subfaction">${t('edit.del_subfaction')}</button></div>
       <div class="dim" style="font-size:11px">${t('edit.mobile_hint')}</div>`;
     return;
   }
-  $('role-form').innerHTML = `
+  $('subfaction-form').innerHTML = `
     <div class="frow"><label>${t('edit.name')}</label><input id="rf-name" value="${esc(r.name)}"></div>
     <div class="frow"><label>${t('edit.faction')}</label><select id="rf-faction"><option value="">${t('edit.faction_none')}</option>${DB.factions.map(f => `<option value="${esc(f.id)}" ${r.faction === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select></div>
     <div class="frow"><label>${t('edit.hp')}</label><input id="rf-hp" type="number" min="1" value="${r.hp}"></div>
     <div class="frow"><label>${t('edit.def')}</label><input id="rf-def" type="number" min="0" value="${r.def}"></div>
     <div class="frow"><label>${t('edit.energy')}</label><input id="rf-eng" type="number" min="1" value="${r.eng}"></div>
     <div class="frow"><label>${t('edit.intro')}</label><textarea id="rf-intro" rows="2">${esc(r.intro || '')}</textarea></div>
-    <div class="frow"><label>${t('edit.img')}</label><input id="rf-img" placeholder="${t('edit.img_placeholder')}" value="${esc(r.img || '')}"><input type="file" accept="image/*" data-action="load-img-role"></div>
+    <div class="frow"><label>${t('edit.img')}</label><input id="rf-img" placeholder="${t('edit.img_placeholder')}" value="${esc(r.img || '')}"><input type="file" accept="image/*" data-action="load-img-subfaction"></div>
     <div class="frow"><label>${t('edit.deck')}</label><span class="dim" style="font-size:11px">${t('edit.deck_hint')}</span></div>
     <div class="deck-box" id="deck-box"></div>
-    <div class="frow"><button class="primary" data-action="save-role">${t('edit.save_role')}</button><button style="color:var(--red)" data-action="del-role">${t('edit.del_role_btn')}</button></div>`;
+    <div class="frow"><button class="primary" data-action="save-subfaction">${t('edit.save_subfaction')}</button><button style="color:var(--red)" data-action="del-subfaction">${t('edit.del_subfaction_btn')}</button></div>`;
   renderDeckBox(r);
   autoGrow($('rf-intro'));
 }
@@ -157,12 +184,12 @@ function renderDeckBox(r) {
 }
 
 function deckAdj(cid, delta) {
-  if (!state.DECK_ROLE) return;
-  state.DECK_ROLE.deck = state.DECK_ROLE.deck || [];
-  const idx = state.DECK_ROLE.deck.indexOf(cid);
-  if (delta > 0) state.DECK_ROLE.deck.push(cid);
-  else if (idx >= 0) state.DECK_ROLE.deck.splice(idx, 1);
-  renderDeckBox(state.DECK_ROLE);
+  if (!state.DECK_SUBFACTION) return;
+  state.DECK_SUBFACTION.deck = state.DECK_SUBFACTION.deck || [];
+  const idx = state.DECK_SUBFACTION.deck.indexOf(cid);
+  if (delta > 0) state.DECK_SUBFACTION.deck.push(cid);
+  else if (idx >= 0) state.DECK_SUBFACTION.deck.splice(idx, 1);
+  renderDeckBox(state.DECK_SUBFACTION);
 }
 
 function renderCardForm(c) {
@@ -229,8 +256,8 @@ function collectEffs() {
   })).filter(e => e.type);
 }
 
-function saveRole() {
-  const r = DB.roles.find(x => x.id === state.EDIT.sel);
+function saveSubfaction() {
+  const r = DB.subfactions.find(x => x.id === state.EDIT.sel);
   if (!r) return;
   r.name = $('rf-name').value.trim() || t('edit.fallback_name');
   r.faction = $('rf-faction').value || null;
@@ -260,12 +287,12 @@ function saveCard() {
 }
 
 function loadImg(kind) {
-  const input = kind === 'role' ? $('rf-img').nextElementSibling : $('cf-img').nextElementSibling;
+  const input = kind === 'subfaction' ? $('rf-img').nextElementSibling : $('cf-img').nextElementSibling;
   const f = input.files[0];
   if (!f) return;
   compressImage(f, data => {
-    if (kind === 'role') {
-      const r = DB.roles.find(x => x.id === state.EDIT.sel);
+    if (kind === 'subfaction') {
+      const r = DB.subfactions.find(x => x.id === state.EDIT.sel);
       if (r) r.img = data;
     } else {
       const c = DB.cards.find(x => x.id === state.EDIT.sel);
@@ -275,22 +302,17 @@ function loadImg(kind) {
   });
 }
 
-function renderFactionList() {
-  $('faction-list').innerHTML =
-    DB.factions.map((f, i) => {
-      const count = DB.roles.filter(r => r.faction === f.id).length;
-      return `<button class="item ${state.EDIT.factionSel === f.id ? 'sel' : ''}" data-action="edit-sel-faction" data-index="${i}">
-        <div class="thumb">${f.img ? `<img src="${f.img}">` : ''}</div><div><b>${esc(f.name)}</b><div class="dim" style="font-size:11px">${count} ${t('edit.role_count')}</div></div></button>`;
-    }).join('')
-    + (!IS_MOBILE ? `<button data-action="new-faction" style="padding:8px">${t('edit.new_faction')}</button>` : '');
-  const f = DB.factions.find(x => x.id === state.EDIT.factionSel) || DB.factions[0];
-  if (f) { renderFactionForm(f); $('faction-form').style.display = ''; }
-  else $('faction-form').style.display = 'none';
+function newFaction() {
+  const f = { id: 'f' + Date.now(), name: t('edit.default_faction_name'), desc: '', img: '' };
+  DB.factions.push(f);
+  state.EDIT.factionSel = f.id;
+  renderEditList();
 }
 
 function renderFactionForm(f) {
   if (IS_MOBILE) {
     $('faction-form').innerHTML = `
+      <div class="frow"><button data-action="back-to-subfaction">← ${t('edit.tab_subfaction')}</button></div>
       <div class="frow"><label>${t('edit.faction_name')}</label><span>${esc(f.name)}</span></div>
       <div class="frow"><label>${t('edit.faction_desc')}</label><span class="dim">${esc(f.desc || '')}</span></div>
       <div class="frow"><button style="color:var(--red)" data-action="del-faction">${t('edit.del_faction')}</button></div>
@@ -298,18 +320,12 @@ function renderFactionForm(f) {
     return;
   }
   $('faction-form').innerHTML = `
+    <div class="frow"><button data-action="back-to-subfaction">← ${t('edit.tab_subfaction')}</button></div>
     <div class="frow"><label>${t('edit.faction_name')}</label><input id="ff-name" value="${esc(f.name)}"></div>
     <div class="frow"><label>${t('edit.faction_desc')}</label><textarea id="ff-desc" rows="2">${esc(f.desc || '')}</textarea></div>
     <div class="frow"><label>${t('edit.img')}</label><input id="ff-img" placeholder="${t('edit.img_placeholder')}" value="${esc(f.img || '')}"><input type="file" accept="image/*" data-action="load-img-faction"></div>
     <div class="frow"><button class="primary" data-action="save-faction">${t('edit.save_faction')}</button><button style="color:var(--red)" data-action="del-faction">${t('edit.del_faction_btn')}</button></div>`;
   autoGrow($('ff-desc'));
-}
-
-function newFaction() {
-  const f = { id: 'f' + Date.now(), name: t('edit.default_faction_name'), desc: '', img: '' };
-  DB.factions.push(f);
-  state.EDIT.factionSel = f.id;
-  renderFactionList();
 }
 
 function saveFaction() {
@@ -319,7 +335,7 @@ function saveFaction() {
   f.desc = $('ff-desc').value;
   f.img = $('ff-img').value.trim();
   saveDB();
-  renderFactionList();
+  renderEditList();
   toast(t('edit.saved'));
 }
 
@@ -328,10 +344,10 @@ function delFaction() {
   if (!f) return;
   if (!confirm(t('edit.confirm_del_faction'))) return;
   DB.factions = DB.factions.filter(x => x.id !== f.id);
-  DB.roles.forEach(r => { if (r.faction === f.id) r.faction = null; });
+  DB.subfactions.forEach(r => { if (r.faction === f.id) r.faction = null; });
   state.EDIT.factionSel = null;
   saveDB();
-  renderFactionList();
+  renderEditList();
 }
 
 function loadImgFaction() {
@@ -341,27 +357,29 @@ function loadImgFaction() {
   compressImage(file, data => {
     const f = DB.factions.find(x => x.id === state.EDIT.factionSel);
     if (f) f.img = data;
-    renderFactionList();
+    renderEditList();
   });
 }
 
 export const editorActions = {
-  'edit-sel-role': (el) => editSel('role', parseInt(el.dataset.index)),
+  'edit-sel-subfaction': (el) => editSel('subfaction', parseInt(el.dataset.index)),
   'edit-sel-card': (el) => editSel('card', parseInt(el.dataset.index)),
-  'edit-sel-faction': (el) => { state.EDIT.factionSel = DB.factions[parseInt(el.dataset.index)].id; renderFactionList(); },
-  'new-role': () => newRole(),
+  'tree-toggle-faction': (el) => toggleTreeFaction(el.dataset.fid),
+  'edit-faction': (el) => { if (el.dataset.fid === '__none__') { toggleTreeFaction('__none__'); return; } state.EDIT.factionSel = el.dataset.fid; state.EDIT.sel = null; renderEditList(); },
+  'back-to-subfaction': () => { state.EDIT.factionSel = null; renderEditList(); },
+  'new-subfaction': (el) => newSubfaction(el),
   'new-card': () => newCard(),
   'new-faction': () => newFaction(),
-  'del-role': () => delRole(),
+  'del-subfaction': () => delSubfaction(),
   'del-card': () => delCard(),
   'del-faction': () => delFaction(),
-  'save-role': () => saveRole(),
+  'save-subfaction': () => saveSubfaction(),
   'save-card': () => saveCard(),
   'save-faction': () => saveFaction(),
   'deck-dec': (el) => deckAdj(el.dataset.card, -1),
   'deck-inc': (el) => deckAdj(el.dataset.card, 1),
   'add-eff': () => addEff(),
-  'load-img-role': (el) => { el.addEventListener('change', () => loadImg('role'), { once: true }); },
+  'load-img-subfaction': (el) => { el.addEventListener('change', () => loadImg('subfaction'), { once: true }); },
   'load-img-card': (el) => { el.addEventListener('change', () => loadImg('card'), { once: true }); },
   'load-img-faction': (el) => { el.addEventListener('change', () => loadImgFaction(), { once: true }); },
 };

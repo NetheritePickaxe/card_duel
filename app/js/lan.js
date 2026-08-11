@@ -1,11 +1,11 @@
-import { $, show, esc, toast } from './util.js';
-import { state } from './state.js';
-import { DB, getDefaultCardIds } from './data.js';
-import { t } from './i18n.js';
-import { newBattle, logT, forceDiscard } from './core.js';
-import { renderBattle, showBattle, renderSlots, slotHTML, playCardAnim } from './render.js';
-import { startTurn } from './battle.js';
-import { goDice, openPick } from './pick.js';
+import { $, show, esc, toast } from './util.js?v=__VERSION__';
+import { state } from './state.js?v=__VERSION__';
+import { DB, getDefaultCardIds } from './data.js?v=__VERSION__';
+import { t } from './i18n.js?v=__VERSION__';
+import { newBattle, logT, forceDiscard } from './core.js?v=__VERSION__';
+import { renderBattle, showBattle, renderSlots, slotHTML, playCardAnim } from './render.js?v=__VERSION__';
+import { startTurn } from './battle.js?v=__VERSION__';
+import { goDice, openPick } from './pick.js?v=__VERSION__';
 
 const STORAGE_KEY = 'saved_servers';
 const IS_HTTPS = location.protocol === 'https:';

@@ -1,11 +1,11 @@
-import { $, show, esc, rollPair } from './util.js';
-import { state } from './state.js';
-import { DB, getDefaultRoleIds, getFaction } from './data.js';
-import { t } from './i18n.js';
-import { newBattle, logT } from './core.js';
-import { renderBattle, showBattle, renderSlots, slotHTML } from './render.js';
-import { startTurn } from './battle.js';
-import { stopRoomList, lanPickPost, lanPost, lanBase, renderLanPick, startRoomList, renderServerList, scanLan } from './lan.js';
+import { $, show, esc, rollPair } from './util.js?v=__VERSION__';
+import { state } from './state.js?v=__VERSION__';
+import { DB, getDefaultSubfactionIds, getFaction } from './data.js?v=__VERSION__';
+import { t } from './i18n.js?v=__VERSION__';
+import { newBattle, logT } from './core.js?v=__VERSION__';
+import { renderBattle, showBattle, renderSlots, slotHTML } from './render.js?v=__VERSION__';
+import { startTurn } from './battle.js?v=__VERSION__';
+import { stopRoomList, lanPickPost, lanPost, lanBase, renderLanPick, startRoomList, renderServerList, scanLan } from './lan.js?v=__VERSION__';
 
 export function startVsAI() { state.MODE = 'ai'; openPick(); }
 export function startLocal() { state.MODE = 'local'; openPick(); }
@@ -51,10 +51,10 @@ export function openPick() {
 
 export function pickRole(i) {
   if (state.MODE === 'lan' && i !== state.LAN.side) return;
-  let all = state.MODE === 'lan' ? DB.roles : [...(state.LAN?.hostData?.roles || []), ...DB.roles];
-  // 模组关闭时只显示原版角色
+  let all = state.MODE === 'lan' ? DB.subfactions : [...(state.LAN?.hostData?.subfactions || []), ...DB.subfactions];
+  // 模组关闭时只显示原版子阵营
   if (state.MODE === 'lan' && !state.LAN.mods) {
-    const vanillaIds = getDefaultRoleIds();
+    const vanillaIds = getDefaultSubfactionIds();
     all = all.filter(r => vanillaIds.has(r.id));
   }
   state.PICK_OPTIONS[i] = all;
@@ -88,7 +88,7 @@ export function closeModal() { $('modal').classList.remove('on'); }
 
 export function setPick(i, j) {
   if (state.MODE === 'lan' && i !== state.LAN.side) return;
-  const r = JSON.parse(JSON.stringify((state.PICK_OPTIONS[i] || DB.roles)[j]));
+  const r = JSON.parse(JSON.stringify((state.PICK_OPTIONS[i] || DB.subfactions)[j]));
   state.PICK[i] = r;
   if (state.MODE === 'lan') lanPickPost(i, r);
   closeModal();
@@ -98,7 +98,7 @@ export function setPick(i, j) {
 
 export function setPickRandom(i) {
   if (state.MODE === 'lan' && i !== state.LAN.side) return;
-  const opts = state.PICK_OPTIONS[i] || DB.roles;
+  const opts = state.PICK_OPTIONS[i] || DB.subfactions;
   const r = new Uint32Array(1);
   crypto.getRandomValues(r);
   state.PICK[i] = JSON.parse(JSON.stringify(opts[r[0] % opts.length]));
@@ -153,16 +153,16 @@ function startBattleFromDice(first, a, b) {
 function buildDefs() {
   if (state.MODE === 'lan') {
     const p0 = state.LAN.picks[0], p1 = state.LAN.picks[1];
-    const roles = [p0.role, p1.role];
+    const subfactions = [p0.role, p1.role];
     const need = new Set();
-    roles.forEach(r => (r.deck || []).forEach(id => need.add(id)));
+    subfactions.forEach(r => (r.deck || []).forEach(id => need.add(id)));
     const seen = {}, m = [];
     for (const c of [...(p0.cards || []), ...(p1.cards || [])]) {
       if (!seen[c.id]) { seen[c.id] = 1; if (need.size === 0 || need.has(c.id)) m.push(c); }
     }
     // 收集双方效果定义（效果类型字符串，由房主注册）
     const allEffects = [...new Set([...(p0.effects || []), ...(p1.effects || [])])];
-    return { roles, cards: m, effects: allEffects };
+    return { subfactions, cards: m, effects: allEffects };
   }
-  return { roles: [state.PICK[0], state.PICK[1]], cards: DB.cards };
+  return { subfactions: [state.PICK[0], state.PICK[1]], cards: DB.cards };
 }

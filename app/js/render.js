@@ -1,8 +1,9 @@
-import { $, esc, show } from './util.js';
-import { state } from './state.js';
-import { genDesc, buffName, effFx } from './data.js';
-import { t } from './i18n.js';
-import { cardCost, canOperate } from './core.js';
+import { $, esc, show } from './util.js?v=__VERSION__';
+import { state } from './state.js?v=__VERSION__';
+import { genDesc, buffName, effFx } from './data.js?v=__VERSION__';
+import { t } from './i18n.js?v=__VERSION__';
+import { cardCost, canOperate } from './core.js?v=__VERSION__';
+import { updateBGM } from './sound.js?v=__VERSION__';
 
 export function flyCardHTML(c) {
   return `<div class="cost">${c.cost}</div><div class="cname">${esc(c.name)}</div>
@@ -98,6 +99,7 @@ export function renderBattle() {
     state._bannerShown = true;
     el.insertAdjacentHTML('beforeend', `<div class="win-banner">${t('battle.winner', { name: b.players[b.winner].role.name })}</div>`);
   }
+  updateBGM();
 }
 
 export function showBattle() {

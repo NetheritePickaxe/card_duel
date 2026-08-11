@@ -17,6 +17,5 @@ if [ "$1" = "--server" ]; then
 else
     echo "CardDuel Web Server (port 8788)"
     echo "Browser: http://localhost:8788"
-    echo "Other devices: see IP shown in the menu"
     run
 fi

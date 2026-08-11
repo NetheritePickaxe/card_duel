@@ -1,10 +1,10 @@
-import { state } from './state.js';
-import { $, show } from './util.js';
-import { rollPair } from './util.js';
-import { t } from './i18n.js';
-import { log, logT, cardCost, drawCards, resolveEffects, tickBuffs } from './core.js';
-import { renderBattle, showBattle, renderSlots, playCardAnim } from './render.js';
-import { lanPost } from './lan.js';
+import { state } from './state.js?v=__VERSION__';
+import { $, show } from './util.js?v=__VERSION__';
+import { rollPair } from './util.js?v=__VERSION__';
+import { t } from './i18n.js?v=__VERSION__';
+import { log, logT, cardCost, drawCards, resolveEffects, tickBuffs } from './core.js?v=__VERSION__';
+import { renderBattle, showBattle, renderSlots, playCardAnim } from './render.js?v=__VERSION__';
+import { lanPost } from './lan.js?v=__VERSION__';
 
 export function startTurn(b) {
   const pi = b.actor, P = b.players[pi];
@@ -115,4 +115,4 @@ function aiActOnce(b) {
   playCard(b, 0, bi);
 }
 
-import { canOperate } from './core.js';
+import { canOperate } from './core.js?v=__VERSION__';

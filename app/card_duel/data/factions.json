@@ -1,14 +1,30 @@
 [
   {
-    "id": "f_wulin",
-    "name": "武林",
-    "desc": "江湖门派，刀光剑影",
-    "img": ""
+    "id": "f_soviet",
+    "name": "苏维埃联盟",
+    "desc": "赤色钢铁洪流，重装碾压",
+    "img": "",
+    "deck": ["c_strike", "c_strike", "c_strike", "c_heavy", "c_heavy", "c_guard", "c_guard", "c_charge", "c_draw"]
   },
   {
-    "id": "f_xian",
-    "name": "仙门",
-    "desc": "修仙宗门，法术通天",
-    "img": ""
+    "id": "f_allied",
+    "name": "同盟国联军",
+    "desc": "高科技空军，机动灵活",
+    "img": "",
+    "deck": ["c_strike", "c_strike", "c_pierce", "c_pierce", "c_heal", "c_heal", "c_draw", "c_draw", "c_haste"]
+  },
+  {
+    "id": "f_foehn",
+    "name": "焚风反抗军",
+    "desc": "焚风反抗，游击科技",
+    "img": "",
+    "deck": ["c_strike", "c_strike", "c_weak", "c_weak", "c_barrier", "c_barrier", "c_overload", "c_overload", "c_draw"]
+  },
+  {
+    "id": "f_epsilon",
+    "name": "厄普西隆军",
+    "desc": "心灵控制，诡秘莫测",
+    "img": "",
+    "deck": ["c_strike", "c_strike", "c_heavy", "c_timelock", "c_timelock", "c_barrier", "c_haste", "c_draw", "c_heal"]
   }
 ]

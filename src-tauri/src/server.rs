@@ -1,11 +1,14 @@
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::fs::{self, File, OpenOptions};
+use std::io::{BufReader, Read, Write};
 use std::net::UdpSocket;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use serde::{Deserialize, Serialize};
 use tiny_http::{Header, Request, Response, Server, StatusCode};
 
@@ -59,6 +62,90 @@ fn set_utf8_console() {
     unsafe {
         SetConsoleOutputCP(65001);
     }
+}
+
+/// 日志目录，不依赖 cwd —— 定锚到 app 目录的上级（即项目根）或 exe 位置。
+fn log_dir() -> PathBuf {
+    if let Some(root) = web_root() {
+        root.parent().unwrap_or(&PathBuf::from(".")).join("logs")
+    } else {
+        PathBuf::from("logs")
+    }
+}
+
+/// 日志系统：写入 logs/latest.log，旧日志自动归档为 YYYY-MM-DD-N.log.gz
+fn init_logger() {
+    let base = log_dir();
+    let _ = fs::create_dir_all(&base);
+    // 归档旧日志
+    let latest = base.join("latest.log");
+    if latest.exists() {
+        let now = chrono_now();
+        let mut n = 1;
+        loop {
+            let gz_name = base.join(format!("{}-{}.log.gz", now, n));
+            if !gz_name.exists() {
+                let tmp = base.join(format!("{}-{}.log", now, n));
+                let _ = fs::rename(&latest, &tmp);
+                // gzip
+                if let Ok(src) = File::open(&tmp) {
+                    if let Ok(dst) = File::create(&gz_name) {
+                        let mut enc = GzEncoder::new(dst, Compression::default());
+                        let mut buf = Vec::new();
+                        if BufReader::new(src).read_to_end(&mut buf).is_ok() {
+                            let _ = enc.write_all(&buf);
+                            let _ = enc.finish();
+                        }
+                    }
+                }
+                let _ = fs::remove_file(&tmp);
+                break;
+            }
+            n += 1;
+        }
+    }
+    // 打开新日志文件
+    if let Ok(file) = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(base.join("latest.log"))
+    {
+        let _ = LOG_FILE.set(std::sync::Mutex::new(file));
+    }
+}
+
+fn chrono_now() -> String {
+    let d = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = d.as_secs();
+    let days = secs / 86400;
+    let time = secs % 86400;
+    let y = 1970 + (days as f64 / 365.25) as u64;
+    let remain = days - ((y - 1970) as f64 * 365.25) as u64;
+    let is_leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    let days_in_month = [31, if is_leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let mut m = 0;
+    let mut d_rem = remain;
+    while d_rem >= days_in_month[m] { d_rem -= days_in_month[m]; m += 1; }
+    let h = time / 3600;
+    let mi = (time % 3600) / 60;
+    let s = time % 60;
+    format!("{:04}-{:02}-{:02}-{:02}{:02}{:02}", y, m + 1, d_rem + 1, h, mi, s)
+}
+
+static LOG_FILE: std::sync::OnceLock<std::sync::Mutex<std::fs::File>> = std::sync::OnceLock::new();
+
+/// 写入日志（同时输出到控制台和文件）
+macro_rules! logln {
+    ($($arg:tt)*) => {{
+        let msg = format!($($arg)*);
+        eprintln!("{}", msg);
+        if let Some(file) = LOG_FILE.get() {
+            let _ = writeln!(file.lock().unwrap(), "{}", msg);
+        }
+    }};
 }
 
 /// Start the LAN server in a background daemon thread (used by desktop & Android).
@@ -147,7 +234,7 @@ pub struct ForceDiscardEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pick {
-    pub role: serde_json::Value,
+    pub subfaction: serde_json::Value,
     pub cards: Vec<serde_json::Value>,
     pub effects: Vec<serde_json::Value>,
 }
@@ -156,7 +243,7 @@ pub struct ServerState {
     pub rooms: Arc<Mutex<HashMap<String, Room>>>,
     pub last_pk: Arc<Mutex<HashMap<String, String>>>,
     pub shared_mods: Arc<Mutex<HashMap<String, Vec<u8>>>>,
-    pub log_path: String,
+    pub games: Arc<Mutex<HashMap<String, crate::game::Battle>>>,
 }
 
 impl Default for ServerState {
@@ -165,7 +252,7 @@ impl Default for ServerState {
             rooms: Arc::new(Mutex::new(HashMap::new())),
             last_pk: Arc::new(Mutex::new(HashMap::new())),
             shared_mods: Arc::new(Mutex::new(HashMap::new())),
-            log_path: "server.log".to_string(),
+            games: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 }
@@ -180,21 +267,22 @@ impl ServerState {
         self.start_inner(Some((cert_path.to_string(), key_path.to_string())));
     }
 
-    fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
+fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
         #[cfg(windows)]
         set_utf8_console();
+        init_logger();
         if is_disk_mode() && web_root().is_none() {
-            eprintln!("警告：未找到 app/ 目录，网页静态文件将无法加载。请从项目目录运行。");
+            logln!("警告：未找到 app/ 目录，网页静态文件将无法加载。请从项目目录运行。");
         }
         let server: Server = match tls {
             #[cfg(feature = "tls")]
             Some((cert, key)) => {
                 let cert_pem = std::fs::read_to_string(&cert).unwrap_or_else(|e| {
-                    eprintln!("读取证书文件失败 {}: {}", cert, e);
+                    logln!("读取证书文件失败 {}: {}", cert, e);
                     std::process::exit(1);
                 });
                 let key_pem = std::fs::read_to_string(&key).unwrap_or_else(|e| {
-                    eprintln!("Failed to read key file {}: {}", key, e);
+                    logln!("Failed to read key file {}: {}", key, e);
                     std::process::exit(1);
                 });
                 let mut builder = openssl::ssl::SslAcceptor::mozilla_intermediate_v5(
@@ -212,26 +300,26 @@ impl ServerState {
                 match Server::https(("0.0.0.0", PORT), builder.build()) {
                     Ok(s) => s,
                     Err(e) => {
-                        eprintln!("端口 {} 启动 HTTPS 服务器失败: {}", PORT, e);
+                        logln!("端口 {} 启动 HTTPS 服务器失败: {}", PORT, e);
                         return;
                     }
                 }
             },
             #[cfg(not(feature = "tls"))]
             Some(_) => {
-                eprintln!("未启用 HTTPS 支持，请使用 --features tls 重新构建。");
+                logln!("未启用 HTTPS 支持，请使用 --features tls 重新构建。");
                 return;
             }
             None => match Server::http(("0.0.0.0", PORT)) {
                 Ok(s) => s,
                 Err(e) => {
-                    eprintln!("端口 {} 启动服务器失败（可能被占用）: {}", PORT, e);
+                    logln!("端口 {} 启动服务器失败（可能被占用）: {}", PORT, e);
                     return;
                 }
             },
         };
         let proto = if tls.is_some() { "https" } else { "http" };
-        println!("服务器已启动: {}://0.0.0.0:{}", proto, PORT);
+        logln!("服务器已启动: {}://0.0.0.0:{}", proto, PORT);
 
         // Cleanup thread
         let cleanup_rooms = self.rooms.clone();
@@ -285,7 +373,6 @@ impl ServerState {
             "/manifest.json" => {
                 self.serve_file(request, "/manifest.json", "application/manifest+json")
             }
-            "/sw.js" => self.serve_file(request, "/sw.js", "application/javascript"),
             "/icon-192.png" => self.serve_file(request, "/icon-192.png", "image/png"),
             "/icon-512.png" => self.serve_file(request, "/icon-512.png", "image/png"),
             "/css/style.css" => {
@@ -326,6 +413,9 @@ impl ServerState {
             "/api/mod/list" => self.handle_mod_list(request),
             "/api/mod/upload" => self.handle_mod_upload(request),
             "/api/mod/download" => self.handle_mod_download(request, query),
+            "/api/game/list" => self.handle_game_list(request),
+            "/api/game/new" => self.handle_game_new(request, query),
+            path if path.starts_with("/api/game/") => self.handle_game_action(request, &path[10..], method.as_str(), query),
             _ => {
                 if method == "GET" {
                     self.serve_file(request, "/index.html", "text/html; charset=utf-8")
@@ -367,6 +457,7 @@ impl ServerState {
                 "const __PHONE_IP__ = \"\";",
                 &format!("const __PHONE_IP__ = \"{}\";", ip),
             )
+            .replace("__VERSION__", env!("CARGO_PKG_VERSION"))
             .into_bytes()
         } else {
             content
@@ -392,7 +483,19 @@ impl ServerState {
     }
 
     fn serve_disk_file(&self, request: Request, path: &str) {
-        let disk_path = format!("app{}", path);
+        let rel = path.trim_start_matches('/');
+        if rel.contains("..") {
+            self.respond_json(
+                request,
+                404,
+                &serde_json::json!({"ok": false, "err": "not found"}),
+            );
+            return;
+        }
+        let disk_path = match web_root() {
+            Some(root) => root.join(rel),
+            None => PathBuf::from("app").join(rel),
+        };
         match std::fs::read(&disk_path) {
             Ok(content) => {
                 let ext = path.rsplit('.').next().unwrap_or("");
@@ -688,7 +791,7 @@ impl ServerState {
             _ => Vec::new(),
         };
         let pick = Pick {
-            role: data.get("role").cloned().unwrap_or_default(),
+            subfaction: data.get("subfaction").cloned().unwrap_or(data.get("role").cloned().unwrap_or_default()),
             cards,
             effects,
         };
@@ -890,6 +993,136 @@ impl ServerState {
         }
     }
 
+    fn handle_game_list(&self, request: Request) {
+        let games = self.games.lock().unwrap();
+        let info: Vec<serde_json::Value> = games.keys().map(|id| {
+            serde_json::json!({"id": id})
+        }).collect();
+        self.respond_json(request, 200, &serde_json::json!({"ok": true, "games": info}));
+    }
+
+    fn handle_game_new(&self, request: Request, query: &str) {
+        let app_dir = "app";
+        let defs = match crate::game::load_defs(app_dir) {
+            Ok(d) => d,
+            Err(e) => { self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": e})); return; }
+        };
+        let p0 = crate::game::get_subfaction_index(&defs, Self::extract_param(query, "p0"))
+            .unwrap_or(0);
+        let p1 = crate::game::get_subfaction_index(&defs, Self::extract_param(query, "p1"))
+            .unwrap_or(if defs.subfactions.len() > 1 { 1 } else { 0 });
+        let mut b = crate::game::new_battle("ai", &defs, p0, p1);
+        crate::game::start_turn(&mut b);
+        let id = format!("g{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs());
+        self.games.lock().unwrap().insert(id.clone(), b);
+        self.respond_json(request, 200, &serde_json::json!({"ok": true, "game_id": id}));
+    }
+
+    fn handle_game_action(&self, request: Request, path: &str, method: &str, query: &str) {
+        let parts: Vec<&str> = path.splitn(2, '/').collect();
+        if parts.len() < 2 {
+            self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "not found"}));
+            return;
+        }
+        let game_id = parts[0].to_string();
+        let action = parts[1].to_string();
+
+        if action == "act" && method != "POST" {
+            self.respond_json(request, 405, &serde_json::json!({"ok": false, "err": "method not allowed"}));
+            return;
+        }
+
+        let body = if action == "act" {
+            let mut req = request;
+            let b = Self::read_body(&mut req);
+            let params: serde_json::Value = serde_json::from_str(&b).unwrap_or(serde_json::json!({}));
+            let player = params["player"].as_i64().unwrap_or(1) as usize;
+            let action_type = params["action"].as_str().unwrap_or("").to_string();
+            let card_idx = params["card"].as_i64().unwrap_or(0) as usize;
+
+            let mut games = self.games.lock().unwrap();
+            let b = match games.get_mut(&game_id) {
+                Some(b) => b,
+                None => { self.respond_json(req, 404, &serde_json::json!({"ok": false, "err": "game not found"})); return; }
+            };
+
+            match action_type.as_str() {
+                "play" => {
+                    match crate::game::play_card(b, player, card_idx) {
+                        Ok(()) => self.respond_json(req, 200, &serde_json::json!({"ok": true, "winner": b.winner, "state": crate::game::format_battle_state(b)})),
+                        Err(e) => self.respond_json(req, 400, &serde_json::json!({"ok": false, "err": e})),
+                    }
+                }
+                "endturn" => {
+                    crate::game::end_turn(b, player);
+                    self.respond_json(req, 200, &serde_json::json!({"ok": true, "state": crate::game::format_battle_state(b)}));
+                }
+                "ai" => {
+                    if b.actor != 0 {
+                        self.respond_json(req, 400, &serde_json::json!({"ok": false, "err": "not AI turn"}));
+                        return;
+                    }
+                    let action_name = match crate::game::choose_ai_action(b) {
+                        crate::game::AiAction::PlayCard(i) => {
+                            if crate::game::play_card(b, 0, i).is_ok() {
+                                format!("play {}", i)
+                            } else {
+                                crate::game::end_turn(b, 0);
+                                "endturn".to_string()
+                            }
+                        }
+                        crate::game::AiAction::EndTurn => {
+                            crate::game::end_turn(b, 0);
+                            "endturn".to_string()
+                        }
+                    };
+                    self.respond_json(req, 200, &serde_json::json!({
+                        "ok": true, "action": action_name,
+                        "state": crate::game::format_battle_state(b),
+                    }));
+                }
+                _ => self.respond_json(req, 400, &serde_json::json!({"ok": false, "err": "unknown action"})),
+            }
+            return;
+        };
+
+        let mut games = self.games.lock().unwrap();
+        let b = match games.get_mut(&game_id) {
+            Some(b) => b,
+            None => { self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "game not found"})); return; }
+        };
+
+        match action.as_str() {
+            "state" => {
+                let viewer = Self::extract_param(query, "viewer").parse::<usize>().unwrap_or(1);
+                let viewer = if viewer < 2 { viewer } else { 1 };
+                self.respond_json(request, 200, &serde_json::json!({
+                    "ok": true,
+                    "state": crate::game::format_battle_state_for(b, viewer),
+                    "log": crate::game::format_log(b),
+                    "winner": b.winner,
+                    "turn": b.turn,
+                    "actor": b.actor,
+                    "players": b.players.iter().map(|p| serde_json::json!({
+                        "name": p.role.name,
+                        "hp": p.hp,
+                        "max_hp": p.role.hp,
+                        "def": p.def,
+                        "energy": p.energy,
+                        "max_energy": p.role.eng,
+                        "hand": p.hand.iter().enumerate().map(|(i, c)| serde_json::json!({
+                            "index": i, "id": c.id, "name": c.name, "cost": c.cost,
+                            "desc": c.desc
+                        })).collect::<Vec<_>>(),
+                        "deck_size": p.draw.len(),
+                        "discard_size": p.discard.len(),
+                    })).collect::<Vec<_>>(),
+                }));
+            }
+            _ => self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "not found"})),
+        }
+    }
+
     fn read_body(request: &mut Request) -> String {
         let content_length: usize = request
             .headers()
@@ -915,7 +1148,7 @@ impl ServerState {
         ""
     }
 
-    fn slog(&self, msg: &str) {
+fn slog(&self, msg: &str) {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default();
@@ -926,14 +1159,7 @@ impl ServerState {
             (secs % 3600) / 60,
             secs % 60
         );
-        let log_line = format!("[{}] {}\n", time_str, msg);
-        if let Ok(mut f) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.log_path)
-        {
-            let _ = f.write_all(log_line.as_bytes());
-        }
+        logln!("[{}] {}", time_str, msg);
     }
 }
 
@@ -977,7 +1203,12 @@ fn load_static(path: &str) -> Option<Vec<u8>> {
         return None;
     }
     if is_disk_mode() {
-        web_root().and_then(|root| std::fs::read(root.join(rel)).ok())
+        if let Some(root) = web_root() {
+            if let Ok(content) = std::fs::read(root.join(rel)) {
+                return Some(content);
+            }
+        }
+        embedded_static_file(path).map(|bytes| bytes.to_vec())
     } else {
         embedded_static_file(path).map(|bytes| bytes.to_vec())
     }
@@ -987,7 +1218,6 @@ fn embedded_static_file(path: &str) -> Option<&'static [u8]> {
     Some(match path {
         "/index.html" => include_bytes!("../../app/index.html"),
         "/manifest.json" => include_bytes!("../../app/manifest.json"),
-        "/sw.js" => include_bytes!("../../app/sw.js"),
         "/splash.txt" => include_bytes!("../../app/card_duel/assets/splash.txt"),
         "/icon-192.png" => include_bytes!("../../app/icon-192.png"),
         "/icon-512.png" => include_bytes!("../../app/icon-512.png"),
@@ -1002,6 +1232,7 @@ fn embedded_static_file(path: &str) -> Option<&'static [u8]> {
         "/js/lan.js" => include_bytes!("../../app/js/lan.js"),
         "/js/pick.js" => include_bytes!("../../app/js/pick.js"),
         "/js/editor.js" => include_bytes!("../../app/js/editor.js"),
+        "/js/library.js" => include_bytes!("../../app/js/library.js"),
         "/js/i18n.js" => include_bytes!("../../app/js/i18n.js"),
         "/js/sound.js" => include_bytes!("../../app/js/sound.js"),
         "/js/effect_registry.js" => include_bytes!("../../app/js/effect_registry.js"),

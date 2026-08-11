@@ -1,29 +1,35 @@
-import { $ } from './util.js';
-import { t } from './i18n.js';
-import { getEffect, getEffectTypes, defaultFx, effFx, genDesc, buffName } from './effect_registry.js';
+import { $ } from './util.js?v=__VERSION__';
+import { t } from './i18n.js?v=__VERSION__';
+import { getEffect, getEffectTypes, defaultFx, effFx, genDesc, buffName } from './effect_registry.js?v=__VERSION__';
 
-const LS = 'cardgame_db_v3';
+const LS = 'cardgame_db_v4';
 
-let defaultRoles = [];
+let defaultSubfactions = [];
 let defaultCards = [];
 let defaultFactions = [];
 
-export function setDefaultData(roles, cards, factions) {
-  defaultRoles = roles;
+export function setDefaultData(subfactions, cards, factions) {
+  defaultSubfactions = subfactions;
   defaultCards = cards;
   defaultFactions = factions || [];
+  // 首次加载时（DB 从空默认创建），把 modloader 加载的默认数据填入 DB
+  if (DB.subfactions.length === 0 && subfactions.length > 0) {
+    DB.subfactions.splice(0, DB.subfactions.length, ...subfactions);
+    DB.cards.splice(0, DB.cards.length, ...cards);
+    DB.factions.splice(0, DB.factions.length, ...(factions || []));
+  }
 }
 
-export function getDefaultRoles() {
-  return defaultRoles;
+export function getDefaultSubfactions() {
+  return defaultSubfactions;
 }
 
 export function getDefaultCards() {
   return defaultCards;
 }
 
-export function getDefaultRoleIds() {
-  return new Set(defaultRoles.map(r => r.id));
+export function getDefaultSubfactionIds() {
+  return new Set(defaultSubfactions.map(r => r.id));
 }
 
 export function getDefaultCardIds() {
@@ -45,10 +51,16 @@ function loadDB() {
     if (s) db = JSON.parse(s);
   } catch (e) { /* ignore */ }
   if (!db) {
-    db = JSON.parse(JSON.stringify({ roles: defaultRoles, cards: defaultCards, factions: defaultFactions }));
+    db = { subfactions: defaultSubfactions, cards: defaultCards, factions: defaultFactions };
+  } else {
+// 兼容旧存档：迁移 roles → subfactions
+    if (db.roles) {
+      db.subfactions = db.roles;
+      delete db.roles;
+    }
+    if (!Array.isArray(db.subfactions)) db.subfactions = defaultSubfactions;
+    if (!Array.isArray(db.factions)) db.factions = defaultFactions;
   }
-  // 兼容旧存档：没有 factions 字段时补默认
-  if (!Array.isArray(db.factions)) db.factions = defaultFactions;
   return db;
 }
 
@@ -90,4 +102,25 @@ export function compressImage(file, cb) {
     URL.revokeObjectURL(url);
   };
   img.src = url;
+}
+
+export const DECK_TOTAL = 24;
+
+export function getSubfactionPool(sub) {
+  const ids = new Set(sub.deck || []);
+  if (sub.faction) {
+    const f = DB.factions.find(x => x.id === sub.faction);
+    if (f) (f.deck || []).forEach(id => ids.add(id));
+  }
+  return [...ids];
+}
+
+export function fillToDeckTotal(deck, pool) {
+  const d = [...deck];
+  let i = 0;
+  while (d.length < DECK_TOTAL && pool.length > 0) {
+    d.push(pool[i % pool.length]);
+    i++;
+  }
+  return d.slice(0, DECK_TOTAL);
 }

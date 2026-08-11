@@ -1,5 +1,5 @@
-import { t } from './i18n.js';
-import { calcDamage, drawCards, forceDiscard, logT } from './core.js';
+import { t } from './i18n.js?v=__VERSION__';
+import { calcDamage, drawCards, forceDiscard, logT } from './core.js?v=__VERSION__';
 
 const EFFECTS = {};
 

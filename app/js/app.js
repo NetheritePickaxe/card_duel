@@ -1,13 +1,14 @@
-import { $, show, toast, screenFromPath } from './util.js';
-import { state } from './state.js';
-import { t, initLocale, setLocale, getLang } from './i18n.js';
-import { initAudio, setTypeVolume, getTypeVolume, setMasterVolume, getMasterVolume, updateBGM } from './sound.js';
-import { loadMods, reloadMods, getMods, getModConfigSchema, renderModConfig, importMod, deleteMod, getModOrder, setModOrder, setModEnabled, isModEnabled } from './modloader.js';
-import { updateEffTypes } from './data.js';
-import { startVsAI, startLocal, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice } from './pick.js';
-import { openEditor, setTab, editorActions } from './editor.js';
-import { playCardClick, endTurnClick } from './battle.js';
-import { lanCreate, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeServer, renderServerList, normalizeServerUrl, scanLan } from './lan.js';
+import { $, show, toast, screenFromPath } from './util.js?v=__VERSION__';
+import { state } from './state.js?v=__VERSION__';
+import { t, initLocale, setLocale, getLang } from './i18n.js?v=__VERSION__';
+import { initAudio, setTypeVolume, getTypeVolume, setMasterVolume, getMasterVolume, updateBGM } from './sound.js?v=__VERSION__';
+import { loadMods, reloadMods, getMods, getModConfigSchema, renderModConfig, importMod, deleteMod, getModOrder, setModOrder, setModEnabled, isModEnabled } from './modloader.js?v=__VERSION__';
+import { updateEffTypes } from './data.js?v=__VERSION__';
+import { startVsAI, startLocal, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice } from './pick.js?v=__VERSION__';
+import { openEditor, setTab, editorActions } from './editor.js?v=__VERSION__';
+import { openLibrary, libraryActions } from './library.js?v=__VERSION__';
+import { playCardClick, endTurnClick } from './battle.js?v=__VERSION__';
+import { lanCreate, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeServer, renderServerList, normalizeServerUrl, scanLan } from './lan.js?v=__VERSION__';
 
 /* Tauri 原生窗口无网页地址相关行为（仅 web 端复制） */
 const IS_TAURI = '__TAURI__' in window;
@@ -44,6 +45,7 @@ const actionMap = {
   'start-local': () => startLocal(),
   'open-lan': () => openLAN(),
   'open-editor': () => openEditor(),
+  'open-library': () => openLibrary(),
   'open-mods': () => { show('sc-mods'); renderModList(); },
   'open-settings': () => openSettings(),
   'set-accent': (el) => setAccent(el.dataset.color),
@@ -53,9 +55,8 @@ const actionMap = {
   'cp-cancel': () => closeCp(),
   'back-menu': () => backMenu(),
   'quit-battle': () => quitBattle(),
-  'tab-role': () => setTab('role'),
+  'tab-subfaction': () => setTab('subfaction'),
   'tab-card': () => setTab('card'),
-  'tab-faction': () => setTab('faction'),
   'close-modal': () => closeModal(),
   'go-dice': () => goDice(),
   'lan-create': () => lanCreate(),
@@ -75,6 +76,7 @@ const actionMap = {
   'set-pick': (el) => setPick(parseInt(el.dataset.slot), parseInt(el.dataset.index)),
   'pick-random': (el) => setPickRandom(parseInt(el.dataset.slot)),
   ...editorActions,
+  ...libraryActions,
 };
 
 document.addEventListener('click', (e) => {
@@ -678,15 +680,19 @@ if (initScreen === 'sc-settings') {
 } else {
   show(initScreen);
 }
-initLocale().then(() => {
-  updateI18nElements();
+const initLocaleLoaded = initLocale().then(() => {
   renderMenuAddr();
 });
-loadMods().then(() => {
+const loadModsLoaded = loadMods().then(() => {
   updateEffTypes();
-  updateI18nElements();
   updateBGM();
   renderModList();
+});
+// 等 locale 与 mod 都加载完毕后再统一应用 i18n，
+// 避免 loadMods 开头 clearTranslations() 清空 strings 后、
+// initLocale 的 fetch 尚未返回时，updateI18nElements 读到空表而保留 HTML 兜底文本。
+Promise.allSettled([initLocaleLoaded, loadModsLoaded]).then(() => {
+  updateI18nElements();
 });
 
 window.addEventListener('mods-reloaded', () => {
@@ -696,5 +702,5 @@ window.addEventListener('mods-reloaded', () => {
   renderModList();
 });
 
-import { renderBattle, renderSlots } from './render.js';
-import { renderEditList } from './editor.js';
+import { renderBattle, renderSlots } from './render.js?v=__VERSION__';
+import { renderEditList } from './editor.js?v=__VERSION__';

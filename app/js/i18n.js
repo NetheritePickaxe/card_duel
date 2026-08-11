@@ -30,7 +30,7 @@ export async function setLocale(code) {
   strings = {};
   // 加载 vanilla 模组的翻译
   try {
-    const res = await fetch(`card_duel/assets/lang/${code}.json`);
+    const res = await fetch(`card_duel/assets/lang/${code}.json`, { cache: 'no-store' });
     if (res.ok) strings = await res.json();
   } catch (e) { /* ignore */ }
   // 合并模组额外翻译
