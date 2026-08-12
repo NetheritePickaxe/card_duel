@@ -115,7 +115,7 @@ function setTheme(theme) {
   }
   localStorage.setItem('theme', theme);
 }
-const savedTheme = localStorage.getItem('theme') || 'dark';
+const savedTheme = localStorage.getItem('theme') || 'system';
 $('theme-select').value = savedTheme;
 setTheme(savedTheme);
 $('theme-select').addEventListener('change', (e) => setTheme(e.target.value));
@@ -136,7 +136,7 @@ const ACCENT_NAMES = {
   '#d9a441': '金色', '#e8833f': '橙色', '#6fae4e': '绿色',
   '#4d8fd4': '蓝色', '#9a6fd6': '紫色', '#e96ba3': '粉色', '#37a3a0': '青色',
 };
-const ACCENT_DEFAULT = '#9a9a9a';
+const ACCENT_DEFAULT = '#d9a441';
 const ACCENT_CUSTOM_KEY = 'accent_custom';
 
 function getSavedAccent() {

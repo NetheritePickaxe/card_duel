@@ -75,6 +75,10 @@ export async function initAudio() {
   });
   const start = () => { playTrack('bgm/menu'); document.removeEventListener('click', start); };
   document.addEventListener('click', start);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { audio.pause(); }
+    else { audio.play().catch(() => { }); }
+  });
 }
 
 export function playTrack(id) {
