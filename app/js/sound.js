@@ -75,10 +75,12 @@ export async function initAudio() {
   });
   const start = () => { playTrack('bgm/menu'); document.removeEventListener('click', start); };
   document.addEventListener('click', start);
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { audio.pause(); }
-    else { audio.play().catch(() => { }); }
-  });
+  if (window.__TAURI__?.event?.listen) {
+    window.__TAURI__.event.listen('app-paused', () => { audio?.pause(); });
+    window.__TAURI__.event.listen('app-resumed', () => {
+      if (!document.hidden && audio) audio.play().catch(() => {});
+    });
+  }
 }
 
 export function playTrack(id) {
