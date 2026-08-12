@@ -147,8 +147,6 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: android-actions/setup-android@v3
-        with:
-          ndk: '25.2.9519653'
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -199,6 +197,9 @@ jobs:
           os.makedirs('gen/android/app', exist_ok=True)
           open('gen/android/app/tauri.build.gradle.kts', 'w').write('\n'.join(build_lines) + '\n')
           EOF
+      - uses: actions/setup-gradle@v4
+        with:
+          gradle-distribution-url: https://services.gradle.org/distributions/gradle-8.14.3-bin.zip
       - name: Build Android APK
         run: npx tauri android build
       - name: Sign APK
