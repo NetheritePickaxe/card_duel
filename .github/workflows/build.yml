@@ -67,7 +67,7 @@ jobs:
         run: |
           cargo build --release --no-default-features --bin card-duel-server --target x86_64-unknown-linux-gnu
           cp target/x86_64-unknown-linux-gnu/release/card-duel-server card-duel-server
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: CardDuel-Web-linux
           path: |
@@ -99,7 +99,7 @@ jobs:
         run: |
           cargo build --release --no-default-features --bin card-duel-server
           Copy-Item "target\release\card-duel-server.exe" "card-duel-server.exe"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: CardDuel-Web-win
           path: |
@@ -128,7 +128,7 @@ jobs:
           @echo off
           "%~dp0card-duel.exe" --server
           EOF
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: CardDuel-Windows
           path: |
@@ -197,28 +197,43 @@ jobs:
           os.makedirs('gen/android/app', exist_ok=True)
           open('gen/android/app/tauri.build.gradle.kts', 'w').write('\n'.join(build_lines) + '\n')
           EOF
+      - name: Set ABI list
+        run: echo 'abiList=arm64-v8a,armeabi-v7a,x86_64' >> src-tauri/gen/android/gradle.properties
       - name: Build Android APK
         run: npx tauri android build
-      - name: Sign APK
+      - name: Sign APKs
         env:
           ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
           ANDROID_SIGNING_PASSWORD: ${{ secrets.ANDROID_SIGNING_PASSWORD }}
         run: |
           echo "$ANDROID_KEYSTORE" | base64 -d > android.keystore
-          APK=src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
           SIGNER=$(find $ANDROID_HOME/build-tools -name apksigner -type f | head -1)
-          "$SIGNER" sign \
-            --ks android.keystore \
-            --ks-key-alias cardduel \
-            --ks-pass pass:$ANDROID_SIGNING_PASSWORD \
-            --key-pass pass:$ANDROID_SIGNING_PASSWORD \
-            --out CardDuel-Android.apk \
-            "$APK"
+          for ABI in arm64-v8a armeabi-v7a x86_64; do
+            APK=src-tauri/gen/android/app/build/outputs/apk/$ABI/release/app-$ABI-release-unsigned.apk
+            "$SIGNER" sign \
+              --ks android.keystore \
+              --ks-key-alias cardduel \
+              --ks-pass pass:$ANDROID_SIGNING_PASSWORD \
+              --key-pass pass:$ANDROID_SIGNING_PASSWORD \
+              --out "CardDuel-Android-$ABI.apk" \
+              "$APK"
+          done
           rm -f android.keystore
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
-          name: CardDuel-Android
-          path: CardDuel-Android.apk
+          name: CardDuel-Android-arm64-v8a
+          path: CardDuel-Android-arm64-v8a.apk
+          archive: false
+      - uses: actions/upload-artifact@v7
+        with:
+          name: CardDuel-Android-armeabi-v7a
+          path: CardDuel-Android-armeabi-v7a.apk
+          archive: false
+      - uses: actions/upload-artifact@v7
+        with:
+          name: CardDuel-Android-x86_64
+          path: CardDuel-Android-x86_64.apk
+          archive: false
 
   deploy-pages:
     runs-on: ubuntu-latest
@@ -233,7 +248,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: CardDuel-Web-linux
           path: app
@@ -254,7 +269,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -262,7 +277,9 @@ jobs:
           files: |
             CardDuel-Windows/*.exe
             CardDuel-Windows/cardduel.bat
-            CardDuel-Android/CardDuel-Android.apk
+            CardDuel-Android-arm64-v8a.apk
+            CardDuel-Android-armeabi-v7a.apk
+            CardDuel-Android-x86_64.apk
             CardDuel-Web-linux/card-duel-server
             CardDuel-Web-linux/cardduel.sh
             CardDuel-Web-linux/app/**/*
