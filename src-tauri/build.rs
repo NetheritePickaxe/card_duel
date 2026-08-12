@@ -1,5 +1,5 @@
 fn main() {
-    if cfg!(feature = "desktop") {
+    if std::env::var("CARGO_FEATURE_DESKTOP").is_ok() {
         tauri_build::build();
     }
     println!("cargo:rustc-check-cfg=cfg(mobile)");

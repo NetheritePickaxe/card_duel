@@ -7,6 +7,7 @@ mod server;
 #[cfg(target_arch = "wasm32")]
 pub mod bindings;
 
+#[cfg(feature = "desktop")]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Start the LAN server in a background thread
@@ -19,6 +20,7 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
+#[cfg(feature = "desktop")]
 #[tauri::command]
 fn get_lan_info() -> serde_json::Value {
     let ips = net::local_ips();

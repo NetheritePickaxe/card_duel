@@ -65,7 +65,7 @@ jobs:
       - name: Build Linux server
         working-directory: src-tauri
         run: |
-          cargo build --release --bin card-duel-server --target x86_64-unknown-linux-gnu
+          cargo build --release --no-default-features --bin card-duel-server --target x86_64-unknown-linux-gnu
           cp target/x86_64-unknown-linux-gnu/release/card-duel-server card-duel-server
       - uses: actions/upload-artifact@v4
         with:
@@ -97,7 +97,7 @@ jobs:
       - name: Build Windows server
         working-directory: src-tauri
         run: |
-          cargo build --release --bin card-duel-server
+          cargo build --release --no-default-features --bin card-duel-server
           Copy-Item "target\release\card-duel-server.exe" "card-duel-server.exe"
       - uses: actions/upload-artifact@v4
         with:
