@@ -573,10 +573,10 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
     }
 
     fn handle_create(&self, mut request: Request) {
-        let (name, mods) = {
+        let (name, mods, capacity) = {
             let body = Self::read_body(&mut request);
             if body.is_empty() {
-                ("卡牌对决".to_string(), true)
+                ("卡牌对决".to_string(), true, 4)
             } else {
                 let data: serde_json::Value = serde_json::from_str(&body).unwrap_or_default();
                 let n = data
@@ -585,7 +585,9 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                     .unwrap_or("卡牌对决")
                     .to_string();
                 let m = data.get("mods").and_then(|v| v.as_bool()).unwrap_or(true);
-                (n, m)
+                let c = data.get("capacity").and_then(|v| v.as_u64()).unwrap_or(4) as u8;
+                let c = c.clamp(2, 4);
+                (n, m, c)
             }
         };
         let room = Self::gen_code();
@@ -600,7 +602,7 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                     picks: [None, None, None, None],
                     teams: [None, None, None, None],
                     ready: [false, false, false, false],
-                    capacity: 4,
+                    capacity,
                     t: elapsed(),
                     data: None,
                 },
@@ -685,31 +687,29 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
         {
             let rooms = self.rooms.lock().unwrap();
             if let Some(r) = rooms.get(&room) {
-                if let Some(state) = &r.state {
-                    let pk = serde_json::to_string(&r.picks).unwrap_or_default();
-                    let mut last_pk = self.last_pk.lock().unwrap();
-                    if last_pk.get(&room) != Some(&pk) {
-                        last_pk.insert(room.clone(), pk.clone());
-                        self.slog(&format!(
-                            "STATE room={} picks={}",
-                            room,
-                            &pk[..120.min(pk.len())]
-                        ));
-                    }
-                    self.respond_json(
-                        request,
-                        200,
-                        &serde_json::json!({
-                            "ok": true,
-                            "state": state,
-                            "picks": r.picks,
-                            "teams": r.teams,
-                            "ready": r.ready,
-                            "capacity": r.capacity
-                        }),
-                    );
-                    return;
+                let pk = serde_json::to_string(&r.picks).unwrap_or_default();
+                let mut last_pk = self.last_pk.lock().unwrap();
+                if last_pk.get(&room) != Some(&pk) {
+                    last_pk.insert(room.clone(), pk.clone());
+                    self.slog(&format!(
+                        "STATE room={} picks={}",
+                        room,
+                        &pk[..120.min(pk.len())]
+                    ));
                 }
+                self.respond_json(
+                    request,
+                    200,
+                    &serde_json::json!({
+                        "ok": true,
+                        "state": r.state,
+                        "picks": r.picks,
+                        "teams": r.teams,
+                        "ready": r.ready,
+                        "capacity": r.capacity
+                    }),
+                );
+                return;
             }
         }
         self.respond_json(

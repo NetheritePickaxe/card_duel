@@ -1,6 +1,10 @@
 :root{--bg:#141517;--p:#1c1e21;--p2:#232529;--ln:#2e3136;--tx:#e8e6e1;--dim:#8b8f98;--acc:#d9a441;--red:#d9534f;--input-bg:#14161a;--bar-bg:#101113;--tt:#ffffff}
 [data-theme="light"]{--bg:#f5f0eb;--p:#e8e1d8;--p2:#ddd5cb;--ln:#c4bbb0;--tx:#2c241e;--dim:#8a7e72;--acc:#c4932e;--red:#c0392b;--input-bg:#d4cdc2;--bar-bg:#d4cdc2;--tt:#000000}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;scrollbar-width:thin;scrollbar-color:var(--ln) transparent}
+*::-webkit-scrollbar{width:6px;height:6px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:var(--ln);border-radius:3px}
+*::-webkit-scrollbar-thumb:hover{background:var(--dim)}
 body{background:var(--bg);color:var(--tx);font:14px/1.5 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;min-height:100vh;touch-action:manipulation}
 button{font:inherit;background:var(--p2);color:var(--tx);border:1px solid var(--ln);padding:8px 14px;cursor:pointer}
 button:hover{border-color:var(--acc);color:var(--acc)}
@@ -20,7 +24,7 @@ input[type=range]:focus{outline:none}
 html{overflow-y:auto;height:100%}
 body{min-height:100%}
 .screen{display:none;max-width:1080px;margin:0 auto;padding:48px 18px 18px;min-height:100vh}
-.screen.on,.init-menu #sc-menu,.init-sc-settings #sc-settings,.init-sc-edit #sc-edit,.init-sc-mods #sc-mods,.init-sc-pick #sc-pick,.init-sc-battle #sc-battle,.init-sc-lan #sc-lan,.init-sc-dice #sc-dice,.init-sc-library #sc-library,.init-sc-custom #sc-custom{display:block}
+.screen.on{display:block}
 .hd{display:flex;align-items:center;gap:10px;margin-bottom:28px}
 .hd h1{font-size:20px;font-weight:700;letter-spacing:1px}
 .hd .sp{flex:1}
@@ -136,6 +140,7 @@ body{min-height:100%}
 .pick-wrap{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px}
 .slot{flex:1;background:var(--p);border:1px solid var(--ln);padding:18px;text-align:center;cursor:pointer;min-height:170px}
 .slot:hover{border-color:var(--acc)}
+.slot:empty{visibility:hidden}
 .slot .av{width:80px;height:80px;margin:0 auto 8px;background:var(--p2);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;overflow:hidden}
 .slot .av img{width:100%;height:100%;object-fit:cover}
 .slot .av.sm{width:46px;height:46px;font-size:18px;margin:0}
@@ -280,8 +285,8 @@ input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--a
 
 /* ============ 多人对战（团队上下布局） ============ */
 .battle-teams{display:flex;flex-direction:column;gap:12px;height:100%}
-.team-zone{display:flex;flex-direction:column;gap:12px}
-.team-zone .pzone{width:100%}
+.team-zone{display:flex;flex-direction:row;gap:12px}
+.team-zone .pzone{flex:1}
 .pzone.compact .panel{min-height:0}
 .panel.compact{align-items:center}
 .panel.compact .avatar{width:44px;height:44px;font-size:20px}

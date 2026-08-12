@@ -177,12 +177,13 @@ function lanMeta() {
 export function lanCreate() {
   const gameName = t('lan.new_game_name') || '卡牌对决';
   const modsEnabled = $('mods-toggle')?.checked ?? false;
+  const capacity = parseInt($('lan-player-count')?.value) || 4;
   fetch(currentServer + '/create', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: gameName, mods: modsEnabled }), cache: 'no-store',
+    body: JSON.stringify({ name: gameName, mods: modsEnabled, capacity }), cache: 'no-store',
   }).then(r => r.json()).then(d => {
     if (!d.ok) { alert(t('lan.alert_create_fail')); return; }
-    state.LAN = { base: currentServer, room: d.room, gameName, mods: modsEnabled, side: 0, lastSeq: 0, timer: null, ...initLan(), hostData: null };
+    state.LAN = { base: currentServer, room: d.room, gameName, mods: modsEnabled, side: 0, lastSeq: 0, timer: null, ...initLan(), capacity, hostData: null };
     state.MODE = 'lan';
     stopRoomList();
     lanMeta();
@@ -198,8 +199,9 @@ export function lanJoinRoom(room) {
     if (!d.ok) { alert(t('lan.alert_join_fail', { err: d.err })); return; }
     const roomData = cachedRooms.find(r => r.room === room);
     const mods = roomData?.mods ?? true;
+    const cap = roomData?.capacity || CAPACITY;
     const side = d.side ?? 1;
-    state.LAN = { base: currentServer, room, mods, side, lastSeq: 0, timer: null, ...initLan(), hostData: null };
+    state.LAN = { base: currentServer, room, mods, side, lastSeq: 0, timer: null, ...initLan(), capacity: cap, hostData: null };
     state.MODE = 'lan';
     stopRoomList();
     lanMeta();
@@ -231,13 +233,22 @@ export function lanPoll() {
     state.LAN.teams = d.teams || new Array(CAPACITY).fill(null);
     state.LAN.ready = d.ready || new Array(CAPACITY).fill(false);
     state.LAN.capacity = d.capacity || CAPACITY;
+    // 同步 PICK 长度到当前容量
+    if (state.PICK && state.PICK.length !== state.LAN.capacity) {
+      const old = state.PICK;
+      state.PICK = new Array(state.LAN.capacity).fill(null);
+      for (let i = 0; i < Math.min(old.length, state.LAN.capacity); i++) state.PICK[i] = old[i];
+    }
     lanMeta();
     if (d.state && d.state.seq !== state.LAN.lastSeq) {
       state.LAN.lastSeq = d.state.seq;
       if (!state.BATTLE || state.BATTLE.seq === 0) enterBattleFromState(d.state);
       else applyPublic(d.state);
     }
-    if (state.PHASE_BATTLE === false && $('sc-pick').classList.contains('on')) renderLanPick();
+    if (state.PHASE_BATTLE === false && $('sc-pick').classList.contains('on')) {
+      renderLanPick();
+      renderSlots();
+    }
   }).catch(() => { });
   state.LAN.timer = setTimeout(lanPoll, 500);
 }
@@ -248,6 +259,12 @@ export function renderLanPick() {
   const teams = state.LAN.teams;
   const ready = state.LAN.ready;
   const cap = state.LAN.capacity || CAPACITY;
+
+  // 隐藏超出容量的席位
+  for (let i = cap; i < CAPACITY; i++) {
+    const slot = $('slot-' + i);
+    if (slot) slot.style.display = 'none';
+  }
 
   // 渲染 4 席
   for (let i = 0; i < cap; i++) {

@@ -322,5 +322,5 @@ function buildDefs() {
   const subfactions = [...state.PICK];
   const teams = subfactions.length === 2 ? [0, 1] : (state.PICK_TEAMS || subfactions.map((_, i) => i < subfactions.length / 2 ? 0 : 1));
   const humans = state.PICK_HUMAN || subfactions.map((_, i) => state.MODE === 'cpu' ? i !== 0 : true);
-  return { subfactions, cards: DB.cards, teams, humans };
+  return { subfactions, cards: DB.cards, factions: DB.factions, teams, humans };
 }

@@ -147,3 +147,49 @@ import { GameState } from './core.js?v=__VERSION__';
 ```
 
 WASM 结算后返回状态快照，`core.js` 的 `applyState` 同步到 JS 侧，`battle.js` 再驱动 `render.js` 更新 UI。
+
+### 国际化 (i18n)
+
+**翻译文件**：`app/card_duel/assets/lang/{code}.json`，键值对结构。
+
+**HTML 绑定**：元素通过 `data-i18n` 属性引用翻译键：
+
+```html
+<div class="mbtn" data-action="start-cpu"><span data-i18n="menu.cpu">单人对战 · 电脑</span></div>
+```
+
+- `data-i18n` 值为键名，对应 JSON 中的 key
+- 标签内文本为 fallback（未加载翻译时显示）
+- `data-i18n` 支持嵌套：父元素和子元素可各自绑定不同键
+
+**JS 中使用**：
+
+```javascript
+import { t, getLang, setLocale, addTranslation } from './i18n.js?v=__VERSION__';
+
+// 取翻译字符串
+t('menu.cpu')           // "单人对战 · 电脑"
+t('format.xp', { n: 5 })  // 模板替换，JSON 中写 "获得 {n} 经验"
+
+// 切换语言
+await setLocale('en_us');
+
+// 模组注册额外翻译
+addTranslation('zh_cn', { 'my.key': '自定义文本' });
+```
+
+**翻译文件格式**：
+
+```json
+{
+  "menu.cpu": "单人对战 · 电脑",
+  "menu.cpu_hint": "与电脑对战",
+  "format.xp": "获得 {n} 经验"
+}
+```
+
+**约定**：
+- 键名按模块分层，如 `menu.xxx`、`lan.xxx`、`battle.xxx`
+- `{param}` 模板变量用于动态内容
+- 新增文本必须同时在 `zh_cn.json` 和 `en_us.json` 中添加条目
+- 模组翻译通过 `addTranslation` 注册，不修改原始 JSON 文件

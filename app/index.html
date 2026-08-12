@@ -31,7 +31,7 @@
     <div class="mbtn" data-action="start-local-multi"><span data-i18n="menu.local_multi">多人混战</span><small data-i18n="menu.local_multi_hint">2-4 人混战</small></div>
     <div class="mbtn" data-action="start-custom"><span data-i18n="menu.custom">自定义游戏</span><small data-i18n="menu.custom_hint">选择游戏模式</small></div>
     <div class="mbtn" data-action="open-lan"><span data-i18n="menu.lan">局域网对战</span><small data-i18n="menu.lan_hint">电脑与手机联机</small></div>
-    <div class="mbtn" data-action="open-editor"><span data-i18n="menu.edit">子阵营与卡牌编辑</span><small data-i18n="menu.edit_hint">自定义数据，自动保存</small></div>
+    <div class="mbtn" data-action="open-editor"><span data-i18n="menu.edit">开发编辑器</span><small data-i18n="menu.edit_hint">自定义数据，自动保存</small></div>
     <div class="mbtn" data-action="open-library"><span data-i18n="menu.library">卡牌库</span><small data-i18n="menu.library_hint">浏览阵营与卡牌</small></div>
     <div class="mbtn" data-action="open-mods"><span data-i18n="menu.mods">模组</span><small data-i18n="menu.mods_hint">管理模组</small></div>
     <div class="mbtn" data-action="open-settings"><span data-i18n="menu.settings">设置</span><small></small></div>
@@ -199,6 +199,14 @@
       <div class="frow" style="margin-bottom:6px">
         <label data-i18n="lan.mods_toggle">启用模组</label>
         <input type="checkbox" id="mods-toggle">
+      </div>
+      <div class="frow" style="margin-bottom:6px">
+        <label data-i18n="pick.player_count">人数</label>
+        <select id="lan-player-count">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
       </div>
       <div style="display:flex;gap:8px">
         <button class="primary" style="flex:1" data-action="lan-create" data-i18n="lan.create">开始新游戏</button>

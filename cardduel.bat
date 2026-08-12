@@ -2,8 +2,10 @@
 cd /d "%~dp0"
 set "SERVER_EXE=src-tauri\target\release\card-duel-server.exe"
 
+if "%1"=="--rebuild" goto build
 if "%1"=="--server" goto run_server
-goto serve_web
+if exist "%SERVER_EXE%" goto serve_web
+goto build
 
 :run_server
 if not exist "%SERVER_EXE%" goto build
@@ -20,7 +22,7 @@ pause
 exit /b
 
 :build
-echo First run, building Rust server...
+echo Building Rust server (this may take several minutes)...
 cd src-tauri
 cargo build --release --bin card-duel-server
 if errorlevel 1 goto build_fail

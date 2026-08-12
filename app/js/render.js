@@ -195,7 +195,8 @@ export function slotHTML(r) {
 }
 
 export function renderSlots() {
-  const n = state.PICK ? state.PICK.length : 2;
+  let n = state.PICK ? state.PICK.length : 2;
+  if (state.MODE === 'lan' && state.LAN?.capacity) n = state.LAN.capacity;
   for (let i = 0; i < 4; i++) {
     const slot = $('slot-' + i);
     if (!slot) continue;

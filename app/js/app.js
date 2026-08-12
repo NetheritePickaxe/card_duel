@@ -708,20 +708,23 @@ window.addEventListener('screen-changed', () => updateBGM());
 initAudio();
 applyAccent();
 renderAccentRow();
-// 根据 URL 路径决定初始页面（如 /settings 直接显示设置）
-const initScreen = screenFromPath(location.pathname);
-if (initScreen === 'sc-settings') {
-  show('sc-settings');
-} else if (initScreen === 'sc-edit') {
-  const savedEdit = JSON.parse(localStorage.getItem('saved_edit') || '{}');
-  if (savedEdit.tab) setTab(savedEdit.tab);
-  show('sc-edit');
-} else {
-  show(initScreen);
+function showInitScreen() {
+  const initScreen = screenFromPath(location.pathname);
+  if (initScreen === 'sc-settings') {
+    show('sc-settings');
+  } else if (initScreen === 'sc-edit') {
+    const savedEdit = JSON.parse(localStorage.getItem('saved_edit') || '{}');
+    if (savedEdit.tab) setTab(savedEdit.tab);
+    show('sc-edit');
+  } else if (initScreen === 'sc-pick') {
+    show('sc-pick');
+    renderSlots();
+  } else {
+    show(initScreen);
+  }
 }
-const initLocaleLoaded = initLocale().then(() => {
-  renderMenuAddr();
-});
+
+const initLocaleLoaded = initLocale();
 const loadModsLoaded = loadMods().then(() => {
   updateBGM();
   renderModList();
@@ -729,11 +732,13 @@ const loadModsLoaded = loadMods().then(() => {
 const engineLoaded = loadEngine().then(() => {
   initEffectMeta();
 });
-// 等 locale 与 mod 都加载完毕后再统一应用 i18n，
-// 避免 loadMods 开头 clearTranslations() 清空 strings 后、
-// initLocale 的 fetch 尚未返回时，updateI18nElements 读到空表而保留 HTML 兜底文本。
-Promise.allSettled([initLocaleLoaded, loadModsLoaded, engineLoaded]).then(() => {
+// 等 locale 与 mod 翻译就绪后再显示首屏并统一应用 i18n，
+// 避免刷新瞬间出现 HTML 兜底文本或翻译键。
+// 不等待 wasm 引擎，不阻塞首屏显示。
+Promise.allSettled([initLocaleLoaded, loadModsLoaded]).then(() => {
   updateI18nElements();
+  renderMenuAddr();
+  showInitScreen();
 });
 
 window.addEventListener('mods-reloaded', () => {
