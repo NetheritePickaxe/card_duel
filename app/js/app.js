@@ -5,7 +5,7 @@ import { initAudio, setTypeVolume, getTypeVolume, setMasterVolume, getMasterVolu
 import { loadMods, reloadMods, getMods, getModConfigSchema, renderModConfig, importMod, deleteMod, getModOrder, setModOrder, setModEnabled, isModEnabled } from './modloader.js?v=__VERSION__';
 import { initEffectMeta } from './data.js?v=__VERSION__';
 import { loadEngine } from './engine.js?v=__VERSION__';
-import { startVsCPU, startLocal, startLocalMulti, startCustom, setCustomMode, customNext, customPlayerCount, refreshCustomScreen, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice, updatePlayerCount, togglePickTeam, togglePickHuman } from './pick.js?v=__VERSION__';
+import { startSkirmish, startCampaign, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice, updatePlayerCount, togglePickTeam, togglePickHuman } from './pick.js?v=__VERSION__';
 import { openEditor, setTab, editorActions } from './editor.js?v=__VERSION__';
 import { openLibrary, libraryActions } from './library.js?v=__VERSION__';
 import { playCardClick, endTurnClick } from './battle.js?v=__VERSION__';
@@ -36,20 +36,14 @@ window.addEventListener('locale-changed', () => {
     renderEditList();
   } else if ($('sc-pick').classList.contains('on')) {
     renderSlots();
-  } else if ($('sc-custom').classList.contains('on')) {
-    refreshCustomScreen();
   }
 });
 
 /* ============ 事件委托 ============ */
 
 const actionMap = {
-  'start-cpu': () => startVsCPU(),
-  'start-local': () => startLocal(),
-  'start-local-multi': () => startLocalMulti(),
-  'start-custom': () => startCustom(),
-  'custom-mode': (el) => setCustomMode(el.dataset.mode),
-  'custom-next': () => customNext(),
+  'start-skirmish': () => startSkirmish(),
+  'start-campaign': () => startCampaign(),
   'open-lan': () => openLAN(),
   'open-editor': () => openEditor(),
   'open-library': () => openLibrary(),
@@ -600,13 +594,6 @@ document.querySelectorAll('.vol-slider').forEach(slider => {
 document.addEventListener('change', e => {
   if (e.target.id === 'pk-player-count') {
     updatePlayerCount();
-  }
-});
-
-/* 自定义游戏人数选择 */
-document.addEventListener('change', e => {
-  if (e.target.id === 'custom-player-count') {
-    customPlayerCount();
   }
 });
 

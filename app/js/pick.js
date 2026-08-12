@@ -1,4 +1,4 @@
-import { $, show, esc, rollPair } from './util.js?v=__VERSION__';
+import { $, show, toast, esc, rollPair } from './util.js?v=__VERSION__';
 import { state } from './state.js?v=__VERSION__';
 import { DB, getDefaultSubfactionIds, getFaction } from './data.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
@@ -6,65 +6,74 @@ import { newBattle, logT, buildOrder } from './core.js?v=__VERSION__';
 import { renderBattle, showBattle, renderSlots, slotHTML } from './render.js?v=__VERSION__';
 import { stopRoomList, lanPickPost, lanPost, lanBase, renderLanPick, startRoomList, renderServerList, scanLan } from './lan.js?v=__VERSION__';
 
-export function startVsCPU() { state.MODE = 'cpu'; state.MULTI = false; openPick(); }
-export function startLocal() { state.MODE = 'local'; state.MULTI = false; openPick(); }
-export function startLocalMulti() { state.MODE = 'local'; state.MULTI = true; openPick(); }
+export function startSkirmish() {
+  state.GAME_MODE = 'random';
+  state.MODE = 'skirmish';
+  const opts = DB.subfactions;
+  const r = new Uint32Array(1);
+  crypto.getRandomValues(r);
+  state.PICK = [JSON.parse(JSON.stringify(opts[r[0] % opts.length])), null];
+  state.PICK_HUMAN = [false, true];
+  state.MULTI = false;
+  openPick(2);
+}
 
-/* ============ 自定义游戏 ============ */
-let customMode = 'cpu';
+export function startCampaign() {
+  toast(t('menu.campaign_soon'));
+}
 
-function initCustomState() {
-  const n = customMode === 'multi' ? (parseInt($('custom-player-count')?.value) || 2) : 2;
+export function updateGameMode(mode) {
+  state.GAME_MODE = mode;
+  if (mode === 'multi') {
+    state.MODE = 'local';
+    state.MULTI = true;
+  } else if (mode === 'custom') {
+    state.MODE = 'skirmish';
+    state.MULTI = false;
+  } else {
+    // random
+    state.MODE = 'skirmish';
+    state.MULTI = false;
+    const opts = DB.subfactions;
+    const r = new Uint32Array(1);
+    crypto.getRandomValues(r);
+    state.PICK = [JSON.parse(JSON.stringify(opts[r[0] % opts.length])), null];
+    state.PICK_HUMAN = [false, true];
+  }
+  const n = parseInt($('pk-player-count')?.value) || 2;
   state.PICK = new Array(n).fill(null);
   state.PICK_HUMAN = new Array(n).fill(true);
   state.PICK_TEAMS = new Array(n).fill(0).map((_, i) => i < n / 2 ? 0 : 1);
-  if (customMode === 'cpu') state.PICK_HUMAN[0] = false;
+  if (mode !== 'multi') state.PICK_HUMAN[0] = false;
+  renderSlots();
+  renderModeBar();
 }
 
-function renderCustomScreen() {
+function renderModeBar() {
   const modes = [
-    { v: 'cpu', key: 'custom.mode_cpu' },
-    { v: 'local', key: 'custom.mode_local' },
-    { v: 'multi', key: 'custom.mode_multi' },
-    { v: 'rogue', key: 'custom.mode_rogue' },
+    { v: 'random', key: 'pick.mode_random' },
+    { v: 'custom', key: 'pick.mode_custom' },
+    { v: 'multi', key: 'pick.mode_multi' },
   ];
-  $('custom-modes').innerHTML = modes.map(m =>
-    `<button class="mode-btn ${m.v === customMode ? 'on' : ''}" data-action="custom-mode" data-mode="${m.v}">${t(m.key)}</button>`
+  const bar = $('pk-mode-bar');
+  if (!bar) return;
+  bar.innerHTML = modes.map(m =>
+    `<button class="mode-btn ${m.v === state.GAME_MODE ? 'on' : ''}" data-action="update-game-mode" data-mode="${m.v}">${t(m.key)}</button>`
   ).join('');
-  const isMulti = customMode === 'multi';
-  $('custom-count-sec').style.display = isMulti ? 'block' : 'none';
-  initCustomState();
-  renderTeamRows($('custom-team-select'), isMulti ? state.PICK.length : 0);
-  const go = $('custom-go');
-  go.disabled = customMode === 'rogue';
-  go.textContent = customMode === 'rogue' ? t('custom.rogue_soon') : t('custom.next');
+  $('pk-multi-opts').style.display = state.GAME_MODE === 'multi' ? 'flex' : 'none';
 }
 
-export function refreshCustomScreen() {
-  if ($('sc-custom') && $('sc-custom').classList.contains('on')) renderCustomScreen();
-}
-
-export function startCustom() {
-  customMode = 'cpu';
-  renderCustomScreen();
-  show('sc-custom');
-}
-
-export function setCustomMode(mode) {
-  customMode = mode;
-  renderCustomScreen();
-}
-
-export function customPlayerCount() {
-  renderCustomScreen();
-}
-
-export function customNext() {
-  if (customMode === 'rogue') { toast(t('custom.rogue_soon')); return; }
-  if (customMode === 'cpu') { state.MODE = 'cpu'; state.MULTI = false; }
-  else if (customMode === 'local') { state.MODE = 'local'; state.MULTI = false; }
-  else { state.MODE = 'local'; state.MULTI = true; }
-  openPick(state.PICK ? state.PICK.length : undefined);
+export function updatePlayerCount() {
+  const sel = $('pk-player-count');
+  if (!sel) return;
+  const n = parseInt(sel.value) || 2;
+  state.MULTI = n > 2 || state.GAME_MODE === 'multi';
+  state.PICK = new Array(n).fill(null);
+  state.PICK_HUMAN = new Array(n).fill(true);
+  state.PICK_TEAMS = new Array(n).fill(0).map((_, i) => i < n / 2 ? 0 : 1);
+  if (state.GAME_MODE !== 'multi') state.PICK_HUMAN[0] = false;
+  renderSlots();
+  renderModeBar();
 }
 
 export function openLAN() {
@@ -104,17 +113,18 @@ export function openPick(count) {
   state.PICK = new Array(n).fill(null);
   if (!state.PICK_HUMAN || state.PICK_HUMAN.length !== n) {
     state.PICK_HUMAN = new Array(n).fill(true);
-    if (state.MODE === 'cpu') state.PICK_HUMAN[0] = false;
+    if (state.GAME_MODE !== 'multi') state.PICK_HUMAN[0] = false;
   }
   if (!state.PICK_TEAMS || state.PICK_TEAMS.length !== n) {
     state.PICK_TEAMS = new Array(n).fill(0).map((_, i) => i < n / 2 ? 0 : 1);
   }
   const sel = $('pk-player-count');
   if (sel) sel.value = String(n);
-  const title = state.MODE === 'cpu' ? t('pick.title_cpu') : state.MODE === 'local' ? t('pick.title_local') : t('pick.title_lan');
+  const title = state.MODE === 'lan' ? t('pick.title_lan') : t('pick.title_local');
   $('pk-title').textContent = title;
   $('lan-hint').innerHTML = '';
   renderSlots();
+  renderModeBar();
   renderTeamSelect();
   show('sc-pick');
 }
@@ -181,18 +191,6 @@ export function setPickRandom(i) {
   if (state.MODE === 'lan') renderLanPick();
 }
 
-export function updatePlayerCount() {
-  const sel = $('pk-player-count');
-  if (!sel) return;
-  const n = parseInt(sel.value) || 2;
-  state.MULTI = n > 2 || state.MULTI;
-  state.PICK = new Array(n).fill(null);
-  state.PICK_HUMAN = new Array(n).fill(true);
-  state.PICK_TEAMS = new Array(n).fill(0).map((_, i) => i < n / 2 ? 0 : 1);
-  renderSlots();
-  renderTeamSelect();
-}
-
 export function renderTeamRows(wrap, n) {
   if (!wrap) return;
   if (n <= 0) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
@@ -219,21 +217,15 @@ export function renderTeamSelect() {
   renderTeamRows(wrap, n);
 }
 
-function customTeamVisible() {
-  return $('sc-custom') && $('sc-custom').classList.contains('on') && customMode === 'multi';
-}
-
 export function togglePickTeam(i) {
   state.PICK_TEAMS[i] = state.PICK_TEAMS[i] === 0 ? 1 : 0;
   renderTeamSelect();
-  if (customTeamVisible()) renderTeamRows($('custom-team-select'), state.PICK ? state.PICK.length : 0);
   renderSlots();
 }
 
 export function togglePickHuman(i) {
   state.PICK_HUMAN[i] = !state.PICK_HUMAN[i];
   if (!state.PICK_HUMAN[i]) {
-    // 切到电脑：若未选角色则随机选一个
     if (!state.PICK[i]) {
       const opts = state.PICK_OPTIONS[i] || DB.subfactions;
       const r = new Uint32Array(1);
@@ -242,7 +234,6 @@ export function togglePickHuman(i) {
     }
   }
   renderTeamSelect();
-  if (customTeamVisible()) renderTeamRows($('custom-team-select'), state.PICK ? state.PICK.length : 0);
   renderSlots();
 }
 
@@ -289,7 +280,8 @@ function startBattleFromDice(first, a, b) {
     if (first === 0) { state.BATTLE.phase = 'playing'; startTurn(state.BATTLE); lanPost(); }
   } else {
     const order = buildOrder(defs.teams);
-    state.BATTLE = newBattle(state.MODE, defs, order[first]);
+    const battleMode = state.MODE === 'skirmish' ? 'cpu' : state.MODE;
+    state.BATTLE = newBattle(battleMode, defs, order[first]);
     state.BATTLE.actor = order[first];
     state.BATTLE.phase = 'playing';
     logT(state.BATTLE, 'pick.roll_log', { a, b, name: repName });

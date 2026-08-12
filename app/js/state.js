@@ -1,6 +1,7 @@
 export const state = {
   MODE: 'cpu',
   MULTI: false,
+  GAME_MODE: 'random',
   PICK: [null, null],
   PICK_HUMAN: null,
   PICK_TEAMS: null,

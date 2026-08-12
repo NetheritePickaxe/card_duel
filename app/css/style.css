@@ -305,19 +305,7 @@ input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--a
 .slot-cpu-btn{margin-top:8px;font-size:11px;padding:3px 10px;background:var(--p2);border:1px solid var(--ln);cursor:pointer}
 .slot-cpu-btn:hover{border-color:var(--acc)}
 
-/* ============ 自定义游戏 ============ */
-.custom-wrap{max-width:440px;margin:20px auto}
-.custom-section{margin-bottom:20px}
-.custom-label{font-size:13px;color:var(--dim);margin-bottom:10px}
-.mode-row{display:flex;gap:6px;flex-wrap:wrap}
-.mode-btn{padding:8px 16px;border:1px solid var(--ln);background:var(--p);cursor:pointer;font-size:13px;border-radius:0}
-.mode-btn:hover{border-color:var(--acc)}
-.mode-btn.on{background:var(--acc);color:#1a1a1a;border-color:var(--acc);font-weight:600}
-#custom-count-sec .frow{justify-content:center}
-#custom-count-sec .frow label{width:auto;margin-right:6px}
-#custom-team-select{text-align:center;margin-bottom:16px;gap:8px;flex-wrap:wrap}
-#custom-go{display:block;margin:24px auto 0;padding:10px 32px;font-size:15px}
-#custom-go:disabled{opacity:.5;cursor:not-allowed}
+.pk-mode-bar{max-width:440px;margin:0 auto 14px}
 
 /* ============ 目标选择弹窗 ============ */
 #target-modal{position:fixed;inset:0;z-index:100}
