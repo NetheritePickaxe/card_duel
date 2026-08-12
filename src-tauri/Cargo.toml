@@ -16,13 +16,18 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 name = "card-duel-server"
 path = "src/bin/server.rs"
 
+[[bin]]
+name = "card-duel"
+required-features = ["desktop"]
+
 [features]
-default = []
+default = ["desktop"]
+desktop = ["tauri", "tauri-plugin-shell", "dep:tauri-build"]
 tls = ["tiny_http/ssl", "openssl"]
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-shell = "2"
+tauri = { version = "2", features = [], optional = true }
+tauri-plugin-shell = { version = "2", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tiny_http = "0.12"
@@ -31,13 +36,13 @@ flate2 = "1"
 openssl = { version = "0.10", optional = true }
 
 [target.'cfg(target_os = "android")'.dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = [], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "=0.2.127"
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2", features = [], optional = true }
 
 [dev-dependencies]
 

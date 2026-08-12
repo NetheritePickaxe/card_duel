@@ -5,6 +5,7 @@ mod game;
 mod net;
 mod server;
 
+#[cfg(feature = "desktop")]
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.contains(&"--server".to_string()) {
@@ -38,6 +39,10 @@ fn main() {
         .expect("error while running tauri application");
 }
 
+#[cfg(not(feature = "desktop"))]
+fn main() {}
+
+#[cfg(feature = "desktop")]
 #[tauri::command]
 fn get_lan_info() -> serde_json::Value {
     let ips = net::local_ips();
