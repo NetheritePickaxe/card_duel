@@ -63,6 +63,7 @@ jobs:
           wasm-bindgen --target web --out-dir "../../app/js" \
             "target/wasm32-unknown-unknown/release/card_duel_wasm.wasm"
       - name: Build Linux server
+        working-directory: src-tauri
         run: |
           cargo build --release --bin card-duel-server --target x86_64-unknown-linux-gnu
           cp target/x86_64-unknown-linux-gnu/release/card-duel-server card-duel-server
@@ -94,6 +95,7 @@ jobs:
           wasm-bindgen --target web --out-dir "../../app/js" `
             "target\wasm32-unknown-unknown\release\card_duel_wasm.wasm"
       - name: Build Windows server
+        working-directory: src-tauri
         run: |
           cargo build --release --bin card-duel-server
           Copy-Item "target\release\card-duel-server.exe" "card-duel-server.exe"

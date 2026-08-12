@@ -6,6 +6,7 @@ authors = []
 license = ""
 edition = "2021"
 rust-version = "1.75"
+default-run = "card-duel"
 
 [lib]
 name = "card_duel_lib"
