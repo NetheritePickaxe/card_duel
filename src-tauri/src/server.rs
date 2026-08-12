@@ -42,12 +42,9 @@ fn web_root() -> Option<&'static PathBuf> {
             if let Ok(cwd) = std::env::current_dir() {
                 candidates.push(cwd.join("app"));
             }
-            for c in candidates {
-                if c.join("index.html").exists() {
-                    return Some(c);
-                }
-            }
-            None
+            candidates
+                .into_iter()
+                .find(|c| c.join("index.html").exists())
         })
         .as_ref()
 }
@@ -125,14 +122,38 @@ fn chrono_now() -> String {
     let y = 1970 + (days as f64 / 365.25) as u64;
     let remain = days - ((y - 1970) as f64 * 365.25) as u64;
     let is_leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
-    let days_in_month = [31, if is_leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let days_in_month = [
+        31,
+        if is_leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
     let mut m = 0;
     let mut d_rem = remain;
-    while d_rem >= days_in_month[m] { d_rem -= days_in_month[m]; m += 1; }
+    while d_rem >= days_in_month[m] {
+        d_rem -= days_in_month[m];
+        m += 1;
+    }
     let h = time / 3600;
     let mi = (time % 3600) / 60;
     let s = time % 60;
-    format!("{:04}-{:02}-{:02}-{:02}{:02}{:02}", y, m + 1, d_rem + 1, h, mi, s)
+    format!(
+        "{:04}-{:02}-{:02}-{:02}{:02}{:02}",
+        y,
+        m + 1,
+        d_rem + 1,
+        h,
+        mi,
+        s
+    )
 }
 
 static LOG_FILE: std::sync::OnceLock<std::sync::Mutex<std::fs::File>> = std::sync::OnceLock::new();
@@ -272,7 +293,7 @@ impl ServerState {
         self.start_inner(Some((cert_path.to_string(), key_path.to_string())));
     }
 
-fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
+    fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
         #[cfg(windows)]
         set_utf8_console();
         init_logger();
@@ -309,7 +330,7 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                         return;
                     }
                 }
-            },
+            }
             #[cfg(not(feature = "tls"))]
             Some(_) => {
                 logln!("未启用 HTTPS 支持，请使用 --features tls 重新构建。");
@@ -343,7 +364,10 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                 loop {
                     if let Ok((len, src)) = sock.recv_from(&mut buf) {
                         if &buf[..len] == DISCOVER_MAGIC {
-                            let has_rooms = discover_rooms.lock().map(|r| !r.is_empty()).unwrap_or(false);
+                            let has_rooms = discover_rooms
+                                .lock()
+                                .map(|r| !r.is_empty())
+                                .unwrap_or(false);
                             if has_rooms {
                                 let _ = sock.send_to(DISCOVER_RESP, src);
                             }
@@ -425,7 +449,9 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             "/api/mod/download" => self.handle_mod_download(request, query),
             "/api/game/list" => self.handle_game_list(request),
             "/api/game/new" => self.handle_game_new(request, query),
-            path if path.starts_with("/api/game/") => self.handle_game_action(request, &path[10..], method.as_str(), query),
+            path if path.starts_with("/api/game/") => {
+                self.handle_game_action(request, &path[10..], method.as_str(), query)
+            }
             _ => {
                 if method == "GET" {
                     self.serve_file(request, "/index.html", "text/html; charset=utf-8")
@@ -626,7 +652,11 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             let mut rooms = self.rooms.lock().unwrap();
             if let Some(r) = rooms.get_mut(&room) {
                 if r.state.is_some() {
-                    self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "game already started"}));
+                    self.respond_json(
+                        request,
+                        400,
+                        &serde_json::json!({"ok": false, "err": "game already started"}),
+                    );
                     return;
                 }
                 // Assign first empty seat
@@ -635,14 +665,26 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                     Some(s) => {
                         r.t = elapsed();
                         self.slog(&format!("JOIN room={} side={}", room, s));
-                        self.respond_json(request, 200, &serde_json::json!({"ok": true, "side": s}));
+                        self.respond_json(
+                            request,
+                            200,
+                            &serde_json::json!({"ok": true, "side": s}),
+                        );
                     }
                     None => {
-                        self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "room full"}));
+                        self.respond_json(
+                            request,
+                            400,
+                            &serde_json::json!({"ok": false, "err": "room full"}),
+                        );
                     }
                 }
             } else {
-                self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "room not found"}));
+                self.respond_json(
+                    request,
+                    404,
+                    &serde_json::json!({"ok": false, "err": "room not found"}),
+                );
             }
         }
     }
@@ -805,12 +847,20 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             let r = match rooms.get_mut(&room) {
                 Some(r) => r,
                 None => {
-                    self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "room not found"}));
+                    self.respond_json(
+                        request,
+                        404,
+                        &serde_json::json!({"ok": false, "err": "room not found"}),
+                    );
                     return;
                 }
             };
             if side >= r.capacity {
-                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "side invalid"}));
+                self.respond_json(
+                    request,
+                    400,
+                    &serde_json::json!({"ok": false, "err": "side invalid"}),
+                );
                 return;
             }
 
@@ -831,7 +881,10 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                 _ => Vec::new(),
             };
             let pick = Pick {
-                subfaction: data.get("subfaction").cloned().unwrap_or(data.get("role").cloned().unwrap_or_default()),
+                subfaction: data
+                    .get("subfaction")
+                    .cloned()
+                    .unwrap_or(data.get("role").cloned().unwrap_or_default()),
                 cards,
                 effects,
                 is_human: data.get("is_human").and_then(|v| v.as_bool()),
@@ -850,11 +903,19 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
         let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
             Ok(d) => d,
             Err(_) => {
-                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "bad json"}));
+                self.respond_json(
+                    request,
+                    400,
+                    &serde_json::json!({"ok": false, "err": "bad json"}),
+                );
                 return;
             }
         };
-        let room = data.get("room").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
+        let room = data
+            .get("room")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_uppercase();
         let side = data.get("side").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
         let team = data.get("team").and_then(|v| v.as_u64()).unwrap_or(0) as u8;
         {
@@ -873,11 +934,19 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
         let data: serde_json::Value = match serde_json::from_str(&Self::read_body(&mut request)) {
             Ok(d) => d,
             Err(_) => {
-                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": "bad json"}));
+                self.respond_json(
+                    request,
+                    400,
+                    &serde_json::json!({"ok": false, "err": "bad json"}),
+                );
                 return;
             }
         };
-        let room = data.get("room").and_then(|v| v.as_str()).unwrap_or("").to_uppercase();
+        let room = data
+            .get("room")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_uppercase();
         let side = data.get("side").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
         let ready = data.get("ready").and_then(|v| v.as_bool()).unwrap_or(true);
         {
@@ -944,23 +1013,22 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                 let _ = sock.set_broadcast(true);
                 let _ = sock.send_to(DISCOVER_MAGIC, ("255.255.255.255", DISCOVER_PORT));
                 let mut buf = [0u8; 256];
-                loop {
-                    match sock.recv_from(&mut buf) {
-                        Ok((len, src)) => {
-                            if &buf[..len] == DISCOVER_RESP {
-                                let mut list = ips.lock().unwrap();
-                                if !list.contains(&src.ip().to_string()) {
-                                    list.push(src.ip().to_string());
-                                }
-                            }
+                while let Ok((len, src)) = sock.recv_from(&mut buf) {
+                    if &buf[..len] == DISCOVER_RESP {
+                        let mut list = ips.lock().unwrap();
+                        if !list.contains(&src.ip().to_string()) {
+                            list.push(src.ip().to_string());
                         }
-                        Err(_) => break,
                     }
                 }
             }
         }
         let found = ips.lock().unwrap().clone();
-        self.respond_json(request, 200, &serde_json::json!({"ok": true, "servers": found}));
+        self.respond_json(
+            request,
+            200,
+            &serde_json::json!({"ok": true, "servers": found}),
+        );
     }
 
     fn handle_leave(&self, mut request: Request) {
@@ -1081,48 +1149,78 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
 
     fn handle_game_list(&self, request: Request) {
         let games = self.games.lock().unwrap();
-        let info: Vec<serde_json::Value> = games.keys().map(|id| {
-            serde_json::json!({"id": id})
-        }).collect();
-        self.respond_json(request, 200, &serde_json::json!({"ok": true, "games": info}));
+        let info: Vec<serde_json::Value> = games
+            .keys()
+            .map(|id| serde_json::json!({"id": id}))
+            .collect();
+        self.respond_json(
+            request,
+            200,
+            &serde_json::json!({"ok": true, "games": info}),
+        );
     }
 
     fn handle_game_new(&self, request: Request, query: &str) {
         let app_dir = "app";
         let defs = match crate::game::load_defs(app_dir) {
             Ok(d) => d,
-            Err(e) => { self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": e})); return; }
+            Err(e) => {
+                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": e}));
+                return;
+            }
         };
-        let p0 = crate::game::get_subfaction_index(&defs, Self::extract_param(query, "p0"))
-            .unwrap_or(0);
+        let p0 =
+            crate::game::get_subfaction_index(&defs, Self::extract_param(query, "p0")).unwrap_or(0);
         let p1 = crate::game::get_subfaction_index(&defs, Self::extract_param(query, "p1"))
             .unwrap_or(if defs.subfactions.len() > 1 { 1 } else { 0 });
-        let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos() as u64;
+        let seed = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64;
         let mut b = crate::game::new_battle("cpu", &defs, p0, p1, seed);
         crate::game::start_turn(&mut b);
-        let id = format!("g{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs());
+        let id = format!(
+            "g{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        );
         self.games.lock().unwrap().insert(id.clone(), b);
-        self.respond_json(request, 200, &serde_json::json!({"ok": true, "game_id": id}));
+        self.respond_json(
+            request,
+            200,
+            &serde_json::json!({"ok": true, "game_id": id}),
+        );
     }
 
     fn handle_game_action(&self, request: Request, path: &str, method: &str, query: &str) {
         let parts: Vec<&str> = path.splitn(2, '/').collect();
         if parts.len() < 2 {
-            self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "not found"}));
+            self.respond_json(
+                request,
+                404,
+                &serde_json::json!({"ok": false, "err": "not found"}),
+            );
             return;
         }
         let game_id = parts[0].to_string();
         let action = parts[1].to_string();
 
         if action == "act" && method != "POST" {
-            self.respond_json(request, 405, &serde_json::json!({"ok": false, "err": "method not allowed"}));
+            self.respond_json(
+                request,
+                405,
+                &serde_json::json!({"ok": false, "err": "method not allowed"}),
+            );
             return;
         }
 
-        let body = if action == "act" {
+        if action == "act" {
             let mut req = request;
             let b = Self::read_body(&mut req);
-            let params: serde_json::Value = serde_json::from_str(&b).unwrap_or(serde_json::json!({}));
+            let params: serde_json::Value =
+                serde_json::from_str(&b).unwrap_or(serde_json::json!({}));
             let player = params["player"].as_i64().unwrap_or(1) as usize;
             let action_type = params["action"].as_str().unwrap_or("").to_string();
             let card_idx = params["card"].as_i64().unwrap_or(0) as usize;
@@ -1130,7 +1228,14 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
             let mut games = self.games.lock().unwrap();
             let b = match games.get_mut(&game_id) {
                 Some(b) => b,
-                None => { self.respond_json(req, 404, &serde_json::json!({"ok": false, "err": "game not found"})); return; }
+                None => {
+                    self.respond_json(
+                        req,
+                        404,
+                        &serde_json::json!({"ok": false, "err": "game not found"}),
+                    );
+                    return;
+                }
             };
 
             match action_type.as_str() {
@@ -1171,42 +1276,59 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
                 _ => self.respond_json(req, 400, &serde_json::json!({"ok": false, "err": "unknown action"})),
             }
             return;
-        };
+        }
 
         let mut games = self.games.lock().unwrap();
         let b = match games.get_mut(&game_id) {
             Some(b) => b,
-            None => { self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "game not found"})); return; }
+            None => {
+                self.respond_json(
+                    request,
+                    404,
+                    &serde_json::json!({"ok": false, "err": "game not found"}),
+                );
+                return;
+            }
         };
 
         match action.as_str() {
             "state" => {
-                let viewer = Self::extract_param(query, "viewer").parse::<usize>().unwrap_or(1);
+                let viewer = Self::extract_param(query, "viewer")
+                    .parse::<usize>()
+                    .unwrap_or(1);
                 let viewer = if viewer < 2 { viewer } else { 1 };
-                self.respond_json(request, 200, &serde_json::json!({
-                    "ok": true,
-                    "state": crate::game::format_battle_state_for(b, viewer),
-                    "log": crate::game::format_log(b),
-                    "winner": b.winner,
-                    "turn": b.turn,
-                    "actor": b.actor,
-                    "players": b.players.iter().map(|p| serde_json::json!({
-                        "name": p.role.name,
-                        "hp": p.hp,
-                        "max_hp": p.role.hp,
-                        "def": p.def,
-                        "energy": p.energy,
-                        "max_energy": p.role.eng,
-                        "hand": p.hand.iter().enumerate().map(|(i, c)| serde_json::json!({
-                            "index": i, "id": c.id, "name": c.name, "cost": c.cost,
-                            "desc": c.desc
+                self.respond_json(
+                    request,
+                    200,
+                    &serde_json::json!({
+                        "ok": true,
+                        "state": crate::game::format_battle_state_for(b, viewer),
+                        "log": crate::game::format_log(b),
+                        "winner": b.winner,
+                        "turn": b.turn,
+                        "actor": b.actor,
+                        "players": b.players.iter().map(|p| serde_json::json!({
+                            "name": p.role.name,
+                            "hp": p.hp,
+                            "max_hp": p.role.hp,
+                            "def": p.def,
+                            "energy": p.energy,
+                            "max_energy": p.role.eng,
+                            "hand": p.hand.iter().enumerate().map(|(i, c)| serde_json::json!({
+                                "index": i, "id": c.id, "name": c.name, "cost": c.cost,
+                                "desc": c.desc
+                            })).collect::<Vec<_>>(),
+                            "deck_size": p.draw.len(),
+                            "discard_size": p.discard.len(),
                         })).collect::<Vec<_>>(),
-                        "deck_size": p.draw.len(),
-                        "discard_size": p.discard.len(),
-                    })).collect::<Vec<_>>(),
-                }));
+                    }),
+                );
             }
-            _ => self.respond_json(request, 404, &serde_json::json!({"ok": false, "err": "not found"})),
+            _ => self.respond_json(
+                request,
+                404,
+                &serde_json::json!({"ok": false, "err": "not found"}),
+            ),
         }
     }
 
@@ -1235,7 +1357,7 @@ fn start_inner(self: Arc<Self>, tls: Option<(String, String)>) {
         ""
     }
 
-fn slog(&self, msg: &str) {
+    fn slog(&self, msg: &str) {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default();

@@ -50,7 +50,10 @@ fn run_cli() {
     let app_dir = "app";
     let defs = match game::load_defs(app_dir) {
         Ok(d) => d,
-        Err(e) => { eprintln!("加载数据失败: {}", e); std::process::exit(1); }
+        Err(e) => {
+            eprintln!("加载数据失败: {}", e);
+            std::process::exit(1);
+        }
     };
 
     println!("=== 卡牌对决 CLI 模式 ===");
@@ -64,7 +67,9 @@ fn run_cli() {
         io::stdin().read_line(&mut line).ok();
         let idx = line.trim().parse::<usize>().ok();
         if let Some(i) = idx {
-            if i < defs.subfactions.len() { break i; }
+            if i < defs.subfactions.len() {
+                break i;
+            }
         }
     };
 
@@ -76,30 +81,44 @@ fn run_cli() {
         io::stdin().read_line(&mut line).ok();
         let idx = line.trim().parse::<usize>().ok();
         if let Some(i) = idx {
-            if i < defs.subfactions.len() { break i; }
+            if i < defs.subfactions.len() {
+                break i;
+            }
         }
     };
 
-    println!("\n对战开始: {} vs {}\n", defs.subfactions[p0].name, defs.subfactions[p1].name);
+    println!(
+        "\n对战开始: {} vs {}\n",
+        defs.subfactions[p0].name, defs.subfactions[p1].name
+    );
 
-    let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos() as u64;
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64;
     let mut b = game::new_battle("cpu", &defs, p0, p1, seed);
     game::start_turn(&mut b);
 
     loop {
         println!("{}", game::format_battle_state(&b));
-        if b.winner.is_some() { break; }
+        if b.winner.is_some() {
+            break;
+        }
 
         // AI 回合自动执行
         if b.actor == 0 {
             loop {
-                if b.winner.is_some() { break; }
+                if b.winner.is_some() {
+                    break;
+                }
                 let action = game::choose_cpu_action(&mut b);
                 match action {
                     game::CpuAction::PlayCard(idx, tgt) => {
                         let name = if idx < b.players[0].hand.len() {
                             b.players[0].hand[idx].name.clone()
-                        } else { String::from("?") };
+                        } else {
+                            String::from("?")
+                        };
                         if let Err(e) = game::play_card_target(&mut b, 0, idx, tgt) {
                             println!("电脑 出牌错误: {}", e);
                             break;
@@ -123,9 +142,16 @@ fn run_cli() {
         io::stdin().read_line(&mut line).ok();
         let line = line.trim().to_string();
 
-        if line == "quit" { break; }
-        if line == "state" { continue; }
-        if line == "log" { println!("日志:\n{}", game::format_log(&b)); continue; }
+        if line == "quit" {
+            break;
+        }
+        if line == "state" {
+            continue;
+        }
+        if line == "log" {
+            println!("日志:\n{}", game::format_log(&b));
+            continue;
+        }
         if line == "help" {
             println!("play <idx>  - 出牌 (idx 为手牌索引)");
             println!("endturn     - 结束回合");
@@ -134,13 +160,15 @@ fn run_cli() {
             println!("quit        - 退出");
             continue;
         }
-        if line.starts_with("play ") {
-            let idx = line[5..].trim().parse::<usize>().ok();
+        if let Some(rest) = line.strip_prefix("play ") {
+            let idx = rest.trim().parse::<usize>().ok();
             if let Some(idx) = idx {
                 match game::play_card(&mut b, 1, idx) {
                     Ok(_) => {
                         println!("出牌成功");
-                        if b.winner.is_some() { break; }
+                        if b.winner.is_some() {
+                            break;
+                        }
                     }
                     Err(e) => println!("出牌失败: {}", e),
                 }

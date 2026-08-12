@@ -29,11 +29,13 @@ pub fn init_battle(
     seed: u64,
     first_actor: i32,
 ) -> Result<String, JsValue> {
-    let defs = game::defs_from_json(defs_json)
-        .map_err(|e| JsValue::from_str(&e))?;
-    let indices: Vec<usize> = serde_json::from_str(indices_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
-    let teams: Vec<usize> = serde_json::from_str(teams_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
-    let humans: Vec<bool> = serde_json::from_str(humans_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let defs = game::defs_from_json(defs_json).map_err(|e| JsValue::from_str(&e))?;
+    let indices: Vec<usize> =
+        serde_json::from_str(indices_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let teams: Vec<usize> =
+        serde_json::from_str(teams_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let humans: Vec<bool> =
+        serde_json::from_str(humans_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     let mut b = game::new_battle_teams(mode, &defs, indices, teams, seed);
     if first_actor >= 0 {
@@ -77,7 +79,9 @@ pub fn battle_state_json() -> String {
         })
     }).collect();
 
-    let phase = if b.winner.is_some() { "over" } else {
+    let phase = if b.winner.is_some() {
+        "over"
+    } else {
         // facade phase tracking: derive from whether start_turn was called
         // For simplicity, treat as 'playing' if engine is active, else 'awaiting'
         // The JS facade will manage phase switching
@@ -103,16 +107,22 @@ pub fn battle_state_json() -> String {
         "defs": serde_json::to_value(d).unwrap_or_default(),
         "log": b.log,
         "_events": events,
-    }).to_string()
+    })
+    .to_string()
 }
 
 #[wasm_bindgen]
 pub fn play_card(pi: usize, idx: usize, target: i32) -> Result<String, JsValue> {
     let b = battle();
-    let tgt = if target >= 0 { Some(target as usize) } else { None };
-    let events = game::play_card_target(b, pi, idx, tgt)
-        .map_err(|e| JsValue::from_str(&e))?;
-    unsafe { LAST_EVENTS = events; }
+    let tgt = if target >= 0 {
+        Some(target as usize)
+    } else {
+        None
+    };
+    let events = game::play_card_target(b, pi, idx, tgt).map_err(|e| JsValue::from_str(&e))?;
+    unsafe {
+        LAST_EVENTS = events;
+    }
     Ok(battle_state_json())
 }
 
