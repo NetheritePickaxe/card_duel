@@ -76,8 +76,8 @@ export async function initAudio() {
   const start = () => { playTrack('bgm/menu'); document.removeEventListener('click', start); };
   document.addEventListener('click', start);
   if (window.__TAURI__?.event?.listen) {
-    window.__TAURI__.event.listen('app-paused', () => { audio?.pause(); });
-    window.__TAURI__.event.listen('app-resumed', () => {
+    window.__TAURI__.event.listen('tauri://suspended', () => { audio?.pause(); });
+    window.__TAURI__.event.listen('tauri://resumed', () => {
       if (!document.hidden && audio) audio.play().catch(() => {});
     });
   }
