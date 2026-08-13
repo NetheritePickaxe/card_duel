@@ -4,7 +4,7 @@ import { DB, getDefaultSubfactionIds, getFaction } from './data.js?v=__VERSION__
 import { t } from './i18n.js?v=__VERSION__';
 import { newBattle, logT, buildOrder } from './core.js?v=__VERSION__';
 import { renderBattle, showBattle, renderSlots, slotHTML } from './render.js?v=__VERSION__';
-import { stopRoomList, lanPickPost, lanPost, lanBase, renderLanPick, startRoomList, renderServerList, scanLan } from './lan.js?v=__VERSION__';
+import { stopRoomList, lanPickPost, lanBase, renderLanPick, startRoomList, renderServerList, scanLan, lanAct } from './lan.js?v=__VERSION__';
 
 export function startSkirmish() {
   state.GAME_MODE = 'random';
@@ -107,6 +107,11 @@ export function backMenu() {
 }
 
 export function quitBattle() { backMenu(); }
+
+// lan.js 完成建房/加入后派发，这里统一进入选人界面（断环：lan → pick）
+window.addEventListener('lan-room-ready', () => {
+  if (state.MODE === 'lan') openPick();
+});
 
 export function openPick(count) {
   const n = state.MODE === 'lan' ? (state.LAN?.capacity || 4) : (state.MULTI ? (count || 4) : 2);
@@ -241,12 +246,21 @@ export function goDice() {
   if (state.DICING) return;
   state.DICING = true;
   const [a, b] = rollPair();
-  // 队伍代表
-  const teams = buildDefs().teams;
-  const rep0 = teams.indexOf(0);
-  const rep1 = teams.indexOf(1);
-  const n0 = state.PICK[rep0]?.name || '队 1';
-  const n1 = state.PICK[rep1]?.name || '队 2';
+  // 队伍代表（LAN 取服务端 picks，本地取当前选择）
+  let teams, rep0, rep1, n0, n1;
+  if (state.MODE === 'lan') {
+    teams = state.LAN.teams.map(t => t ?? 0);
+    rep0 = teams.indexOf(0);
+    rep1 = teams.indexOf(1);
+    n0 = state.LAN.picks[rep0]?.role?.name || '队 1';
+    n1 = state.LAN.picks[rep1]?.role?.name || '队 2';
+  } else {
+    teams = buildDefs().teams;
+    rep0 = teams.indexOf(0);
+    rep1 = teams.indexOf(1);
+    n0 = state.PICK[rep0]?.name || '队 1';
+    n1 = state.PICK[rep1]?.name || '队 2';
+  }
   $('dice-name0').textContent = n0;
   $('dice-name1').textContent = n1;
   $('die-0').textContent = '·'; $('die-1').textContent = '·';
@@ -265,52 +279,29 @@ export function goDice() {
 
 function startBattleFromDice(first, a, b) {
   state.PHASE_BATTLE = true;
+  if (state.MODE === 'lan') {
+    // 服务端权威开局：提交 start 意图，状态回传后自动进入战斗
+    if (state.LAN.side !== 0) return;
+    lanAct(0, { type: 'start', first }).then(d => {
+      if (d && d.err && !d.ok) state.PHASE_BATTLE = false;
+    });
+    return;
+  }
   const defs = buildDefs();
   const rep0 = defs.teams.indexOf(0);
   const rep1 = defs.teams.indexOf(1);
   const repName = first === 0 ? (state.PICK[rep0]?.name || '队 1') : (state.PICK[rep1]?.name || '队 2');
-  if (state.MODE === 'lan') {
-    if (state.LAN.side !== 0) return;
-    state.BATTLE = newBattle('lan', defs);
-    state.BATTLE.actor = state.BATTLE.order[first];
-    state.BATTLE.phase = 'awaiting';
-    logT(state.BATTLE, 'pick.roll_log', { a, b, name: repName });
-    lanPost();
-    showBattle();
-    if (first === 0) { state.BATTLE.phase = 'playing'; startTurn(state.BATTLE); lanPost(); }
-  } else {
-    const order = buildOrder(defs.teams);
-    const battleMode = state.MODE === 'skirmish' ? 'cpu' : state.MODE;
-    state.BATTLE = newBattle(battleMode, defs, order[first]);
-    state.BATTLE.actor = order[first];
-    state.BATTLE.phase = 'playing';
-    logT(state.BATTLE, 'pick.roll_log', { a, b, name: repName });
-    showBattle();
-  }
+  const order = buildOrder(defs.teams);
+  const battleMode = state.MODE === 'skirmish' ? 'cpu' : state.MODE;
+  state.BATTLE = newBattle(battleMode, defs, order[first]);
+  state.BATTLE.actor = order[first];
+  state.BATTLE.phase = 'playing';
+  logT(state.BATTLE, 'pick.roll_log', { a, b, name: repName });
+  showBattle();
 }
 
+// 本地模式定义构建（LAN 由服务端从房间选择构建，客户端不再本地组卡）
 function buildDefs() {
-  if (state.MODE === 'lan') {
-    const picks = state.LAN.picks;
-    // 只包含已选席位，按席位顺序压缩
-    const seats = [];
-    for (let i = 0; i < picks.length; i++) {
-      if (picks[i]) seats.push(i);
-    }
-    const subfactions = seats.map(i => picks[i].role);
-    const need = new Set();
-    subfactions.forEach(r => (r.deck || []).forEach(id => need.add(id)));
-    const seen = {}, m = [];
-    for (const i of seats) {
-      for (const c of (picks[i].cards || [])) {
-        if (!seen[c.id]) { seen[c.id] = 1; if (need.size === 0 || need.has(c.id)) m.push(c); }
-      }
-    }
-    const allEffects = [...new Set(seats.flatMap(i => picks[i].effects || []))];
-    const teams = seats.map(i => state.LAN.teams[i] ?? 0);
-    const humans = seats.map(i => picks[i].is_human !== false);
-    return { subfactions, cards: m, effects: allEffects, teams, humans, seatMap: seats };
-  }
   const subfactions = [...state.PICK];
   const teams = subfactions.length === 2 ? [0, 1] : (state.PICK_TEAMS || subfactions.map((_, i) => i < subfactions.length / 2 ? 0 : 1));
   const humans = state.PICK_HUMAN || subfactions.map((_, i) => state.MODE === 'cpu' ? i !== 0 : true);

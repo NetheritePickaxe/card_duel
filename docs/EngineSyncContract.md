@@ -1,10 +1,10 @@
 # EngineSyncContract.md
 
-> 本文档是 WASM 引擎（`game.rs`）与 JS 前端门面（`engine.js` / `core.js`）之间的正式契约。规则引擎唯一实现位于 `game.rs`，通过 `bindings.rs` 导出到浏览器。
+> 本文档是 WASM 引擎（`game/` 模块，规则唯一实现）与 JS 前端门面（`engine.js` / `core.js`）之间的正式契约。规则引擎通过 `bindings.rs`（Layer 4 Control 适配器）导出到浏览器；所有结算统一经 `game::action::execute`（Layer 1 唯一入口）。
 
 ## 契约原则
 
-1. **单一规则源**：所有规则、效果结算、CPU 决策只存在于 `game.rs`。JS 层禁止实现任何游戏规则逻辑。
+1. **单一规则源**：所有规则、效果结算、CPU 决策只存在于 `game/`（Core 层）。JS 层禁止实现任何游戏规则逻辑。
 2. **导出接口是唯一通道**：`bindings.rs` 的 `#[wasm_bindgen]` 导出函数是 WASM 与 JS 之间的唯一接口。`engine.js` 包装这些导出，`core.js` 提供业务级门面。
 3. **状态快照承载全部状态**：每个导出函数返回 `battle_state_json()` 的完整状态字符串，JS 侧通过 `applyState` 重建快照。禁止 JS 侧自行维护游戏状态。
 4. **随机数来源一致**：`init_battle` 接受 `seed` 参数，`game.rs` 内部使用可种子 PRNG，保证相同种子下流程确定。
@@ -18,8 +18,8 @@
 | `init_battle` | `newBattle` | `(mode, defs_json, indices_json, teams_json, humans_json, seed, first_actor)` | `Result<String, JsValue>` | 创建对局并开始首回合 |
 | `battle_state_json` | `battleStateJson` | 无 | `String` | 完整对局状态 JSON |
 | `play_card` | `playCard` | `(pi, idx, target)` | `Result<String, JsValue>` | 玩家 `pi` 打出第 `idx` 张手牌，`target` 为 -1 表示无目标 |
-| `end_turn` | `endTurn` | `(pi)` | `String` | 玩家 `pi` 结束回合 |
-| `start_turn` | `startTurn` | 无 | `String` | 开始当前 actor 的回合 |
+| `end_turn` | `endTurn` | `(pi)` | `Result<String, JsValue>` | 玩家 `pi` 结束回合；非本人回合（`not your turn`）或对局已结束时报错 |
+| `start_turn` | `startTurn` | 无 | `Result<String, JsValue>` | 开始当前 actor 的回合；对局已结束时报错 |
 | `cpu_step` | `cpuStep` | 无 | `Result<String, JsValue>` | 执行当前 actor 的 CPU 决策（出牌或结束回合）|
 | `list_effects` | `listEffects` | 无 | `String` | 效果元数据 JSON（`effect_metadata_map`）|
 | `card_cost` | `cardCost` | `(pi, idx)` | `i32` | 玩家 `pi` 第 `idx` 张手牌的费用 |
@@ -53,7 +53,7 @@
 
 ## 状态一致性与错误处理
 
-- 所有可失败操作（`init_battle`/`play_card`/`cpu_step`）返回 `Result<String, JsValue>`，错误时 JS 侧必须 `console.error` 并停止操作，禁止猜测默认状态继续。
+- 所有可失败操作（`init_battle`/`play_card`/`end_turn`/`start_turn`/`cpu_step`）返回 `Result<String, JsValue>`，错误时 JS 侧必须 `console.error` 并停止操作，禁止猜测默认状态继续。
 - 每次操作后调用方必须重新读取返回的状态 JSON，禁止在 JS 侧缓存旧状态后自行增量修改。
 - `core.js` 的 `applyState` 是全量重建快照，不做局部补丁。
 
@@ -61,12 +61,13 @@
 
 修改任何涉及契约的内容（新增导出、改状态字段、改规则）时：
 
-1. 只改 `game.rs` 一处（规则/效果）。
-2. 若新增导出：改 `bindings.rs`，在 `engine.js` 包装，在 `core.js` 暴露 API。
-3. 执行 `scripts\build_wasm.bat`。
-4. 执行 `cargo test --lib --release` 验证 `game.rs` 规则测试。
-5. 执行 `node --check app/js/*.js`。
-6. 更新本文档中的导出接口表与状态快照表。
+1. 只改 `game/` 一处（规则/效果，通常在 `core.rs` / `effects.rs`）。
+2. 若新增行动类型：改 `game/action.rs`（Action + validate + execute），再改 `bindings.rs`。
+3. 若新增导出：改 `bindings.rs`，在 `engine.js` 包装，在 `core.js` 暴露 API。
+4. 执行 `scripts\build_wasm.bat`。
+5. 执行 `cargo test --lib --release` 验证规则测试。
+6. 执行 `node --check app/js/*.js`。
+7. 更新本文档中的导出接口表与状态快照表。
 
 ## 常见错误
 

@@ -1,0 +1,17 @@
+{
+  "id": "f_foehn",
+  "name": "焚风反抗军",
+  "desc": "焚风反抗，游击科技",
+  "img": "",
+  "deck": [
+    "c_strike",
+    "c_strike",
+    "c_weak",
+    "c_weak",
+    "c_barrier",
+    "c_barrier",
+    "c_overload",
+    "c_overload",
+    "c_draw"
+  ]
+}

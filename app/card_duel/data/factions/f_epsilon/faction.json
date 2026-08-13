@@ -1,0 +1,17 @@
+{
+  "id": "f_epsilon",
+  "name": "厄普西隆军",
+  "desc": "心灵控制，诡秘莫测",
+  "img": "",
+  "deck": [
+    "c_strike",
+    "c_strike",
+    "c_heavy",
+    "c_timelock",
+    "c_timelock",
+    "c_barrier",
+    "c_haste",
+    "c_draw",
+    "c_heal"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "c_heal",
+  "name": "治愈",
+  "cost": 1,
+  "img": "",
+  "effects": [
+    {
+      "type": "heal",
+      "value": 6,
+      "target": "self"
+    }
+  ],
+  "desc": ""
+}

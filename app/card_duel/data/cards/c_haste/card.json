@@ -1,0 +1,13 @@
+{
+  "id": "c_haste",
+  "name": "时间裂隙",
+  "cost": 3,
+  "img": "",
+  "effects": [
+    {
+      "type": "extra_turn",
+      "target": "self"
+    }
+  ],
+  "desc": ""
+}

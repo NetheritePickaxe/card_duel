@@ -1,0 +1,13 @@
+{
+  "id": "c_timelock",
+  "name": "禁行",
+  "cost": 2,
+  "img": "",
+  "effects": [
+    {
+      "type": "skip_turn",
+      "target": "enemy"
+    }
+  ],
+  "desc": ""
+}

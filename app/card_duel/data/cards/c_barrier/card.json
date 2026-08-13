@@ -1,0 +1,15 @@
+{
+  "id": "c_barrier",
+  "name": "屏障",
+  "cost": 2,
+  "img": "",
+  "effects": [
+    {
+      "type": "dmg_reduce",
+      "value": 25,
+      "duration": 3,
+      "target": "self"
+    }
+  ],
+  "desc": ""
+}

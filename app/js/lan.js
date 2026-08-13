@@ -2,10 +2,22 @@ import { $, show, esc, toast } from './util.js?v=__VERSION__';
 import { state } from './state.js?v=__VERSION__';
 import { DB, getDefaultCardIds } from './data.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
-import { newBattle, logT, forceDiscard, checkTeamWinner, lanMyIndex } from './core.js?v=__VERSION__';
-import { renderBattle, showBattle, renderSlots, slotHTML, playCardAnim } from './render.js?v=__VERSION__';
-import { startTurn } from './battle.js?v=__VERSION__';
-import { goDice, openPick } from './pick.js?v=__VERSION__';
+import { newBattle, lanMyIndex } from './core.js?v=__VERSION__';
+import { renderSlots, slotHTML } from './render.js?v=__VERSION__';
+
+// ============================================================================
+// LAN 客户端（网络适配器，Layer 4 Control 的客户端侧）
+//
+// 职责边界：
+// - 连接管理 / 房间列表 / 大厅操作（创建、加入、选择、队伍、就绪）
+// - 战斗意图提交（lanAct）与公开状态轮询（lanPoll）
+// - 公开状态 → 本地状态对象的数据同步（applyPublic）
+//
+// 禁止：
+// - 本地结算任何战斗规则（唯一权威是服务端 game::Battle）
+// - 驱动 UI/动画（通过 'lan-battle-state' 事件交给 battle.js 表现层）
+// - 反向依赖 battle.js / pick.js（避免循环依赖）
+// ============================================================================
 
 const STORAGE_KEY = 'saved_servers';
 const IS_HTTPS = location.protocol === 'https:';
@@ -169,7 +181,7 @@ function initLan() {
 }
 
 function lanMeta() {
-  // 从 LAN 状态合并 meta（picks/teams/ready），供 buildDefs 使用
+  // 从 LAN 状态合并 meta（picks/teams/ready），供选择界面使用
   state.LAN.teamsArr = state.LAN.teams || new Array(CAPACITY).fill(null);
   state.LAN.readyArr = state.LAN.ready || new Array(CAPACITY).fill(false);
 }
@@ -188,8 +200,7 @@ export function lanCreate() {
     stopRoomList();
     lanMeta();
     $('lan-info').textContent = t('lan.waiting');
-    openPick();
-    renderSlots();
+    window.dispatchEvent(new CustomEvent('lan-room-ready'));
     lanPoll();
   }).catch(() => alert(t('lan.alert_conn_fail')));
 }
@@ -206,8 +217,7 @@ export function lanJoinRoom(room) {
     stopRoomList();
     lanMeta();
     $('lan-info').textContent = t('lan.waiting');
-    openPick();
-    renderSlots();
+    window.dispatchEvent(new CustomEvent('lan-room-ready'));
     lanPoll();
   }).catch(() => alert(t('lan.alert_conn_fail2')));
 }
@@ -218,39 +228,109 @@ export function lanJoin() {
   lanJoinRoom($('lan-room').value);
 }
 
+/* ============ 状态轮询 ============ */
+
 export function lanPoll() {
   clearTimeout(state.LAN.timer);
-  fetch(state.LAN.base + '/state?room=' + state.LAN.room, { cache: 'no-store' }).then(r => r.json()).then(d => {
-    if (!d.ok) {
-      if (state.PHASE_BATTLE || $('sc-pick').classList.contains('on')) alert(t('lan.room_closed'));
-      if (state.LAN && state.LAN.timer) { clearTimeout(state.LAN.timer); state.LAN.timer = null; }
-      stopRoomList();
-      state.LAN = null; state.BATTLE = null; state.PHASE_BATTLE = false;
-      show('sc-menu');
-      return;
-    }
-    state.LAN.picks = d.picks || new Array(CAPACITY).fill(null);
-    state.LAN.teams = d.teams || new Array(CAPACITY).fill(null);
-    state.LAN.ready = d.ready || new Array(CAPACITY).fill(false);
-    state.LAN.capacity = d.capacity || CAPACITY;
-    // 同步 PICK 长度到当前容量
-    if (state.PICK && state.PICK.length !== state.LAN.capacity) {
-      const old = state.PICK;
-      state.PICK = new Array(state.LAN.capacity).fill(null);
-      for (let i = 0; i < Math.min(old.length, state.LAN.capacity); i++) state.PICK[i] = old[i];
-    }
-    lanMeta();
-    if (d.state && d.state.seq !== state.LAN.lastSeq) {
-      state.LAN.lastSeq = d.state.seq;
-      if (!state.BATTLE || state.BATTLE.seq === 0) enterBattleFromState(d.state);
-      else applyPublic(d.state);
-    }
-    if (state.PHASE_BATTLE === false && $('sc-pick').classList.contains('on')) {
-      renderLanPick();
-      renderSlots();
-    }
-  }).catch(() => { });
+  fetch(state.LAN.base + '/state?room=' + state.LAN.room + '&side=' + state.LAN.side, { cache: 'no-store' })
+    .then(r => r.json()).then(d => {
+      if (!d.ok) {
+        if (state.PHASE_BATTLE || $('sc-pick').classList.contains('on')) alert(t('lan.room_closed'));
+        if (state.LAN && state.LAN.timer) { clearTimeout(state.LAN.timer); state.LAN.timer = null; }
+        stopRoomList();
+        state.LAN = null; state.BATTLE = null; state.PHASE_BATTLE = false;
+        show('sc-menu');
+        return;
+      }
+      state.LAN.picks = d.picks || new Array(CAPACITY).fill(null);
+      state.LAN.teams = d.teams || new Array(CAPACITY).fill(null);
+      state.LAN.ready = d.ready || new Array(CAPACITY).fill(false);
+      state.LAN.capacity = d.capacity || CAPACITY;
+      // 同步 PICK 长度到当前容量
+      if (state.PICK && state.PICK.length !== state.LAN.capacity) {
+        const old = state.PICK;
+        state.PICK = new Array(state.LAN.capacity).fill(null);
+        for (let i = 0; i < Math.min(old.length, state.LAN.capacity); i++) state.PICK[i] = old[i];
+      }
+      lanMeta();
+      if (d.state && d.state.seq !== state.LAN.lastSeq) {
+        lanSyncState(d.state);
+      }
+      if (state.PHASE_BATTLE === false && $('sc-pick').classList.contains('on')) {
+        renderLanPick();
+        renderSlots();
+      }
+    }).catch(() => { });
   state.LAN.timer = setTimeout(lanPoll, 500);
+}
+
+/* ============ 战斗意图提交（Layer 1 Action 的客户端入口） ============ */
+
+/**
+ * 向服务端提交战斗意图（start / play / endturn）。
+ * 成功后立即应用响应中的公开状态（含本人手牌）并触发表现事件。
+ * @returns {Promise<object>} 服务端响应 JSON
+ */
+export function lanAct(side, action) {
+  if (!state.LAN) return Promise.resolve({ err: t('lan.room_closed') });
+  return fetch(state.LAN.base + '/act', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ room: state.LAN.room, side, action }), cache: 'no-store',
+  }).then(r => r.json()).then(d => {
+    if (d && d.ok && d.state) {
+      lanSyncState(d.state);
+    } else if (d && d.err && !d.ok) {
+      toast(d.err);
+    }
+    return d;
+  }).catch(() => ({ err: t('lan.alert_conn_fail2') }));
+}
+
+/* ============ 公开状态 → 本地对象 ============ */
+
+/** 应用一份公开状态（去重后），本地对象仅做数据同步，不结算规则 */
+function lanSyncState(pub) {
+  state.LAN.lastSeq = pub.seq;
+  if (!state.BATTLE || state.BATTLE.seq === 0) {
+    state.PHASE_BATTLE = true;
+    state.BATTLE = newBattle('lan', pub.defs);
+  }
+  applyPublic(pub);
+}
+
+/**
+ * 把服务端公开状态同步到本地状态对象。
+ * 数据同步完成后派发 'lan-battle-state' 事件，由 battle.js（表现层）
+ * 负责渲染、动画与屏幕切换 —— 本函数禁止触碰 UI。
+ */
+function applyPublic(pub) {
+  const b = state.BATTLE;
+  if (!b) return;
+  const myIdx = lanMyIndex(b);
+  b.seq = pub.seq; b.turn = pub.turn; b.actor = pub.actor; b.winner = pub.winner; b.phase = pub.phase; b.log = pub.log;
+  b.players.forEach((P, i) => {
+    const s = pub.p[i];
+    if (!s) return;
+    P.hp = s.hp; P.def = s.def; P.energy = s.energy; P.buffs = s.buffs;
+    P.drawCount = s.draw_count; P.handCount = s.hand_count; P.discard = s.discard;
+    if (i === myIdx) {
+      // 本人席位：服务端投影本人手牌（含 curCost）
+      P.hand = s.hand || [];
+    } else {
+      P.hand = null;
+    }
+  });
+  // 强制弃牌：本人手牌随机弃置 count 张（与服务端随机弃置同分布）
+  if (pub.fd && pub.fd.seq === pub.seq && pub.fd.side === myIdx) {
+    const hand = b.players[myIdx].hand || [];
+    const drop = Math.min(pub.fd.count, hand.length);
+    for (let n = 0; n < drop; n++) {
+      const idx = Math.floor(Math.random() * hand.length);
+      const [c] = hand.splice(idx, 1);
+      if (c) b.players[myIdx].discard.push(c);
+    }
+  }
+  window.dispatchEvent(new CustomEvent('lan-battle-state', { detail: pub }));
 }
 
 export function renderLanPick() {
@@ -387,73 +467,6 @@ export function lanAddCpu(side) {
   lanSetReady(side, true);
   renderSlots();
   renderLanPick();
-}
-
-/* ============ 战斗同步 ============ */
-
-function isCpuSeat(b, i) {
-  return b.humans && !b.humans[i];
-}
-
-function publicState(b) {
-  const play = b.lastPlay ? { seq: b.lastPlay.atSeq, pi: b.lastPlay.pi, card: b.lastPlay.card, events: b.lastPlay.events } : null;
-  const fd = b.pendingFD ? { seq: b.pendingFD.atSeq, side: b.pendingFD.side, count: b.pendingFD.count } : null;
-  return {
-    seq: b.seq, turn: b.turn, actor: b.actor, winner: b.winner, phase: b.phase, defs: b.defs,
-    p: b.players.map(P => ({ hp: P.hp, def: P.def, energy: P.energy, buffs: P.buffs,
-      drawCount: P.draw.length, handCount: Array.isArray(P.hand) ? P.hand.length : 0, discard: P.discard.slice(-14) })),
-    log: b.log.slice(-80), play, fd,
-  };
-}
-
-export function lanPost() {
-  if (!state.LAN) return;
-  state.BATTLE.seq++;
-  fetch(state.LAN.base + '/state', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ room: state.LAN.room, state: publicState(state.BATTLE) }),
-  }).then(r => r.json()).then(d => {
-    if (d && !d.ok && d.err) logT(state.BATTLE, 'lan.sync_prefix', { err: d.err });
-  }).catch(() => { });
-}
-
-function enterBattleFromState(pub) {
-  state.PHASE_BATTLE = true;
-  state.BATTLE = newBattle('lan', pub.defs);
-  applyPublic(pub);
-}
-
-function applyPublic(pub) {
-  const b = state.BATTLE;
-  const myIdx = lanMyIndex(b);
-  b.seq = pub.seq; b.turn = pub.turn; b.actor = pub.actor; b.winner = pub.winner; b.phase = pub.phase; b.log = pub.log;
-  b.players.forEach((P, i) => {
-    P.hp = pub.p[i].hp; P.def = pub.p[i].def; P.energy = pub.p[i].energy; P.buffs = pub.p[i].buffs;
-    if (i !== myIdx) { P.drawCount = pub.p[i].drawCount; P.handCount = pub.p[i].handCount; P.discard = pub.p[i].discard; P.hand = null; }
-  });
-  if (!$('sc-battle').classList.contains('on')) showBattle(); else renderBattle();
-  if (pub.play && pub.play.seq === pub.seq && pub.play.card && pub.play.pi !== myIdx) playCardAnim(pub.play.pi, pub.play.card, pub.play.events, () => { });
-  if (pub.fd && pub.fd.seq === pub.seq && pub.fd.side === myIdx) {
-    const pre = b.seq;
-    forceDiscard(b, myIdx, pub.fd.count);
-    renderBattle();
-    if (b.seq === pre) lanPost();
-  }
-  if (!b.winner && b.phase === 'awaiting' && b.actor === myIdx) {
-    b.phase = 'playing';
-    const preSeq = b.seq;
-    startTurn(b);
-    if (b.seq === preSeq) lanPost();
-  }
-  // 房主代跑空席电脑
-  if (state.LAN.side === 0 && !b.winner && isCpuSeat(b, b.actor) && b.phase === 'awaiting') {
-    import('./battle.js?v=__VERSION__').then(m => {
-      b.phase = 'playing';
-      const preSeq = b.seq;
-      m.cpuActOnce(b);
-      if (b.seq === preSeq) lanPost();
-    });
-  }
 }
 
 /* ============ 房间列表 ============ */

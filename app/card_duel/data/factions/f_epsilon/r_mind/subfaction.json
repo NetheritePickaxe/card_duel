@@ -1,0 +1,22 @@
+{
+  "id": "r_mind",
+  "name": "心灵学者",
+  "faction": "f_epsilon",
+  "hp": 30,
+  "def": 2,
+  "eng": 4,
+  "intro": "心灵力量，操控战局",
+  "img": "",
+  "deck": [
+    "c_strike",
+    "c_strike",
+    "c_weak",
+    "c_weak",
+    "c_overload",
+    "c_overload",
+    "c_barrier",
+    "c_charge",
+    "c_timelock",
+    "c_draw"
+  ]
+}

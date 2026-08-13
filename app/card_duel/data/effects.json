@@ -1,1 +1,158 @@
-{}
+{
+  "damage": {
+    "hasValue": true,
+    "hasDuration": false,
+    "hasPierce": true,
+    "fx": {
+      "form": "flash",
+      "color": "#ff3b30"
+    },
+    "descKey": "desc.damage",
+    "descKeyPierce": "desc.damage_pierce",
+    "buffKey": null,
+    "cpuWeight": 1.0
+  },
+  "heal": {
+    "hasValue": true,
+    "hasDuration": false,
+    "hasPierce": false,
+    "fx": {
+      "form": "flash",
+      "color": "#34c759"
+    },
+    "descKey": "desc.heal",
+    "descKeyPierce": null,
+    "buffKey": null,
+    "cpuWeight": 0.9
+  },
+  "gain_def": {
+    "hasValue": true,
+    "hasDuration": true,
+    "hasPierce": false,
+    "fx": {
+      "form": "overlay",
+      "color": "#e6b800"
+    },
+    "descKey": "desc.gain_def",
+    "descKeyPierce": null,
+    "buffKey": "buff.def_up",
+    "cpuWeight": 0.8
+  },
+  "gain_atk": {
+    "hasValue": true,
+    "hasDuration": true,
+    "hasPierce": false,
+    "fx": {
+      "form": "pulse",
+      "color": "#e6b800"
+    },
+    "descKey": "desc.gain_atk",
+    "descKeyPierce": null,
+    "buffKey": "buff.atk_up",
+    "cpuWeight": 0.6
+  },
+  "weaken_def": {
+    "hasValue": true,
+    "hasDuration": true,
+    "hasPierce": false,
+    "fx": {
+      "form": "overlay",
+      "color": "#bf5af2"
+    },
+    "descKey": "desc.weaken_def",
+    "descKeyPierce": null,
+    "buffKey": "buff.armor_break",
+    "cpuWeight": 0.5
+  },
+  "cost_up": {
+    "hasValue": true,
+    "hasDuration": true,
+    "hasPierce": false,
+    "fx": {
+      "form": "overlay",
+      "color": "#bf5af2"
+    },
+    "descKey": "desc.cost_up",
+    "descKeyPierce": null,
+    "buffKey": "buff.cost_up",
+    "cpuWeight": 1.3
+  },
+  "dmg_reduce": {
+    "hasValue": true,
+    "hasDuration": true,
+    "hasPierce": false,
+    "fx": {
+      "form": "overlay",
+      "color": "#e6b800"
+    },
+    "descKey": "desc.dmg_reduce",
+    "descKeyPierce": null,
+    "buffKey": "buff.dmg_reduce",
+    "cpuWeight": 0.4
+  },
+  "skip_turn": {
+    "hasValue": false,
+    "hasDuration": false,
+    "hasPierce": false,
+    "fx": {
+      "form": "pulse",
+      "color": "#bf5af2"
+    },
+    "descKey": "desc.skip_turn",
+    "descKeyPierce": null,
+    "buffKey": "buff.skip_turn",
+    "cpuWeight": 3.5
+  },
+  "extra_turn": {
+    "hasValue": false,
+    "hasDuration": false,
+    "hasPierce": false,
+    "fx": {
+      "form": "pulse",
+      "color": "#e6b800"
+    },
+    "descKey": "desc.extra_turn",
+    "descKeyPierce": null,
+    "buffKey": "buff.extra_turn",
+    "cpuWeight": 4.0
+  },
+  "draw": {
+    "hasValue": true,
+    "hasDuration": false,
+    "hasPierce": false,
+    "fx": {
+      "form": "flash",
+      "color": "#0a84ff"
+    },
+    "descKey": "desc.draw",
+    "descKeyPierce": null,
+    "buffKey": null,
+    "cpuWeight": 1.6
+  },
+  "force_discard": {
+    "hasValue": true,
+    "hasDuration": false,
+    "hasPierce": false,
+    "fx": {
+      "form": "overlay",
+      "color": "#bf5af2"
+    },
+    "descKey": "desc.force_discard",
+    "descKeyPierce": null,
+    "buffKey": null,
+    "cpuWeight": 1.2
+  },
+  "energy": {
+    "hasValue": true,
+    "hasDuration": false,
+    "hasPierce": false,
+    "fx": {
+      "form": "flash",
+      "color": "#0a84ff"
+    },
+    "descKey": "desc.energy",
+    "descKeyPierce": null,
+    "buffKey": null,
+    "cpuWeight": 0.5
+  }
+}

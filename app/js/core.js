@@ -126,6 +126,8 @@ export function sumBuff(P, type) {
 }
 
 export function cardCost(b, pi, card) {
+  // LAN：手牌由服务端投影，curCost 由服务端（单一规则源）计算
+  if (card && card.curCost != null) return card.curCost;
   const idx = b.players[pi].hand.indexOf(card);
   if (idx >= 0) return engine.cardCost(pi, idx);
   return Math.max(0, card.cost + sumBuff(b.players[pi], 'cost_up'));

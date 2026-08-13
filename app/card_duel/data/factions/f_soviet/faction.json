@@ -1,0 +1,17 @@
+{
+  "id": "f_soviet",
+  "name": "苏维埃联盟",
+  "desc": "赤色钢铁洪流，重装碾压",
+  "img": "",
+  "deck": [
+    "c_strike",
+    "c_strike",
+    "c_strike",
+    "c_heavy",
+    "c_heavy",
+    "c_guard",
+    "c_guard",
+    "c_charge",
+    "c_draw"
+  ]
+}

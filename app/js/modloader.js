@@ -83,14 +83,33 @@ async function loadVanillaMod() {
     'assets/sound/sound.json',
     'assets/lang/zh_cn.json',
     'assets/lang/en_us.json',
-    'data/subfactions.json',
-    'data/cards.json',
     'data/effects.json',
-    'data/factions.json',
   ];
   for (const f of fileList) {
     try { files[f] = await fetchText(`${modBaseUrl(VANILLA)}${f}`); } catch (e) { files[f] = '{}'; }
   }
+  // 从文件夹结构聚合 cards / factions / subfactions（通过 _index.json 清单，不依赖 HTTP 目录列表）
+  try {
+    const base = modBaseUrl(VANILLA) + 'data/';
+    const cardsIdx = JSON.parse(await fetchText(base + 'cards/_index.json'));
+    const factionsIdx = JSON.parse(await fetchText(base + 'factions/_index.json'));
+    const cards = [], factions = [], subs = [];
+    for (const id of (cardsIdx.cards || [])) {
+      try { cards.push(JSON.parse(await fetchText(base + 'cards/' + id + '/card.json'))); } catch (e) {}
+    }
+    files['data/cards.json'] = JSON.stringify(cards);
+    for (const fid of (factionsIdx.factions || [])) {
+      try {
+        factions.push(JSON.parse(await fetchText(base + 'factions/' + fid + '/faction.json')));
+        const idx = JSON.parse(await fetchText(base + 'factions/' + fid + '/_index.json'));
+        for (const sid of (idx.subfactions || [])) {
+          try { subs.push(JSON.parse(await fetchText(base + 'factions/' + fid + '/' + sid + '/subfaction.json'))); } catch (e) {}
+        }
+      } catch (e) {}
+    }
+    files['data/factions.json'] = JSON.stringify(factions);
+    files['data/subfactions.json'] = JSON.stringify(subs);
+  } catch (e) { /* ignore */ }
   return { id: VANILLA, meta, builtin: true, files, enabled: true };
 }
 

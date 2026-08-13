@@ -1,0 +1,15 @@
+{
+  "id": "c_pierce",
+  "name": "破甲斩",
+  "cost": 2,
+  "img": "",
+  "effects": [
+    {
+      "type": "damage",
+      "value": 6,
+      "pierce": true,
+      "target": "enemy"
+    }
+  ],
+  "desc": ""
+}

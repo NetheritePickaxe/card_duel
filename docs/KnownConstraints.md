@@ -21,7 +21,7 @@
 
 ## 3. 验证缺口
 
-**现状**：无测试框架、无 lint、无类型检查。验证全靠 `cargo test --lib --release`（基础规则测试）+ `cargo build` + `node --check` + 人工运行。
+**现状**：无测试框架、无 lint、无类型检查。验证全靠 `cargo test --lib --release`（基础规则测试，当前 9 项）+ `cargo build` + `node --check` + 人工运行。开发环境无可用浏览器（虚拟显示适配器），前端视觉/交互无法自动验证；LAN 协议可用 curl / Node 驱动真实客户端模块对真实服务器做行为测试。
 
 **影响**：
 - 编译命令是唯一的自动防线
@@ -32,6 +32,7 @@
 - 让错误在编译期暴露：Rust 用严格类型，JS 避免动态属性访问
 - 每次修改后必须执行完整验证清单（见 `BuildAndRun.md`）
 - 优先选择容易验证的简单结构，而非复杂但「强大」的方案
+- 涉及 LAN 协议的修改，用 Node 剥离 `?v=__VERSION__` 后驱动真实 `lan.js` 对真实服务器验证
 
 ---
 
@@ -94,3 +95,24 @@
 **应对**：
 - 新增 BGM 时必须用指定 ffmpeg 命令转换
 - 修改 `sound.json` 时同步更新 `sound.js` 的切换逻辑
+
+---
+
+## 8. LAN 联机协议：服务端权威结算
+
+**现状**：2026-08 分层重构后，LAN 对局改为**服务端权威结算**。服务器持有权威 `game::Battle`，客户端经 `POST /act` 提交意图（start/play/endturn），轮询 `GET /state?room=X&side=Y` 消费公开状态。
+
+**背景**：旧的「各端本地结算 + POST /state 广播」链路在单引擎重构后已断裂（实测三处：WASM 未初始化 panic、`pick.js` 引用未导入的 `startTurn`、`lan.js` 调用未导出的 `cpuActOnce`），且公开状态与本地结算必然分叉。
+
+**影响与应对**：
+- `POST /state`（旧广播）已移除；客户端一律走 `/act` 意图 + 状态轮询
+- 隐藏信息：公开状态按观众席位投影，本人手牌（含服务端计算的 `curCost`）只发给对应 `side`；不传 `side` 不泄露任何手牌
+- 手牌费用等规则数值由服务端计算下发（`curCost`），JS 不自行实现规则；`core.js::cardCost` 对带 `curCost` 的卡直接读取
+- CPU 席位由服务器 `drive_cpu` 代跑，客户端不再本地驱动（`battle.js` 不再导出 `cpuActOnce` 调用方）
+- 若未来需要断线重连/回放，`/act` + 公开状态投影是天然的指令溯源基础
+
+---
+
+## 9. 锁与并发约定
+
+**现状**：`server/` 内的锁统一使用 `parking_lot::Mutex`（`lock()` 直接返回 guard，无 poisoning 路径）。`ServerState` 字段均为 `Arc<parking_lot::Mutex<...>>`。

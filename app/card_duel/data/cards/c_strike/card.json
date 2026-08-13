@@ -1,0 +1,14 @@
+{
+  "id": "c_strike",
+  "name": "打击",
+  "cost": 1,
+  "img": "",
+  "effects": [
+    {
+      "type": "damage",
+      "value": 6,
+      "target": "enemy"
+    }
+  ],
+  "desc": ""
+}

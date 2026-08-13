@@ -1,0 +1,22 @@
+{
+  "id": "r_scientist",
+  "name": "科技研究员",
+  "faction": "f_allied",
+  "hp": 32,
+  "def": 2,
+  "eng": 4,
+  "intro": "尖端科技，机动灵活",
+  "img": "",
+  "deck": [
+    "c_strike",
+    "c_strike",
+    "c_heavy",
+    "c_heal",
+    "c_heal",
+    "c_overload",
+    "c_overload",
+    "c_haste",
+    "c_charge",
+    "c_draw"
+  ]
+}

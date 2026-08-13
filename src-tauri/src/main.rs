@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-#[path = "game.rs"]
+#[path = "game/mod.rs"]
 mod game;
 mod net;
 mod server;

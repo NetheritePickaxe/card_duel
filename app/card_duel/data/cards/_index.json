@@ -1,0 +1,16 @@
+{
+  "cards": [
+    "c_barrier",
+    "c_charge",
+    "c_draw",
+    "c_guard",
+    "c_haste",
+    "c_heal",
+    "c_heavy",
+    "c_overload",
+    "c_pierce",
+    "c_strike",
+    "c_timelock",
+    "c_weak"
+  ]
+}

@@ -9,11 +9,11 @@
 
 #![allow(dead_code)]
 
-#[path = "../game.rs"]
+#[path = "../game/mod.rs"]
 mod game;
 #[path = "../net.rs"]
 mod net;
-#[path = "../server.rs"]
+#[path = "../server/mod.rs"]
 mod server;
 
 use std::io::{self, Write};
@@ -97,7 +97,7 @@ fn run_cli() {
         .unwrap_or_default()
         .as_nanos() as u64;
     let mut b = game::new_battle("cpu", &defs, p0, p1, seed);
-    game::start_turn(&mut b);
+    let _ = game::action::execute(&mut b, game::action::Action::StartTurn);
 
     loop {
         println!("{}", game::format_battle_state(&b));
@@ -105,29 +105,32 @@ fn run_cli() {
             break;
         }
 
-        // AI 回合自动执行
+        // AI 回合自动执行（统一经 Layer 1，服务端权威代跑）
         if b.actor == 0 {
-            loop {
-                if b.winner.is_some() {
-                    break;
-                }
-                let action = game::choose_cpu_action(&mut b);
-                match action {
-                    game::CpuAction::PlayCard(idx, tgt) => {
-                        let name = if idx < b.players[0].hand.len() {
-                            b.players[0].hand[idx].name.clone()
-                        } else {
-                            String::from("?")
-                        };
-                        if let Err(e) = game::play_card_target(&mut b, 0, idx, tgt) {
-                            println!("电脑 出牌错误: {}", e);
-                            break;
+            let mut guard = 0;
+            while b.winner.is_none() && b.actor == 0 && guard < 64 {
+                guard += 1;
+                let actor_before = b.actor;
+                match game::action::execute(&mut b, game::action::Action::CpuStep) {
+                    Ok(_) => {
+                        let played = b
+                            .log
+                            .last()
+                            .map(|e| e.key.as_str()) == Some("log.play_card");
+                        if played {
+                            let name = b.players[0]
+                                .discard
+                                .last()
+                                .map(|c| c.name.clone())
+                                .unwrap_or_else(|| "?".into());
+                            println!("电脑 打出: {}", name);
                         }
-                        println!("电脑 打出: {}", name);
+                        if b.winner.is_some() || b.actor != actor_before {
+                            println!("电脑 结束回合");
+                        }
                     }
-                    game::CpuAction::EndTurn => {
-                        game::end_turn(&mut b, 0);
-                        println!("电脑 结束回合");
+                    Err(e) => {
+                        println!("电脑 出牌错误: {}", e);
                         break;
                     }
                 }
@@ -163,7 +166,14 @@ fn run_cli() {
         if let Some(rest) = line.strip_prefix("play ") {
             let idx = rest.trim().parse::<usize>().ok();
             if let Some(idx) = idx {
-                match game::play_card(&mut b, 1, idx) {
+                match game::action::execute(
+                    &mut b,
+                    game::action::Action::PlayCard {
+                        pi: 1,
+                        idx,
+                        target: None,
+                    },
+                ) {
                     Ok(_) => {
                         println!("出牌成功");
                         if b.winner.is_some() {
@@ -178,7 +188,10 @@ fn run_cli() {
             continue;
         }
         if line == "endturn" {
-            game::end_turn(&mut b, 1);
+            match game::action::execute(&mut b, game::action::Action::EndTurn { pi: 1 }) {
+                Ok(_) => {}
+                Err(e) => println!("结束回合失败: {}", e),
+            }
             continue;
         }
         println!("未知命令，输入 help 查看帮助");

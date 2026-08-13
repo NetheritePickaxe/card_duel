@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-#[path = "../../src/game.rs"]
+#[path = "../../src/game/mod.rs"]
 pub(crate) mod game;
 
 #[path = "../../src/bindings.rs"]

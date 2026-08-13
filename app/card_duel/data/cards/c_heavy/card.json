@@ -1,0 +1,14 @@
+{
+  "id": "c_heavy",
+  "name": "重击",
+  "cost": 2,
+  "img": "",
+  "effects": [
+    {
+      "type": "damage",
+      "value": 11,
+      "target": "enemy"
+    }
+  ],
+  "desc": ""
+}

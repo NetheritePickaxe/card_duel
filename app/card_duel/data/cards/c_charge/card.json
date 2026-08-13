@@ -1,0 +1,14 @@
+{
+  "id": "c_charge",
+  "name": "能量榨取",
+  "cost": 1,
+  "img": "",
+  "effects": [
+    {
+      "type": "force_discard",
+      "value": 1,
+      "target": "enemy"
+    }
+  ],
+  "desc": ""
+}

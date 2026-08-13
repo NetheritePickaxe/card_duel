@@ -1,3 +1,11 @@
+//! Layer 4 — Control（WASM 适配器）。
+//!
+//! 持有战斗的权威引用，接收外部输入（JS 门面调用），构造 Layer 1
+//! `Action` 并交给 `game::action::execute` 结算，原子替换状态，
+//! 返回完整状态快照与事件。是浏览器端唯一入口。
+
+#![allow(static_mut_refs)]
+
 use crate::game;
 use wasm_bindgen::prelude::*;
 
@@ -5,7 +13,7 @@ static mut BATTLE: Option<game::Battle> = None;
 static mut DEFS: Option<game::GameDefs> = None;
 static mut HUMANS: Vec<bool> = vec![];
 static mut SEAT_MAP: Vec<usize> = vec![];
-static mut LAST_EVENTS: Vec<(usize, String, String)> = vec![];
+static mut LAST_EVENTS: Vec<game::GameEvent> = vec![];
 
 fn battle() -> &'static mut game::Battle {
     unsafe { BATTLE.as_mut().expect("battle not initialized") }
@@ -48,7 +56,9 @@ pub fn init_battle(
         SEAT_MAP = vec![];
         LAST_EVENTS = vec![];
     }
-    game::start_turn(unsafe { BATTLE.as_mut().unwrap() });
+    // 经统一入口开始首回合
+    game::action::execute(unsafe { BATTLE.as_mut().unwrap() }, game::action::Action::StartTurn)
+        .map_err(|e| JsValue::from_str(&e))?;
     Ok(battle_state_json())
 }
 
@@ -88,8 +98,8 @@ pub fn battle_state_json() -> String {
         "playing"
     };
 
-    let events: Vec<serde_json::Value> = unsafe { LAST_EVENTS.iter() }.map(|(tgt, form, kind)| {
-        serde_json::json!({ "target": tgt, "fx": { "form": form, "color": fx_color(kind) } })
+    let events: Vec<serde_json::Value> = unsafe { LAST_EVENTS.iter() }.map(|ev| {
+        serde_json::json!({ "target": ev.target, "fx": { "form": ev.fx, "color": fx_color(&ev.kind) } })
     }).collect();
 
     serde_json::json!({
@@ -113,13 +123,16 @@ pub fn battle_state_json() -> String {
 
 #[wasm_bindgen]
 pub fn play_card(pi: usize, idx: usize, target: i32) -> Result<String, JsValue> {
-    let b = battle();
     let tgt = if target >= 0 {
         Some(target as usize)
     } else {
         None
     };
-    let events = game::play_card_target(b, pi, idx, tgt).map_err(|e| JsValue::from_str(&e))?;
+    let events = game::action::execute(
+        battle(),
+        game::action::Action::PlayCard { pi, idx, target: tgt },
+    )
+    .map_err(|e| JsValue::from_str(&e))?;
     unsafe {
         LAST_EVENTS = events;
     }
@@ -127,30 +140,24 @@ pub fn play_card(pi: usize, idx: usize, target: i32) -> Result<String, JsValue> 
 }
 
 #[wasm_bindgen]
-pub fn end_turn(pi: usize) -> String {
-    game::end_turn(battle(), pi);
-    battle_state_json()
+pub fn end_turn(pi: usize) -> Result<String, JsValue> {
+    game::action::execute(battle(), game::action::Action::EndTurn { pi })
+        .map_err(|e| JsValue::from_str(&e))?;
+    Ok(battle_state_json())
 }
 
 #[wasm_bindgen]
-pub fn start_turn() -> String {
-    game::start_turn(battle());
-    battle_state_json()
+pub fn start_turn() -> Result<String, JsValue> {
+    game::action::execute(battle(), game::action::Action::StartTurn)
+        .map_err(|e| JsValue::from_str(&e))?;
+    Ok(battle_state_json())
 }
 
 #[wasm_bindgen]
 pub fn cpu_step() -> Result<String, JsValue> {
-    let b = battle();
-    match game::choose_cpu_action(b) {
-        game::CpuAction::PlayCard(idx, tgt) => {
-            let _ = game::play_card_target(b, b.actor, idx, tgt);
-            Ok(battle_state_json())
-        }
-        game::CpuAction::EndTurn => {
-            game::end_turn(b, b.actor);
-            Ok(battle_state_json())
-        }
-    }
+    game::action::execute(battle(), game::action::Action::CpuStep)
+        .map_err(|e| JsValue::from_str(&e))?;
+    Ok(battle_state_json())
 }
 
 #[wasm_bindgen]

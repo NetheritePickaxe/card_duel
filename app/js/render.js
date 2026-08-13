@@ -43,7 +43,7 @@ export function renderP(pi, el) {
   el.className = 'pzone' + (acting ? ' acting' : '');
   el.id = 'pzone-' + pi;
   const canAct = acting && canOperate(pi);
-  const reveal = Array.isArray(P.hand) && pi === b.actor && !(b.mode === 'cpu' && !b.humans[pi]);
+  const reveal = Array.isArray(P.hand) && (pi === b.actor || (b.mode === 'lan' && canOperate(pi))) && !(b.mode === 'cpu' && !b.humans[pi]);
   const handN = Array.isArray(P.hand) ? P.hand.length : (P.handCount || 0);
   const drawN = Array.isArray(P.draw) ? P.draw.length : (P.drawCount || 0);
   let handHTML;
