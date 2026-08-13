@@ -63,7 +63,7 @@
 
 1. 只改 `game.rs` 一处（规则/效果）。
 2. 若新增导出：改 `bindings.rs`，在 `engine.js` 包装，在 `core.js` 暴露 API。
-3. 执行 `scripts/build_wasm.ps1`。
+3. 执行 `scripts\build_wasm.bat`。
 4. 执行 `cargo test --lib --release` 验证 `game.rs` 规则测试。
 5. 执行 `node --check app/js/*.js`。
 6. 更新本文档中的导出接口表与状态快照表。

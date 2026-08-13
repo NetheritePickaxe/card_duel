@@ -22,8 +22,8 @@ cargo 无法覆盖被占用的 exe 文件，否则构建失败。
 
 ### WASM 引擎（浏览器单机）
 
-```powershell
-scripts/build_wasm.ps1
+```batch
+scripts\build_wasm.bat
 ```
 
 - 构建 `src-tauri/wasm/` crate（release 模式）
@@ -176,7 +176,7 @@ pnpm tauri dev
 修改游戏规则、效果结算或状态变更时：
 
 1. 只改 `game.rs` 一处。
-2. 执行 `scripts/build_wasm.ps1` 编译 WASM（浏览器单机）。
+2. 执行 `scripts\build_wasm.bat` 编译 WASM（浏览器单机）。
 3. 执行 `cargo build --release --bin card-duel-server` 编译服务端。
 4. 执行 `cargo test --lib --release` 验证基础规则。
 5. 执行 `node --check app/js/*.js` 验证 JS 语法。
@@ -192,7 +192,7 @@ pnpm tauri dev
 
 修改后必须执行：
 
-- [ ] 若修改了 `game.rs`：`scripts/build_wasm.ps1` 成功生成 wasm
+- [ ] 若修改了 `game.rs`：`scripts\build_wasm.bat` 成功生成 wasm
 - [ ] 若修改了 `game.rs`：`cargo test --lib --release` 通过
 - [ ] `cargo build --release --bin card-duel-server` 零 error（或推送后 CI lint 通过）
 - [ ] `node --check app/js/*.js` 零 error（CI lint 也会检查）

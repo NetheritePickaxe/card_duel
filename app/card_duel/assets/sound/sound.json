@@ -4,31 +4,90 @@
       "stream": false,
       "volume": 1.0,
       "tracks": [
-        { "file": "card_duel/assets/sound/bgm/menu.ogg", "weight": 1, "volume": 1.0 }
+        {
+          "file": "card_duel/assets/sound/bgm/menu/birdsong.ogg",
+          "weight": 1,
+          "volume": 1.0
+        }
       ]
     },
     "battle": {
       "stream": true,
       "volume": 1.0,
       "tracks": [
-        { "file": "card_duel/assets/sound/bgm/bgm1.ogg", "weight": 1, "volume": 1.0 },
-        { "file": "card_duel/assets/sound/bgm/bgm3.ogg", "weight": 1, "volume": 1.0 },
-        { "file": "card_duel/assets/sound/bgm/bgm4.ogg", "weight": 1, "volume": 1.0 },
-        { "file": "card_duel/assets/sound/bgm/bgm5.ogg", "weight": 1, "volume": 1.0 }
+        {
+          "file": "card_duel/assets/sound/bgm/battle/solitude.ogg",
+          "weight": 1,
+          "volume": 1.0
+        },
+        {
+          "file": "card_duel/assets/sound/bgm/battle/aim_tech.ogg",
+          "weight": 1,
+          "volume": 1.0
+        },
+        {
+          "file": "card_duel/assets/sound/bgm/battle/inner_spark.ogg",
+          "weight": 1,
+          "volume": 1.0
+        },
+        {
+          "file": "card_duel/assets/sound/bgm/battle/witch_trial.ogg",
+          "weight": 1,
+          "volume": 1.0
+        }
+      ]
+    },
+    "boss": {
+      "stream": true,
+      "volume": 1.0,
+      "tracks": [
+        {
+          "file": "card_duel/assets/sound/bgm/boss/dragon_flame.ogg",
+          "weight": 1,
+          "volume": 1.0
+        },
+        {
+          "file": "card_duel/assets/sound/bgm/boss/fly.ogg",
+          "weight": 1,
+          "volume": 1.0
+        },
+        {
+          "file": "card_duel/assets/sound/bgm/boss/il_vento_doro.ogg",
+          "weight": 1,
+          "volume": 1.0
+        },
+        {
+          "file": "card_duel/assets/sound/bgm/boss/showtime.ogg",
+          "weight": 1,
+          "volume": 1.0
+        },
+        {
+          "file": "card_duel/assets/sound/bgm/boss/vampire.ogg",
+          "weight": 1,
+          "volume": 1.0
+        }
       ]
     },
     "tutorial": {
       "stream": false,
       "volume": 1.0,
       "tracks": [
-        { "file": "card_duel/assets/sound/bgm/tutorial.ogg", "weight": 1, "volume": 1.0 }
+        {
+          "file": "card_duel/assets/sound/bgm/tutorial.ogg",
+          "weight": 1,
+          "volume": 1.0
+        }
       ]
     },
     "defeat": {
       "stream": false,
       "volume": 1.0,
       "tracks": [
-        { "file": "card_duel/assets/sound/bgm/defeat.ogg", "weight": 1, "volume": 1.0 }
+        {
+          "file": "card_duel/assets/sound/bgm/defeat/land_of_serenity.ogg",
+          "weight": 1,
+          "volume": 1.0
+        }
       ]
     }
   },
