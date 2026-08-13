@@ -1,6 +1,7 @@
 import { $, show } from './util.js?v=__VERSION__';
 import { setTypeVolume, getTypeVolume, setMasterVolume, getMasterVolume, updateBGM, initAudio } from './sound.js?v=__VERSION__';
 import { renderMenuAddr } from './share.js?v=__VERSION__';
+import { getMods, getModOrder, deleteMod, importModFromUrl, reloadMods } from './modloader.js?v=__VERSION__';
 
 // ============================================================================
 // 设置组件：主题 / 主题色（含取色器）/ 设置页签 / 音量 / 标语开关
@@ -360,5 +361,41 @@ export function initSettings() {
   setTheme(savedTheme);
   // BGM 随屏幕切换
   window.addEventListener('screen-changed', () => updateBGM());
+  // 音乐包下载按钮
+  const musicBtn = $('music-pack-download-btn');
+  if (musicBtn) {
+    const MUSIC_PACK_URL = 'https://github.com/NetheritePickaxe/card_duel/releases/download/music-pack/music-pack.zip';
+    async function refreshMusicBtn() {
+      const mods = getMods();
+      const installed = mods.some(m => m.id === 'card_duel_music');
+      if (installed) {
+        musicBtn.textContent = '已安装';
+        musicBtn.disabled = true;
+        musicBtn.title = '音乐包已安装，可前往模组页删除或开关';
+      } else {
+        musicBtn.textContent = t('settings.music_download_btn');
+        musicBtn.disabled = false;
+        musicBtn.title = '';
+      }
+    }
+    musicBtn.addEventListener('click', async () => {
+      if (musicBtn.disabled) return;
+      musicBtn.disabled = true;
+      musicBtn.textContent = t('settings.music_downloading');
+      try {
+        await importModFromUrl(MUSIC_PACK_URL, 'music-pack.zip');
+        await reloadMods();
+        musicBtn.textContent = t('settings.music_downloaded');
+        musicBtn.disabled = true;
+        musicBtn.title = '音乐包已安装，可前往模组页删除或开关';
+      } catch (e) {
+        musicBtn.textContent = t('settings.music_download_btn');
+        musicBtn.disabled = false;
+        alert(t('settings.music_download_fail') + ': ' + e.message);
+      }
+    });
+    window.addEventListener('mods-reloaded', refreshMusicBtn);
+    refreshMusicBtn();
+  }
 }
 

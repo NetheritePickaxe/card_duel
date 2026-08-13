@@ -86,15 +86,17 @@
 
 ## 7. 音频格式约束
 
-**现状**：BGM 必须为 OGG Vorbis 192kbps，无元数据。音轨注册在 `sound.json`。
+**现状**：BGM 以音乐包 mod（id `card_duel_music`）形式提供，默认静音；游戏通过 GitHub Release 资产 `music-pack.zip` 下载后按普通 mod 导入 IndexedDB，二进制 ogg 条目以 `Uint8Array` 存储，`registerSoundRegistry` 将其解析为 Blob URL 供 `<audio>` 播放。音乐源文件保存在仓库根 `music-pack/` 目录下，不随 `app/` 分发。BGM 必须为 OGG Vorbis 192kbps，无元数据。音轨注册在音乐包的 `assets/sound/sound.json`。
 
 **影响**：
 - 非标准格式（如 MP3、带元数据的 OGG）可能无法播放或行为异常
-- `sound.js` 的 `updateBGM()` 根据当前屏幕和胜负状态切换，逻辑与音频文件耦合
+- `sound.js` 的 `updateBGM()` 根据当前屏幕和胜负状态切换，逻辑与音频文件耦合；Blob URL 路径与磁盘路径混用时必须区分（modloader 已处理）
+- 音乐包可被禁用/删除（与其他 mod 一致），删除时 Blob URL 全部回收；禁用后声音静默
 
 **应对**：
-- 新增 BGM 时必须用指定 ffmpeg 命令转换
-- 修改 `sound.json` 时同步更新 `sound.js` 的切换逻辑
+- 新增 BGM 时必须用指定 ffmpeg 命令转换并放入 `music-pack/bgm/` 对应子目录
+- 修改音乐包 `sound.json` 时需同步更新 `sound.js` 的 `updateBGM()` 使用到的轨道 id（目前只用到 `bgm/menu`、`bgm/battle`、`bgm/defeat`）
+- 音乐包 mod 结构：`mod.json` + `assets/sound/sound.json` + `bgm/**/*.ogg`；CI 的 `release` job 会自动从 `music-pack/` 打包为 `music-pack.zip` 挂到 Release
 
 ---
 

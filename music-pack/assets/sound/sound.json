@@ -1,0 +1,49 @@
+{
+  "bgm": {
+    "menu": {
+      "stream": false,
+      "volume": 1.0,
+      "tracks": [
+        { "file": "bgm/menu/birdsong.ogg", "weight": 1, "volume": 1.0 }
+      ]
+    },
+    "battle": {
+      "stream": true,
+      "volume": 1.0,
+      "tracks": [
+        { "file": "bgm/battle/aim_tech.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "bgm/battle/inner_spark.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "bgm/battle/witch_trial.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "bgm/battle/fly.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "bgm/battle/vampire.ogg", "weight": 1, "volume": 1.0 }
+      ]
+    },
+    "boss": {
+      "stream": true,
+      "volume": 1.0,
+      "tracks": [
+        { "file": "bgm/boss/dragon_flame.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "bgm/boss/il_vento_doro.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "bgm/boss/showtime.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "bgm/boss/solitude.ogg", "weight": 1, "volume": 1.0 },
+        { "file": "bgm/boss/sao_aic.ogg", "weight": 1, "volume": 1.0 }
+      ]
+    },
+    "tutorial": {
+      "stream": false,
+      "volume": 1.0,
+      "tracks": [
+        { "file": "tutorial.ogg", "weight": 1, "volume": 1.0 }
+      ]
+    },
+    "defeat": {
+      "stream": false,
+      "volume": 1.0,
+      "tracks": [
+        { "file": "bgm/defeat/land_of_serenity.ogg", "weight": 1, "volume": 1.0 }
+      ]
+    }
+  },
+  "sfx": {},
+  "voice": {}
+}

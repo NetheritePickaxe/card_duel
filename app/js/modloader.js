@@ -188,10 +188,10 @@ async function applyMod(mod) {
     const factions = JSON.parse(mod.files['data/factions.json'] || '[]');
     setDefaultData(subfactions, cards, factions);
   } catch (e) { /* ignore */ }
-  // 声音
+  // 声音（二进制安全：oggs 存在 files 中时生成 Blob URL）
   const soundContent = mod.files['assets/sound/sound.json'];
   if (soundContent) {
-    try { registerSoundRegistry(JSON.parse(soundContent)); } catch (e) { /* ignore */ }
+    try { registerSoundRegistry(JSON.parse(soundContent), mod); } catch (e) { /* ignore */ }
   }
   // 配置
   const cfgContent = mod.files['config.json'];
@@ -200,14 +200,33 @@ async function applyMod(mod) {
   }
 }
 
-function registerSoundRegistry(data) {
+const _blobUrls = [];
+function _revokeBlobUrl(u) { try { URL.revokeObjectURL(u); } catch (_) {} }
+
+function _blobKey(entryName) { return '__blob__:' + entryName; }
+
+function _resolveModFilePath(path, mod) {
+  if (!mod || !mod.files || !(path in mod.files)) return path;
+  const raw = mod.files[path];
+  if (raw instanceof Uint8Array) {
+    const blob = new Blob([raw], { type: 'audio/ogg' });
+    const url = URL.createObjectURL(blob);
+    _blobUrls.push(url);
+    return url;
+  }
+  return path;
+}
+
+function registerSoundRegistry(data, mod) {
   for (const [type, tracks] of Object.entries(data)) {
     for (const [name, cfg] of Object.entries(tracks)) {
       const id = `${type}/${name}`;
       if (typeof cfg === 'string') {
         registerTrack(id, { stream: false, volume: 1.0, tracks: [{ file: cfg, weight: 1, volume: 1 }] });
       } else {
-        registerTrack(id, { type, ...cfg });
+        const resolved = { ...cfg };
+        resolved.tracks = cfg.tracks.map(t => ({ ...t, file: _resolveModFilePath(t.file, mod) }));
+        registerTrack(id, { type, ...resolved });
       }
     }
   }
@@ -231,7 +250,11 @@ export async function importMod(file) {
   const entries = Object.values(zip.files);
   for (const entry of entries) {
     if (entry.dir) continue;
-    files[entry.name] = await entry.async('string');
+    // 二进制安全：audio/image 类条目用 uint8array，其余用 string
+    const ext = entry.name.split('.').pop().toLowerCase();
+    const binaryExts = ['ogg', 'mp3', 'wav', 'png', 'jpg', 'jpeg', 'gif', 'woff', 'woff2', 'ttf', 'eot', 'svg', 'ico'];
+    const isBinary = binaryExts.includes(ext);
+    files[entry.name] = isBinary ? await entry.async('uint8array') : await entry.async('string');
   }
   await idbSet(meta.id, { meta, files });
   // 加入排序
@@ -245,6 +268,21 @@ export async function deleteMod(id) {
   await idbDelete(id);
   const order = getPriorityOrder().filter(x => x !== id);
   setModOrder(order);
+  // 回收该 mod 的 Blob URL
+  const toRevoke = _blobUrls.filter(u => !u.includes(_blobKey(id)));
+  // 简单策略：reloadMods 后会重新创建；这里全部回收
+  for (const u of _blobUrls) _revokeBlobUrl(u);
+  _blobUrls.length = 0;
+}
+
+/** 从 URL 下载 ZIP 并作为模组导入，返回 mod meta。通用函数可复用于任何在线模组。 */
+export async function importModFromUrl(url, label) {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`下载失败：HTTP ${res.status}`);
+  const blob = await res.blob();
+  const name = label || url.split('/').pop() || 'mod';
+  const file = new File([blob], name, { type: blob.type });
+  return importMod(file);
 }
 
 /* ============ 模组配置 ============ */
