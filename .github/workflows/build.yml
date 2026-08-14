@@ -202,7 +202,7 @@ jobs:
           printf '\n' >> src-tauri/gen/android/gradle.properties
           echo 'abiList=arm64-v8a,armeabi-v7a,x86_64' >> src-tauri/gen/android/gradle.properties
       - name: Build Android APK
-        run: npx tauri android build
+        run: npx tauri android build --split-per-abi
       - name: Sign APKs
         env:
           ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
