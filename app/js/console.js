@@ -115,12 +115,10 @@ function execCommand() {
 export function setDevMode(on) {
   if (!on) {
     localStorage.removeItem(DEV_KEY);
-    // 移除动态插入的编辑器按钮
     const btn = document.getElementById('dev-editor-btn');
     if (btn) btn.remove();
     return;
   }
-  // 在设置按钮前动态插入开发编辑器按钮
   if (document.getElementById('dev-editor-btn')) return;
   const settingsBtn = document.querySelector('[data-action="open-settings"]');
   if (!settingsBtn) return;
@@ -128,9 +126,7 @@ export function setDevMode(on) {
   btn.className = 'mbtn';
   btn.id = 'dev-editor-btn';
   btn.setAttribute('data-action', 'open-editor');
-  btn.innerHTML = `<span data-i18n="menu.edit">${t('menu.edit')}</span><small data-i18n="menu.edit_hint">${t('menu.edit_hint')}</small>`;
+  btn.innerHTML = `<span data-i18n="menu.edit"></span><small data-i18n="menu.edit_hint"></small>`;
   settingsBtn.parentNode.insertBefore(btn, settingsBtn);
-  // 更新 i18n
-  btn.querySelector('[data-i18n]').textContent = t('menu.edit');
-  btn.querySelector('small').textContent = t('menu.edit_hint');
+  // data-i18n 元素由 updateI18nElements() 在 locale-changed 时统一更新
 }
