@@ -128,6 +128,8 @@ jobs:
         run: npm install
       - name: Build Tauri (Windows)
         run: npx tauri build
+      - name: Prepare artifact
+        run: Copy-Item "src-tauri\target\release\card-duel.exe" "card-duel-win.exe"
       - uses: actions/upload-artifact@v7
         with:
           name: CardDuel-Windows
