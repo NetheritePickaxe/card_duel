@@ -67,13 +67,17 @@ jobs:
         run: |
           cargo build --release --no-default-features --bin card-duel-server --target x86_64-unknown-linux-gnu
           cp target/x86_64-unknown-linux-gnu/release/card-duel-server card-duel-server
+      - name: Stage web package
+        shell: bash
+        run: |
+          mkdir -p dist-web-linux
+          cp -r app/. dist-web-linux/
+          cp src-tauri/card-duel-server dist-web-linux/card-duel-server
+          rm -f dist-web-linux/cardduel.bat
       - uses: actions/upload-artifact@v7
         with:
           name: CardDuel-Web-linux
-          path: |
-            card-duel-server
-            app/cardduel.sh
-            app/
+          path: dist-web-linux/*
 
   build-web-win:
     runs-on: windows-latest
@@ -99,13 +103,17 @@ jobs:
         run: |
           cargo build --release --no-default-features --bin card-duel-server
           Copy-Item "target\release\card-duel-server.exe" "card-duel-server.exe"
+      - name: Stage web package
+        shell: bash
+        run: |
+          mkdir -p dist-web-win
+          cp -r app/. dist-web-win/
+          cp src-tauri/card-duel-server.exe dist-web-win/card-duel-server.exe
+          rm -f dist-web-win/cardduel.sh
       - uses: actions/upload-artifact@v7
         with:
           name: CardDuel-Web-win
-          path: |
-            card-duel-server.exe
-            app/cardduel.bat
-            app/
+          path: dist-web-win/*
 
   build-windows:
     runs-on: windows-latest
@@ -291,9 +299,9 @@ jobs:
             CardDuel-Android-arm64-v8a.apk
             CardDuel-Android-armeabi-v7a.apk
             CardDuel-Android-x86_64.apk
-            CardDuel-Web-linux/card-duel-server
-            CardDuel-Web-linux/cardduel.sh
-            CardDuel-Web-linux/app/**/*
-            CardDuel-Web-win/card-duel-server.exe
-            CardDuel-Web-win/cardduel.bat
-            CardDuel-Web-win/app/**/*
+             CardDuel-Web-linux/card-duel-server
+             CardDuel-Web-linux/cardduel.sh
+             CardDuel-Web-linux/**/*
+             CardDuel-Web-win/card-duel-server.exe
+             CardDuel-Web-win/cardduel.bat
+             CardDuel-Web-win/**/*

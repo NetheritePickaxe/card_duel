@@ -47,8 +47,10 @@ fn main() {
 }
 
 fn run_cli() {
-    let app_dir = "app";
-    let defs = match game::load_defs(app_dir) {
+    let app_dir = server::web_root()
+        .map(|r| r.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "app".to_string());
+    let defs = match game::load_defs(&app_dir) {
         Ok(d) => d,
         Err(e) => {
             eprintln!("加载数据失败: {}", e);

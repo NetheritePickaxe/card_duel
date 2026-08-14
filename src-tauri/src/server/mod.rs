@@ -56,10 +56,12 @@ pub(crate) fn web_root() -> Option<&'static PathBuf> {
                     candidates.push(dir.join("..").join("..").join("app"));
                     candidates.push(dir.join("..").join("..").join("..").join("app"));
                     candidates.push(dir.join("app"));
+                    candidates.push(dir.to_path_buf());
                 }
             }
             if let Ok(cwd) = std::env::current_dir() {
                 candidates.push(cwd.join("app"));
+                candidates.push(cwd);
             }
             candidates
                 .into_iter()

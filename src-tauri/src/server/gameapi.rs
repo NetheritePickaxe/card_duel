@@ -21,8 +21,10 @@ impl ServerState {
     }
 
     pub(crate) fn handle_game_new(&self, request: Request, query: &str) {
-        let app_dir = "app";
-        let defs = match crate::game::load_defs(app_dir) {
+        let app_dir = super::web_root()
+            .map(|r| r.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "app".to_string());
+        let defs = match crate::game::load_defs(&app_dir) {
             Ok(d) => d,
             Err(e) => {
                 self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": e}));
