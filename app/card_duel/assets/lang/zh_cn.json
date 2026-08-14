@@ -289,5 +289,9 @@
   "edit.role_count": "个子阵营",
   "settings.display": "显示",
   "settings.splash": "主界面标语",
-  "settings.basic": "基础设置"
+  "settings.basic": "基础设置",
+  "console.prompt": "输入命令（输入 help 查看帮助）",
+  "console.dev_enabled": "开发者模式已启用，可在主菜单查看开发编辑器。",
+  "console.unknown_cmd": "未知命令。输入 help 查看可用命令。",
+  "console.help": "可用命令：admin dev（启用开发者模式）、clear（清空输出）、help（此帮助）"
 }

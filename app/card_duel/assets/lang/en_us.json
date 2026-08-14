@@ -288,5 +288,9 @@
   "edit.role_count": "subfactions",
   "settings.display": "Display",
   "settings.splash": "Splash text on menu",
-  "settings.basic": "Basic"
+  "settings.basic": "Basic",
+  "console.prompt": "Type a command (type help for help)",
+  "console.dev_enabled": "Developer mode enabled. The editor button now appears in the main menu.",
+  "console.unknown_cmd": "Unknown command. Type help for available commands.",
+  "console.help": "Available: admin dev (enable dev mode), clear (clear output), help (this help)"
 }

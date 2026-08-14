@@ -15,6 +15,7 @@ import { renderEditList } from './editor.js?v=__VERSION__';
 import { settingsActions, initSettings } from './settings.js?v=__VERSION__';
 import { renderMenuAddr } from './share.js?v=__VERSION__';
 import { renderModList, initMods } from './mods-ui.js?v=__VERSION__';
+import { initConsole } from './console.js?v=__VERSION__';
 
 // ============================================================================
 // 入口与路由：页面初始化、事件委托（actionMap）、屏幕路由。
@@ -137,6 +138,7 @@ document.addEventListener('click', e => {
 /* ============ 启动 ============ */
 initSettings();
 initMods();
+initConsole();
 
 function showInitScreen() {
   const initScreen = screenFromPath(location.pathname);

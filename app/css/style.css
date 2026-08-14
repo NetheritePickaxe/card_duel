@@ -310,3 +310,15 @@ input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--a
 /* ============ 目标选择弹窗 ============ */
 #target-modal{position:fixed;inset:0;z-index:100}
 #target-modal .mbox{max-width:380px}
+
+/* ============ 开发者控制台 ============ */
+#dev-console{position:fixed;bottom:-320px;left:0;right:0;height:320px;background:#0d1117;border-top:2px solid var(--acc);z-index:90;transition:bottom .25s ease;display:flex;flex-direction:column;font-family:"Consolas","Monaco",monospace}
+#dev-console.on{bottom:0}
+.console-hd{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:#161b22;border-bottom:1px solid #30363d;flex-shrink:0}
+.console-title{color:var(--acc);font-size:13px;font-weight:600;letter-spacing:1px}
+.console-hint{color:var(--dim);font-size:11px}
+.console-out{flex:1;overflow-y:auto;padding:10px 16px;font-size:13px;color:#c9d1d9;line-height:1.6}
+.console-line{white-space:pre-wrap;word-break:break-all}
+.console-in{display:flex;align-items:center;padding:8px 16px;background:#161b22;border-top:1px solid #30363d;flex-shrink:0}
+.prompt{color:var(--acc);font-size:13px;margin-right:8px;white-space:nowrap}
+#console-input{flex:1;background:transparent;border:none;color:#c9d1d1;font-family:inherit;font-size:13px;outline:none;padding:0}
