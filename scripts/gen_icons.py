@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from PIL import Image
+import struct, io
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC  = ROOT / "src-tauri" / "icons" / "icon_alpha.png"
@@ -41,17 +42,34 @@ for name, size in desktop.items():
     out.save(path, compress_level=9)
     print(f"  {name}  {out.size}")
 
-# ── icon.ico (multi-size) ────────────────────────────────────────────────────
+# ── icon.ico (multi-size, manually constructed to avoid Pillow 12 bug) ──────
 ico_sizes = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (256, 256)]
 frames_ico = [resize_nearest(im, s[0]) for s in ico_sizes]
+png_buffers = []
+for f in frames_ico:
+    buf = io.BytesIO()
+    f.save(buf, format="PNG")
+    png_buffers.append(buf.getvalue())
+data_offset = 6 + 16 * len(ico_sizes)
+dir_entries = b""
+for buf, (w, h) in zip(png_buffers, ico_sizes):
+    # ICO dir entry uses 0 to encode 256
+    dw, dh = (0, 0) if w == 256 else (w, h)
+    dir_entries += struct.pack(
+        "<BBBBHHII",
+        dw, dh,     # width, height (0 = 256)
+        0,          # color count (0 = no palette)
+        0,          # reserved
+        1,          # color planes
+        32,         # bits per pixel (RGBA)
+        len(buf),   # image data size
+        data_offset,
+    )
+    data_offset += len(buf)
+header = struct.pack("<HHH", 0, 1, len(ico_sizes))
 path = DST / "icon.ico"
-frames_ico[0].save(
-    path,
-    format="ICO",
-    sizes=ico_sizes,
-    append_images=frames_ico[1:],
-)
-print(f"  icon.ico  ({len(frames_ico)} frames)")
+path.write_bytes(header + dir_entries + b"".join(png_buffers))
+print(f"  icon.ico  ({len(ico_sizes)} frames, {path.stat().st_size} bytes)")
 
 # ── icon.icns (Pillow writes 32/64/128/256/512/1024) ────────────────────────
 icns_sizes = [32, 64, 128, 256, 512, 1024]
