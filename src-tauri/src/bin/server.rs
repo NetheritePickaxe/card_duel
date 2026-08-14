@@ -113,10 +113,7 @@ fn run_cli() {
                 let actor_before = b.actor;
                 match game::action::execute(&mut b, game::action::Action::CpuStep) {
                     Ok(_) => {
-                        let played = b
-                            .log
-                            .last()
-                            .map(|e| e.key.as_str()) == Some("log.play_card");
+                        let played = b.log.last().map(|e| e.key.as_str()) == Some("log.play_card");
                         if played {
                             let name = b.players[0]
                                 .discard

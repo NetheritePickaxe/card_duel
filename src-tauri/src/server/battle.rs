@@ -121,7 +121,11 @@ impl ServerState {
             .to_uppercase();
         let side: u8 = data.get("side").and_then(|v| v.as_u64()).unwrap_or(255) as u8;
         let action = data.get("action").cloned().unwrap_or_default();
-        let atype = action.get("type").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let atype = action
+            .get("type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
 
         let mut rooms = self.rooms.lock();
         let r = match rooms.get_mut(&room) {
@@ -242,19 +246,14 @@ impl ServerState {
             b.actor = b.order[first];
         }
         if let Err(e) = game::action::execute(&mut b, game::action::Action::StartTurn) {
-            self.respond_json(
-                request,
-                400,
-                &serde_json::json!({"ok": false, "err": e}),
-            );
+            self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": e}));
             return;
         }
 
         // 注入 seatMap 便于客户端映射席位
         let mut defs_json = serde_json::to_value(&defs).unwrap_or_default();
-        defs_json["seatMap"] = serde_json::Value::Array(
-            seats.iter().map(|&i| serde_json::json!(i)).collect(),
-        );
+        defs_json["seatMap"] =
+            serde_json::Value::Array(seats.iter().map(|&i| serde_json::json!(i)).collect());
 
         let mut rb = RoomBattle {
             b,
@@ -329,12 +328,11 @@ impl ServerState {
                 .filter(|&t| t >= 0)
                 .map(|t| t as usize);
             // 记录打出的卡牌，供其他客户端播放动画
-            let card_json = rb
-                .b
-                .players
-                .get(pi)
-                .and_then(|p| p.hand.get(idx))
-                .map(|c| serde_json::to_value(c).unwrap_or_default());
+            let card_json =
+                rb.b.players
+                    .get(pi)
+                    .and_then(|p| p.hand.get(idx))
+                    .map(|c| serde_json::to_value(c).unwrap_or_default());
             let events = game::action::execute(
                 &mut rb.b,
                 game::action::Action::PlayCard { pi, idx, target },
@@ -389,7 +387,7 @@ impl ServerState {
                     &serde_json::json!({"ok": true, "state": state}),
                 );
             }
-            Err(body) => self.respond_json( request, 400, &body),
+            Err(body) => self.respond_json(request, 400, &body),
         }
     }
 
@@ -407,7 +405,8 @@ impl ServerState {
             guard += 1;
             if game::action::execute(&mut rb.b, game::action::Action::CpuStep).is_err() {
                 // 出牌失败（理论不可达）→ 直接结束该席位回合，避免卡死
-                let _ = game::action::execute(&mut rb.b, game::action::Action::EndTurn { pi: actor });
+                let _ =
+                    game::action::execute(&mut rb.b, game::action::Action::EndTurn { pi: actor });
             }
             rb.seq += 1;
         }
@@ -440,7 +439,11 @@ pub(crate) fn project_state(rb: &RoomBattle, viewer_seat: Option<usize>) -> Stat
         turn: b.turn.max(1) as u32,
         actor: b.actor as u8,
         winner: b.winner.map(|w| w as u8),
-        phase: if b.winner.is_some() { "over".into() } else { "playing".into() },
+        phase: if b.winner.is_some() {
+            "over".into()
+        } else {
+            "playing".into()
+        },
         defs: rb.defs.clone(),
         p: b.players
             .iter()

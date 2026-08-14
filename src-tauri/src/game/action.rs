@@ -105,31 +105,56 @@ pub fn execute(b: &mut Battle, action: Action) -> Result<Vec<GameEvent>, String>
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::core::{new_battle_teams, start_turn};
+    use super::*;
 
     fn make_defs_with_cards(cost: i32, effect_kind: &str, effect_value: i32) -> GameDefs {
         let sub = SubfactionDef {
-            id: "p".into(), name: "P".into(), faction: None,
-            hp: 40, def: 0, eng: 5, intro: "".into(), img: "".into(),
+            id: "p".into(),
+            name: "P".into(),
+            faction: None,
+            hp: 40,
+            def: 0,
+            eng: 5,
+            intro: "".into(),
+            img: "".into(),
             deck: None,
         };
         let card = Card {
-            id: "atk".into(), name: "Atk".into(), cost,
-            img: "".into(), desc: "".into(),
+            id: "atk".into(),
+            name: "Atk".into(),
+            cost,
+            img: "".into(),
+            desc: "".into(),
             effects: vec![Effect {
-                kind: effect_kind.into(), value: Some(effect_value),
-                duration: None, pierce: None, target: None, fx: None,
+                kind: effect_kind.into(),
+                value: Some(effect_value),
+                duration: None,
+                pierce: None,
+                target: None,
+                fx: None,
             }],
         };
-        GameDefs { subfactions: vec![sub; 2], cards: vec![card], factions: vec![] }
+        GameDefs {
+            subfactions: vec![sub; 2],
+            cards: vec![card],
+            factions: vec![],
+        }
     }
 
     #[test]
     fn validate_play_card_invalid_player() {
         let d = make_defs_with_cards(1, "damage", 5);
         let b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
-        assert!(validate(&b, &Action::PlayCard { pi: 99, idx: 0, target: None }).is_err());
+        assert!(validate(
+            &b,
+            &Action::PlayCard {
+                pi: 99,
+                idx: 0,
+                target: None
+            }
+        )
+        .is_err());
     }
 
     #[test]
@@ -137,7 +162,15 @@ mod tests {
         let d = make_defs_with_cards(1, "damage", 5);
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
-        assert!(validate(&b, &Action::PlayCard { pi: 0, idx: 99, target: None }).is_err());
+        assert!(validate(
+            &b,
+            &Action::PlayCard {
+                pi: 0,
+                idx: 99,
+                target: None
+            }
+        )
+        .is_err());
     }
 
     #[test]
@@ -145,7 +178,15 @@ mod tests {
         let d = make_defs_with_cards(10, "damage", 1);
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
-        assert!(validate(&b, &Action::PlayCard { pi: 0, idx: 0, target: None }).is_err());
+        assert!(validate(
+            &b,
+            &Action::PlayCard {
+                pi: 0,
+                idx: 0,
+                target: None
+            }
+        )
+        .is_err());
     }
 
     #[test]
@@ -153,7 +194,15 @@ mod tests {
         let d = make_defs_with_cards(3, "damage", 5);
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
-        assert!(validate(&b, &Action::PlayCard { pi: 0, idx: 0, target: None }).is_ok());
+        assert!(validate(
+            &b,
+            &Action::PlayCard {
+                pi: 0,
+                idx: 0,
+                target: None
+            }
+        )
+        .is_ok());
     }
 
     #[test]
@@ -209,8 +258,15 @@ mod tests {
         let d = make_defs_with_cards(1, "damage", 99);
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
-        let events = execute(&mut b, Action::PlayCard { pi: 0, idx: 0, target: Some(1) })
-            .expect("play should succeed");
+        let events = execute(
+            &mut b,
+            Action::PlayCard {
+                pi: 0,
+                idx: 0,
+                target: Some(1),
+            },
+        )
+        .expect("play should succeed");
         assert!(!events.is_empty());
         assert_eq!(events[0].kind, "damage");
         assert!(b.players[1].hp < b.players[1].role.hp);
@@ -239,6 +295,9 @@ mod tests {
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
         let events = execute(&mut b, Action::CpuStep).expect("cpu step should succeed");
-        assert!(!events.is_empty(), "cpu should play the high-value damage card");
+        assert!(
+            !events.is_empty(),
+            "cpu should play the high-value damage card"
+        );
     }
 }

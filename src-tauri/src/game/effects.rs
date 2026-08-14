@@ -4,9 +4,7 @@
 //! `GameEvent` 事件列表供表现层消费。属于 Core 内部组件，
 //! 只依赖 `state` 与 `core` 的数值/工具函数，无外部 IO。
 
-use super::core::{
-    calc_damage, check_team_winner, draw_cards, force_discard, log_event,
-};
+use super::core::{calc_damage, check_team_winner, draw_cards, force_discard, log_event};
 use super::state::*;
 
 /// 效果默认动画形态（可被 `Effect.fx.form` 覆盖）
@@ -288,22 +286,55 @@ fn apply_energy(b: &mut Battle, a: usize, e: &Effect) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::core::{new_battle_teams, start_turn};
+    use super::*;
 
     fn mk_sub(id: &str, hp: i32, def: i32, eng: i32) -> SubfactionDef {
-        SubfactionDef { id: id.into(), name: id.into(), faction: None, hp, def, eng,
-            intro: "".into(), img: "".into(), deck: None }
+        SubfactionDef {
+            id: id.into(),
+            name: id.into(),
+            faction: None,
+            hp,
+            def,
+            eng,
+            intro: "".into(),
+            img: "".into(),
+            deck: None,
+        }
     }
     fn mk_card_with_effect(kind: &str, val: i32) -> Card {
-        Card { id: "c".into(), name: "C".into(), cost: 1, img: "".into(), desc: "".into(),
-            effects: vec![Effect { kind: kind.into(), value: Some(val), duration: Some(2),
-                pierce: None, target: None, fx: None }] }
+        Card {
+            id: "c".into(),
+            name: "C".into(),
+            cost: 1,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: kind.into(),
+                value: Some(val),
+                duration: Some(2),
+                pierce: None,
+                target: None,
+                fx: None,
+            }],
+        }
     }
     fn mk_card_with_pierce(kind: &str, val: i32, pierce: bool) -> Card {
-        Card { id: "c".into(), name: "C".into(), cost: 1, img: "".into(), desc: "".into(),
-            effects: vec![Effect { kind: kind.into(), value: Some(val), duration: None,
-                pierce: Some(pierce), target: None, fx: None }] }
+        Card {
+            id: "c".into(),
+            name: "C".into(),
+            cost: 1,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: kind.into(),
+                value: Some(val),
+                duration: None,
+                pierce: Some(pierce),
+                target: None,
+                fx: None,
+            }],
+        }
     }
     fn defs() -> GameDefs {
         GameDefs {
@@ -425,9 +456,21 @@ mod tests {
     #[test]
     fn effect_skip_turn_adds_buff() {
         let mut d = defs();
-        d.cards.push(Card { id: "s".into(), name: "S".into(), cost: 1, img: "".into(),
-            desc: "".into(), effects: vec![Effect { kind: "skip_turn".into(), value: None,
-            duration: None, pierce: None, target: None, fx: None }] });
+        d.cards.push(Card {
+            id: "s".into(),
+            name: "S".into(),
+            cost: 1,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: "skip_turn".into(),
+                value: None,
+                duration: None,
+                pierce: None,
+                target: None,
+                fx: None,
+            }],
+        });
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
         resolve_effects(&mut b, 0, &d.cards[0]);
@@ -438,9 +481,21 @@ mod tests {
     #[test]
     fn effect_extra_turn_adds_buff() {
         let mut d = defs();
-        d.cards.push(Card { id: "e".into(), name: "E".into(), cost: 1, img: "".into(),
-            desc: "".into(), effects: vec![Effect { kind: "extra_turn".into(), value: None,
-            duration: None, pierce: None, target: None, fx: None }] });
+        d.cards.push(Card {
+            id: "e".into(),
+            name: "E".into(),
+            cost: 1,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: "extra_turn".into(),
+                value: None,
+                duration: None,
+                pierce: None,
+                target: None,
+                fx: None,
+            }],
+        });
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
         resolve_effects(&mut b, 0, &d.cards[0]);
@@ -469,9 +524,21 @@ mod tests {
     #[test]
     fn effect_force_discard_removes_from_hand() {
         let mut d = defs();
-        d.cards.push(Card { id: "fd".into(), name: "FD".into(), cost: 1, img: "".into(),
-            desc: "".into(), effects: vec![Effect { kind: "force_discard".into(), value: Some(2),
-            duration: None, pierce: None, target: None, fx: None }] });
+        d.cards.push(Card {
+            id: "fd".into(),
+            name: "FD".into(),
+            cost: 1,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: "force_discard".into(),
+                value: Some(2),
+                duration: None,
+                pierce: None,
+                target: None,
+                fx: None,
+            }],
+        });
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
         let before = b.players[1].hand.len();
@@ -492,9 +559,21 @@ mod tests {
     #[test]
     fn effect_target_self_hurts_self() {
         let mut d = defs();
-        d.cards.push(Card { id: "su".into(), name: "Su".into(), cost: 1, img: "".into(),
-            desc: "".into(), effects: vec![Effect { kind: "damage".into(), value: Some(10),
-            duration: None, pierce: None, target: Some("self".into()), fx: None }] });
+        d.cards.push(Card {
+            id: "su".into(),
+            name: "Su".into(),
+            cost: 1,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: "damage".into(),
+                value: Some(10),
+                duration: None,
+                pierce: None,
+                target: Some("self".into()),
+                fx: None,
+            }],
+        });
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
         resolve_effects(&mut b, 0, &d.cards[0]);

@@ -58,8 +58,8 @@ pub fn load_defs(app_dir: &str) -> Result<GameDefs, String> {
                 continue;
             }
             let content = fs::read_to_string(&sf_path).map_err(|e| e.to_string())?;
-            let s: SubfactionDef =
-                serde_json::from_str(&content).map_err(|e| format!("{}: {}", sf_path.display(), e))?;
+            let s: SubfactionDef = serde_json::from_str(&content)
+                .map_err(|e| format!("{}: {}", sf_path.display(), e))?;
             subfactions.push(s);
         }
     }
@@ -70,7 +70,10 @@ pub fn load_defs(app_dir: &str) -> Result<GameDefs, String> {
     defs_from_strings(&cards_json, &sub_json, &fac_json)
 }
 
-fn load_json_dir<T: for<'de> serde::Deserialize<'de>>(dir: &str, filename: &str) -> Result<Vec<T>, String> {
+fn load_json_dir<T: for<'de> serde::Deserialize<'de>>(
+    dir: &str,
+    filename: &str,
+) -> Result<Vec<T>, String> {
     let mut items = Vec::new();
     for entry in fs::read_dir(dir).map_err(|e| format!("{}: {}", dir, e))? {
         let entry = entry.map_err(|e| e.to_string())?;
@@ -121,12 +124,14 @@ mod tests {
     #[test]
     fn defs_from_strings_parses_valid_json() {
         let cards = serde_json::to_string(&vec![
-            serde_json::json!({"id":"c1","name":"C","cost":1,"img":"","effects":[],	"desc":""})
-        ]).unwrap();
+            serde_json::json!({"id":"c1","name":"C","cost":1,"img":"","effects":[],	"desc":""}),
+        ])
+        .unwrap();
         let subs = serde_json::to_string(&vec![
             serde_json::json!({"id":"s1","name":"S","faction":null,"hp":30,"def":2,"eng":3,
-                "intro":"","img":"","deck":null})
-        ]).unwrap();
+                "intro":"","img":"","deck":null}),
+        ])
+        .unwrap();
         let facs = serde_json::to_string(&Vec::<serde_json::Value>::new()).unwrap();
         let defs = defs_from_strings(&cards, &subs, &facs).expect("parse ok");
         assert_eq!(defs.cards.len(), 1);

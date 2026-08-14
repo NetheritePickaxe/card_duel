@@ -81,17 +81,38 @@ pub fn choose_cpu_action(b: &mut Battle) -> CpuAction {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::core::{new_battle_teams, start_turn};
+    use super::*;
 
     fn mk_sub(hp: i32, def: i32, eng: i32) -> SubfactionDef {
-        SubfactionDef { id: "x".into(), name: "X".into(), faction: None, hp, def, eng,
-            intro: "".into(), img: "".into(), deck: None }
+        SubfactionDef {
+            id: "x".into(),
+            name: "X".into(),
+            faction: None,
+            hp,
+            def,
+            eng,
+            intro: "".into(),
+            img: "".into(),
+            deck: None,
+        }
     }
     fn dmg_card(cost: i32, val: i32) -> Card {
-        Card { id: "d".into(), name: "D".into(), cost, img: "".into(), desc: "".into(),
-            effects: vec![Effect { kind: "damage".into(), value: Some(val), duration: None,
-                pierce: None, target: None, fx: None }] }
+        Card {
+            id: "d".into(),
+            name: "D".into(),
+            cost,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: "damage".into(),
+                value: Some(val),
+                duration: None,
+                pierce: None,
+                target: None,
+                fx: None,
+            }],
+        }
     }
     fn defs() -> GameDefs {
         GameDefs {

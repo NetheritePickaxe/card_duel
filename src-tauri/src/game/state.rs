@@ -189,7 +189,10 @@ mod tests {
             value: None,
         };
         let json = serde_json::to_string(&ev).unwrap();
-        assert!(!json.contains("value"), "None value should be skipped in JSON");
+        assert!(
+            !json.contains("value"),
+            "None value should be skipped in JSON"
+        );
     }
 
     #[test]

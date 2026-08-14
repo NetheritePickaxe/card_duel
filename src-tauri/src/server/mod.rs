@@ -175,7 +175,8 @@ fn chrono_now() -> String {
     )
 }
 
-static LOG_FILE: std::sync::OnceLock<parking_lot::Mutex<std::fs::File>> = std::sync::OnceLock::new();
+static LOG_FILE: std::sync::OnceLock<parking_lot::Mutex<std::fs::File>> =
+    std::sync::OnceLock::new();
 
 /// 写入日志（同时输出到控制台和文件）
 macro_rules! logln {

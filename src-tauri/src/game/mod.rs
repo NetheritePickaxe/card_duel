@@ -35,9 +35,20 @@ mod tests {
     #[test]
     fn effect_metadata_consistent_with_default_fx_form() {
         let meta = effect_metadata_map();
-        for kind in ["damage", "heal", "gain_def", "skip_turn", "extra_turn",
-                     "draw", "force_discard", "energy", "gain_atk",
-                     "weaken_def", "cost_up", "dmg_reduce"] {
+        for kind in [
+            "damage",
+            "heal",
+            "gain_def",
+            "skip_turn",
+            "extra_turn",
+            "draw",
+            "force_discard",
+            "energy",
+            "gain_atk",
+            "weaken_def",
+            "cost_up",
+            "dmg_reduce",
+        ] {
             assert!(meta.get(kind).is_some(), "metadata missing for {}", kind);
             // default_fx_form should return a non-empty string for known kinds
             let form = default_fx_form(kind);

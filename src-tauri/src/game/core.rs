@@ -300,11 +300,7 @@ pub(crate) fn first_opponent(b: &Battle, pi: usize) -> Option<usize> {
 
 // ============ 行动执行（Core 入口，由 Layer 1 Action 分发） ============
 
-pub fn play_card(
-    b: &mut Battle,
-    pi: usize,
-    idx: usize,
-) -> Result<Vec<GameEvent>, String> {
+pub fn play_card(b: &mut Battle, pi: usize, idx: usize) -> Result<Vec<GameEvent>, String> {
     play_card_target(b, pi, idx, None)
 }
 
@@ -364,84 +360,233 @@ mod tests {
     use super::*;
 
     fn mk_sub(id: &str, hp: i32, def: i32, eng: i32) -> SubfactionDef {
-        SubfactionDef { id: id.into(), name: id.into(), faction: None, hp, def, eng,
-            intro: "".into(), img: "".into(), deck: None }
+        SubfactionDef {
+            id: id.into(),
+            name: id.into(),
+            faction: None,
+            hp,
+            def,
+            eng,
+            intro: "".into(),
+            img: "".into(),
+            deck: None,
+        }
     }
     fn mk_card(id: &str, cost: i32, kind: &str, val: i32) -> Card {
-        Card { id: id.into(), name: id.into(), cost, img: "".into(), desc: "".into(),
-            effects: vec![Effect { kind: kind.into(), value: Some(val), duration: None,
-                pierce: None, target: None, fx: None }] }
+        Card {
+            id: id.into(),
+            name: id.into(),
+            cost,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: kind.into(),
+                value: Some(val),
+                duration: None,
+                pierce: None,
+                target: None,
+                fx: None,
+            }],
+        }
     }
     fn mk_defs(sub: SubfactionDef, card: Card) -> GameDefs {
-        GameDefs { subfactions: vec![sub.clone(), sub], cards: vec![card], factions: vec![] }
+        GameDefs {
+            subfactions: vec![sub.clone(), sub],
+            cards: vec![card],
+            factions: vec![],
+        }
     }
 
     // ===== calc_damage =====
 
     #[test]
     fn calc_damage_zero_def_no_reduction() {
-        let att = PlayerState { role: mk_sub("a", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![], draw: vec![], hand: vec![], discard: vec![] };
-        let tgt = PlayerState { role: mk_sub("t", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![], draw: vec![], hand: vec![], discard: vec![] };
+        let att = PlayerState {
+            role: mk_sub("a", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
+        let tgt = PlayerState {
+            role: mk_sub("t", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
         assert_eq!(calc_damage(&att, &tgt, 8, false), 8);
     }
 
     #[test]
     fn calc_damage_def_absorbs_partial() {
-        let att = PlayerState { role: mk_sub("a", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![], draw: vec![], hand: vec![], discard: vec![] };
-        let tgt = PlayerState { role: mk_sub("t", 10, 0, 0), hp: 10, def: 5, energy: 0,
-            buffs: vec![], draw: vec![], hand: vec![], discard: vec![] };
+        let att = PlayerState {
+            role: mk_sub("a", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
+        let tgt = PlayerState {
+            role: mk_sub("t", 10, 0, 0),
+            hp: 10,
+            def: 5,
+            energy: 0,
+            buffs: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
         assert_eq!(calc_damage(&att, &tgt, 8, false), 3); // 8-5=3
     }
 
     #[test]
     fn calc_damage_def_absorbs_all() {
-        let att = PlayerState { role: mk_sub("a", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![], draw: vec![], hand: vec![], discard: vec![] };
-        let tgt = PlayerState { role: mk_sub("t", 10, 0, 0), hp: 10, def: 10, energy: 0,
-            buffs: vec![], draw: vec![], hand: vec![], discard: vec![] };
+        let att = PlayerState {
+            role: mk_sub("a", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
+        let tgt = PlayerState {
+            role: mk_sub("t", 10, 0, 0),
+            hp: 10,
+            def: 10,
+            energy: 0,
+            buffs: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
         assert_eq!(calc_damage(&att, &tgt, 5, false), 0);
     }
 
     #[test]
     fn calc_damage_atk_buff_adds() {
-        let att = PlayerState { role: mk_sub("a", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![Buff { kind: "gain_atk".into(), value: 3, duration: 99 }],
-            draw: vec![], hand: vec![], discard: vec![] };
-        let tgt = PlayerState { role: mk_sub("t", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![], draw: vec![], hand: vec![], discard: vec![] };
+        let att = PlayerState {
+            role: mk_sub("a", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![Buff {
+                kind: "gain_atk".into(),
+                value: 3,
+                duration: 99,
+            }],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
+        let tgt = PlayerState {
+            role: mk_sub("t", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
         assert_eq!(calc_damage(&att, &tgt, 5, false), 8); // 5+3=8
     }
 
     #[test]
     fn calc_damage_weaken_def_reduces() {
-        let att = PlayerState { role: mk_sub("a", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![], draw: vec![], hand: vec![], discard: vec![] };
-        let tgt = PlayerState { role: mk_sub("t", 10, 0, 0), hp: 10, def: 4, energy: 0,
-            buffs: vec![Buff { kind: "weaken_def".into(), value: 2, duration: 99 }],
-            draw: vec![], hand: vec![], discard: vec![] };
+        let att = PlayerState {
+            role: mk_sub("a", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
+        let tgt = PlayerState {
+            role: mk_sub("t", 10, 0, 0),
+            hp: 10,
+            def: 4,
+            energy: 0,
+            buffs: vec![Buff {
+                kind: "weaken_def".into(),
+                value: 2,
+                duration: 99,
+            }],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
         assert_eq!(calc_damage(&att, &tgt, 6, false), 4); // def 4-2=2, dmg 6-2=4
     }
 
     #[test]
     fn calc_damage_dmg_reduce_pct() {
-        let att = PlayerState { role: mk_sub("a", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![], draw: vec![], hand: vec![], discard: vec![] };
-        let tgt = PlayerState { role: mk_sub("t", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![Buff { kind: "dmg_reduce".into(), value: 50, duration: 99 }],
-            draw: vec![], hand: vec![], discard: vec![] };
+        let att = PlayerState {
+            role: mk_sub("a", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
+        let tgt = PlayerState {
+            role: mk_sub("t", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![Buff {
+                kind: "dmg_reduce".into(),
+                value: 50,
+                duration: 99,
+            }],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
         assert_eq!(calc_damage(&att, &tgt, 10, false), 5);
     }
 
     #[test]
     fn calc_damage_def_floor_at_zero() {
-        let att = PlayerState { role: mk_sub("a", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![], draw: vec![], hand: vec![], discard: vec![] };
-        let tgt = PlayerState { role: mk_sub("t", 10, 0, 0), hp: 10, def: 0, energy: 0,
-            buffs: vec![Buff { kind: "weaken_def".into(), value: 99, duration: 99 }],
-            draw: vec![], hand: vec![], discard: vec![] };
+        let att = PlayerState {
+            role: mk_sub("a", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
+        let tgt = PlayerState {
+            role: mk_sub("t", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
+            buffs: vec![Buff {
+                kind: "weaken_def".into(),
+                value: 99,
+                duration: 99,
+            }],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
+        };
         // def clamped at 0 → no reduction
         assert_eq!(calc_damage(&att, &tgt, 10, false), 10);
     }
@@ -451,13 +596,30 @@ mod tests {
     #[test]
     fn sum_buff_matches_kind() {
         let p = PlayerState {
-            role: mk_sub("x", 10, 0, 0), hp: 10, def: 0, energy: 0,
+            role: mk_sub("x", 10, 0, 0),
+            hp: 10,
+            def: 0,
+            energy: 0,
             buffs: vec![
-                Buff { kind: "gain_def".into(), value: 3, duration: 2 },
-                Buff { kind: "gain_def".into(), value: 2, duration: 1 },
-                Buff { kind: "gain_atk".into(), value: 5, duration: 99 },
+                Buff {
+                    kind: "gain_def".into(),
+                    value: 3,
+                    duration: 2,
+                },
+                Buff {
+                    kind: "gain_def".into(),
+                    value: 2,
+                    duration: 1,
+                },
+                Buff {
+                    kind: "gain_atk".into(),
+                    value: 5,
+                    duration: 99,
+                },
             ],
-            draw: vec![], hand: vec![], discard: vec![],
+            draw: vec![],
+            hand: vec![],
+            discard: vec![],
         };
         assert_eq!(sum_buff(&p, "gain_def"), 5);
         assert_eq!(sum_buff(&p, "gain_atk"), 5);
@@ -472,7 +634,11 @@ mod tests {
         let mut b = new_battle_teams("cpu", &d, vec![0], vec![0], 1);
         start_turn(&mut b);
         // add cost_up buff
-        b.players[0].buffs.push(Buff { kind: "cost_up".into(), value: 2, duration: 99 });
+        b.players[0].buffs.push(Buff {
+            kind: "cost_up".into(),
+            value: 2,
+            duration: 99,
+        });
         assert_eq!(card_cost(&b, 0, &b.players[0].hand[0]), 4); // 2+2=4
     }
 
@@ -514,7 +680,9 @@ mod tests {
         start_turn(&mut b);
         let pi = 0;
         // exhaust draw and discard
-        for _ in 0..20 { draw_cards(&mut b, pi, 1, true); }
+        for _ in 0..20 {
+            draw_cards(&mut b, pi, 1, true);
+        }
         let before = b.players[pi].hand.len();
         draw_cards(&mut b, pi, 5, false);
         // cannot draw more than available
@@ -610,5 +778,5 @@ mod tests {
     }
 
     // ===== action import for integration tests =====
-    use super::super::action::{Action, execute};
+    use super::super::action::{execute, Action};
 }

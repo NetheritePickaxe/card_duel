@@ -198,7 +198,9 @@ jobs:
           open('gen/android/app/tauri.build.gradle.kts', 'w').write('\n'.join(build_lines) + '\n')
           EOF
       - name: Set ABI list
-        run: echo 'abiList=arm64-v8a,armeabi-v7a,x86_64' >> src-tauri/gen/android/gradle.properties
+        run: |
+          printf '\n' >> src-tauri/gen/android/gradle.properties
+          echo 'abiList=arm64-v8a,armeabi-v7a,x86_64' >> src-tauri/gen/android/gradle.properties
       - name: Build Android APK
         run: npx tauri android build
       - name: Sign APKs

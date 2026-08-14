@@ -3,7 +3,7 @@
 //! 外部 AI 通过 REST 驱动一局完整对战（服务端 `game::Battle`）。
 //! 结算一律经 `game::action::execute`，本层只做请求解析与响应序列化。
 
-use super::{ServerState};
+use super::ServerState;
 use tiny_http::Request;
 
 impl ServerState {
@@ -25,7 +25,7 @@ impl ServerState {
         let defs = match crate::game::load_defs(app_dir) {
             Ok(d) => d,
             Err(e) => {
-                self.respond_json( request, 400, &serde_json::json!({"ok": false, "err": e}));
+                self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": e}));
                 return;
             }
         };
@@ -38,8 +38,9 @@ impl ServerState {
             .unwrap_or_default()
             .as_nanos() as u64;
         let mut b = crate::game::new_battle("cpu", &defs, p0, p1, seed);
-        if let Err(e) = crate::game::action::execute(&mut b, crate::game::action::Action::StartTurn) {
-            self.respond_json( request, 400, &serde_json::json!({"ok": false, "err": e}));
+        if let Err(e) = crate::game::action::execute(&mut b, crate::game::action::Action::StartTurn)
+        {
+            self.respond_json(request, 400, &serde_json::json!({"ok": false, "err": e}));
             return;
         }
         let id = format!(
@@ -57,7 +58,13 @@ impl ServerState {
         );
     }
 
-    pub(crate) fn handle_game_action(&self, request: Request, path: &str, method: &str, query: &str) {
+    pub(crate) fn handle_game_action(
+        &self,
+        request: Request,
+        path: &str,
+        method: &str,
+        query: &str,
+    ) {
         let parts: Vec<&str> = path.splitn(2, '/').collect();
         if parts.len() < 2 {
             self.respond_json(

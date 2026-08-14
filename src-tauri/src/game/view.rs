@@ -177,18 +177,42 @@ fn render_log(e: &LogEvent) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::super::state::{Card, Effect, SubfactionDef};
     use super::super::core::{new_battle, start_turn};
+    use super::super::state::{Card, Effect, SubfactionDef};
+    use super::*;
 
     fn test_defs() -> GameDefs {
-        let sub = SubfactionDef { id: "t".into(), name: "Test".into(), faction: None,
-            hp: 30, def: 2, eng: 3, intro: "".into(), img: "".into(), deck: None };
-        let card = Card { id: "s".into(), name: "Strike".into(), cost: 1,
-            img: "".into(), desc: "".into(),
-            effects: vec![Effect { kind: "damage".into(), value: Some(5),
-            duration: None, pierce: None, target: None, fx: None }] };
-        GameDefs { subfactions: vec![sub; 2], cards: vec![card], factions: vec![] }
+        let sub = SubfactionDef {
+            id: "t".into(),
+            name: "Test".into(),
+            faction: None,
+            hp: 30,
+            def: 2,
+            eng: 3,
+            intro: "".into(),
+            img: "".into(),
+            deck: None,
+        };
+        let card = Card {
+            id: "s".into(),
+            name: "Strike".into(),
+            cost: 1,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: "damage".into(),
+                value: Some(5),
+                duration: None,
+                pierce: None,
+                target: None,
+                fx: None,
+            }],
+        };
+        GameDefs {
+            subfactions: vec![sub; 2],
+            cards: vec![card],
+            factions: vec![],
+        }
     }
 
     #[test]
@@ -231,11 +255,24 @@ mod tests {
         start_turn(&mut b);
         // add synthetic log entries for each key
         let keys = vec![
-            "log.damage", "log.damage_pierce", "log.win", "log.heal",
-            "log.def_up", "log.atk_up", "log.def_down", "log.cost_up",
-            "log.dmg_reduce", "log.skip_turn", "log.extra_turn", "log.draw",
-            "log.force_discard", "log.energy", "log.blocked", "log.turn",
-            "log.play_card", "log.haste",
+            "log.damage",
+            "log.damage_pierce",
+            "log.win",
+            "log.heal",
+            "log.def_up",
+            "log.atk_up",
+            "log.def_down",
+            "log.cost_up",
+            "log.dmg_reduce",
+            "log.skip_turn",
+            "log.extra_turn",
+            "log.draw",
+            "log.force_discard",
+            "log.energy",
+            "log.blocked",
+            "log.turn",
+            "log.play_card",
+            "log.haste",
         ];
         for key in &keys {
             b.log.push(LogEvent {
@@ -247,7 +284,11 @@ mod tests {
         }
         let out = format_log(&b);
         for key in &keys {
-            assert!(!out.is_empty(), "format_log should produce output for {}", key);
+            assert!(
+                !out.is_empty(),
+                "format_log should produce output for {}",
+                key
+            );
         }
     }
 

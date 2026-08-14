@@ -57,8 +57,11 @@ pub fn init_battle(
         LAST_EVENTS = vec![];
     }
     // 经统一入口开始首回合
-    game::action::execute(unsafe { BATTLE.as_mut().unwrap() }, game::action::Action::StartTurn)
-        .map_err(|e| JsValue::from_str(&e))?;
+    game::action::execute(
+        unsafe { BATTLE.as_mut().unwrap() },
+        game::action::Action::StartTurn,
+    )
+    .map_err(|e| JsValue::from_str(&e))?;
     Ok(battle_state_json())
 }
 
@@ -130,7 +133,11 @@ pub fn play_card(pi: usize, idx: usize, target: i32) -> Result<String, JsValue> 
     };
     let events = game::action::execute(
         battle(),
-        game::action::Action::PlayCard { pi, idx, target: tgt },
+        game::action::Action::PlayCard {
+            pi,
+            idx,
+            target: tgt,
+        },
     )
     .map_err(|e| JsValue::from_str(&e))?;
     unsafe {

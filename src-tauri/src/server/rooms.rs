@@ -71,7 +71,7 @@ impl ServerState {
             );
         }
         self.slog(&format!("CREATE room={}", room));
-        self.respond_json( request, 200, &serde_json::json!({"ok": true, "room": room}));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true, "room": room}));
     }
 
     pub(crate) fn handle_join(&self, request: Request, query: &str) {
@@ -285,7 +285,7 @@ impl ServerState {
             r.t = elapsed();
         }
         self.slog(&format!("PICK room={} side={}", room, side));
-        self.respond_json( request, 200, &serde_json::json!({"ok": true}));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
     pub(crate) fn handle_team(&self, mut request: Request) {
@@ -316,7 +316,7 @@ impl ServerState {
                 }
             }
         }
-        self.respond_json( request, 200, &serde_json::json!({"ok": true}));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
     pub(crate) fn handle_ready(&self, mut request: Request) {
@@ -347,18 +347,18 @@ impl ServerState {
                 }
             }
         }
-        self.respond_json( request, 200, &serde_json::json!({"ok": true}));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
     pub(crate) fn handle_get_hostdata(&self, request: Request, query: &str) {
         let room = Self::extract_param(query, "room").to_uppercase();
         if room.is_empty() {
-            self.respond_json( request, 400, &serde_json::json!({"ok": false}));
+            self.respond_json(request, 400, &serde_json::json!({"ok": false}));
             return;
         }
         let rooms = self.rooms.lock();
         let data = rooms.get(&room).and_then(|r| r.data.clone());
-        self.respond_json( request, 200, &serde_json::json!({"ok": true, "data": data}));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true, "data": data}));
     }
 
     pub(crate) fn handle_post_hostdata(&self, mut request: Request) {
@@ -388,11 +388,11 @@ impl ServerState {
             }
         }
         self.slog(&format!("HOSTDATA_SET room={}", room));
-        self.respond_json( request, 200, &serde_json::json!({"ok": true}));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
     pub(crate) fn handle_ping(&self, request: Request) {
-        self.respond_json( request, 200, &serde_json::json!({"ok": true}));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
     pub(crate) fn handle_leave(&self, mut request: Request) {
@@ -423,7 +423,7 @@ impl ServerState {
             }
         }
         self.slog(&format!("LEAVE room={} side={}", room, side));
-        self.respond_json( request, 200, &serde_json::json!({"ok": true}));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
     pub(crate) fn handle_mod_list(&self, mut request: Request) {
@@ -454,7 +454,7 @@ impl ServerState {
                 r.data = Some(serde_json::json!({"mods": mods}));
             }
         }
-        self.respond_json( request, 200, &serde_json::json!({"ok": true}));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
     pub(crate) fn handle_mod_upload(&self, mut request: Request) {
@@ -489,7 +489,7 @@ impl ServerState {
             mods.insert(mod_id.clone(), bytes);
         }
         self.slog(&format!("MOD_UPLOAD mod_id={}", mod_id));
-        self.respond_json( request, 200, &serde_json::json!({"ok": true}));
+        self.respond_json(request, 200, &serde_json::json!({"ok": true}));
     }
 
     pub(crate) fn handle_mod_download(&self, request: Request, query: &str) {
