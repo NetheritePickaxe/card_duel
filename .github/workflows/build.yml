@@ -134,6 +134,7 @@ jobs:
         with:
           name: CardDuel-Windows
           path: card-duel-win.exe
+          archive: false
 
   build-android:
     runs-on: ubuntu-latest
