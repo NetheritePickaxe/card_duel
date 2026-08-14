@@ -248,8 +248,8 @@ input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--a
 .server-status{font-size:12px;width:16px;text-align:center}
 .server-status.connected{color:var(--acc)}
 .server-url{font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media(max-width:768px){
- .screen{padding:32px 10px 10px}
+ @media(max-width:768px){
+  .screen{padding:32px 10px 10px;padding-top:max(32px,var(--safe-top,32px))}
  .hd h1{font-size:17px}
  .hd button{padding:6px 10px}
  .menu{margin:18px auto}

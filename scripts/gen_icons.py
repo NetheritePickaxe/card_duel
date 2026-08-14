@@ -7,7 +7,7 @@ from PIL import Image
 import struct, io
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC  = ROOT / "src-tauri" / "icons" / "icon_alpha.png"
+SRC  = ROOT / "src-tauri" / "icons" / "icon.png"
 DST  = SRC.parent
 APP  = ROOT / "app"
 
@@ -21,20 +21,8 @@ def resize_nearest(src: Image.Image, size: int) -> Image.Image:
 # ── Desktop PNGs (transparent corners) ──────────────────────────────────────
 desktop = {
     "32x32.png":            32,
-    "64x64.png":            64,
     "128x128.png":         128,
     "128x128@2x.png":      256,
-    "icon.png":            512,
-    "Square30x30Logo.png": 30,
-    "Square44x44Logo.png": 44,
-    "Square71x71Logo.png": 71,
-    "Square89x89Logo.png": 89,
-    "Square107x107Logo.png": 107,
-    "Square142x142Logo.png": 142,
-    "Square150x150Logo.png": 150,
-    "Square284x284Logo.png": 284,
-    "Square310x310Logo.png": 310,
-    "StoreLogo.png":        50,
 }
 for name, size in desktop.items():
     path = DST / name
@@ -82,38 +70,6 @@ frames_icns[0].save(
 )
 print(f"  icon.icns  ({len(frames_icns)} entries)")
 
-# ── iOS icons (white opaque background) ─────────────────────────────────────
-WHITE = (255, 255, 255, 255)
-ios_specs = [
-    ("AppIcon-20x20@1x.png",             20),
-    ("AppIcon-20x20@2x.png",             40),
-    ("AppIcon-20x20@2x-1.png",           40),
-    ("AppIcon-20x20@3x.png",             60),
-    ("AppIcon-29x29@1x.png",             29),
-    ("AppIcon-29x29@2x.png",             58),
-    ("AppIcon-29x29@2x-1.png",           58),
-    ("AppIcon-29x29@3x.png",             87),
-    ("AppIcon-40x40@1x.png",             40),
-    ("AppIcon-40x40@2x.png",             80),
-    ("AppIcon-40x40@2x-1.png",           80),
-    ("AppIcon-40x40@3x.png",            120),
-    ("AppIcon-512@2x.png",             1024),
-    ("AppIcon-60x60@2x.png",            120),
-    ("AppIcon-60x60@3x.png",            180),
-    ("AppIcon-76x76@1x.png",             76),
-    ("AppIcon-76x76@2x.png",            152),
-    ("AppIcon-83.5x83.5@2x.png",        167),
-]
-ios_dir = DST / "ios"
-ios_dir.mkdir(parents=True, exist_ok=True)
-for name, size in ios_specs:
-    tmp = resize_nearest(im, size)
-    bg = Image.new("RGBA", (size, size), WHITE)
-    out = Image.alpha_composite(bg, tmp)
-    path = ios_dir / name
-    out.save(path, compress_level=9)
-    print(f"  ios/{name}  {out.size}")
-
 # ── Android icons ────────────────────────────────────────────────────────────
 android_dir = DST / "android"
 DENSITIES = [
@@ -123,8 +79,6 @@ DENSITIES = [
     ("xxhdpi",  144, 324),
     ("xxxhdpi", 192, 432),
 ]
-DARK_BG = (20, 21, 23, 255)
-
 for dens, launcher_size, fg_size in DENSITIES:
     # ic_launcher + ic_launcher_round: transparent NEAREST resize
     for icon_name in ("ic_launcher.png", "ic_launcher_round.png"):
@@ -133,10 +87,8 @@ for dens, launcher_size, fg_size in DENSITIES:
         out.save(path, compress_level=9)
         print(f"  android/{dens}/{icon_name}  {out.size}")
 
-    # ic_launcher_foreground: dark opaque bg + NEAREST-resized source
+    # ic_launcher_foreground: transparent (no background fill)
     out = resize_nearest(im, fg_size)
-    bg = Image.new("RGBA", (fg_size, fg_size), DARK_BG)
-    out = Image.alpha_composite(bg, out)
     path = android_dir / f"mipmap-{dens}" / "ic_launcher_foreground.png"
     out.save(path, compress_level=9)
     print(f"  android/{dens}/ic_launcher_foreground.png  {out.size}")

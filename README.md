@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src-tauri/icons/icon_alpha.png" width="120" alt="Card Duel Logo" />
+<img src="src-tauri/icons/icon.png" width="120" alt="Card Duel Logo" />
 
 # 卡牌对决 · Card Duel
 

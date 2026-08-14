@@ -135,7 +135,22 @@ document.addEventListener('click', e => {
   }
 });
 
+/* ============ 移动端安全区域 ============ */
+function initSafeArea() {
+  const html = document.documentElement;
+  function measure() {
+    const vb = window.visualViewport;
+    if (vb) {
+      const top = Math.max(0, Math.round(vb.offsetTop));
+      if (top > 0) html.style.setProperty('--safe-top', top + 'px');
+    }
+  }
+  measure();
+  window.visualViewport?.addEventListener('resize', measure);
+}
+
 /* ============ 启动 ============ */
+initSafeArea();
 initSettings();
 initMods();
 initConsole();

@@ -4,7 +4,10 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "tauri": "tauri"
+        "tauri": "tauri",
+        "tauri:android:init": "tauri android init && node scripts/patch_android.mjs",
+        "tauri:android:dev": "tauri android dev",
+        "tauri:android:build": "tauri android build"
     },
     "devDependencies": {
         "@tauri-apps/cli": "^2.11.4"
