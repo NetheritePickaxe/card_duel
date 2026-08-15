@@ -87,11 +87,35 @@ for dens, launcher_size, fg_size in DENSITIES:
         out.save(path, compress_level=9)
         print(f"  android/{dens}/{icon_name}  {out.size}")
 
-    # ic_launcher_foreground: transparent (no background fill)
-    out = resize_nearest(im, fg_size)
+    # ic_launcher_foreground: 裁剪源图空白边框，缩放到安全区(66.7%)，居中放置
+    # 先找到源图的实际内容边界
+    src_rgba = im.load()
+    src_min_x, src_min_y = 512, 512
+    src_max_x, src_max_y = 0, 0
+    for x in range(512):
+        for y in range(512):
+            if src_rgba[x, y][3] > 0:
+                src_min_x = min(src_min_x, x)
+                src_min_y = min(src_min_y, y)
+                src_max_x = max(src_max_x, x)
+                src_max_y = max(src_max_y, y)
+    src_cw = src_max_x - src_min_x + 1
+    src_ch = src_max_y - src_min_y + 1
+    crop_size = max(src_cw, src_ch)
+    cx = (src_min_x + src_max_x) // 2
+    cy = (src_min_y + src_max_y) // 2
+    cropped = im.crop((
+        cx - crop_size // 2, cy - crop_size // 2,
+        cx + crop_size // 2, cy + crop_size // 2,
+    ))
+    safe = int(fg_size * 2 / 3)
+    content = resize_nearest(cropped, safe)
+    canvas = Image.new('RGBA', (fg_size, fg_size), (0, 0, 0, 0))
+    paste_at = (fg_size - safe) // 2
+    canvas.paste(content, (paste_at, paste_at))
     path = android_dir / f"mipmap-{dens}" / "ic_launcher_foreground.png"
-    out.save(path, compress_level=9)
-    print(f"  android/{dens}/ic_launcher_foreground.png  {out.size}")
+    canvas.save(path, compress_level=9)
+    print(f"  android/{dens}/ic_launcher_foreground.png  {canvas.size}  safe={safe}")
 
 # ── PWA / web icons ──────────────────────────────────────────────────────────
 for name, size in (("icon-192.png", 192), ("icon-512.png", 512)):
