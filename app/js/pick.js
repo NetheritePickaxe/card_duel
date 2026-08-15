@@ -24,27 +24,26 @@ export function startCampaign() {
 
 export function updateGameMode(mode) {
   state.GAME_MODE = mode;
+  const n = parseInt($('pk-player-count')?.value) || 2;
+  state.PICK = new Array(n).fill(null);
+  state.PICK_TEAMS = new Array(n).fill(0).map((_, i) => i < n / 2 ? 0 : 1);
   if (mode === 'multi') {
     state.MODE = 'local';
     state.MULTI = true;
-  } else if (mode === 'custom') {
-    state.MODE = 'skirmish';
-    state.MULTI = false;
+    state.PICK_HUMAN = new Array(n).fill(true);
   } else {
-    // random
     state.MODE = 'skirmish';
     state.MULTI = false;
-    const opts = DB.subfactions;
-    const r = new Uint32Array(1);
-    crypto.getRandomValues(r);
-    state.PICK = [JSON.parse(JSON.stringify(opts[r[0] % opts.length])), null];
-    state.PICK_HUMAN = [false, true];
+    state.PICK_HUMAN = new Array(n).fill(true);
+    state.PICK_HUMAN[0] = false;
+    if (mode === 'random') {
+      // 随机对手：先建数组再赋值，避免被覆盖
+      const opts = DB.subfactions;
+      const r = new Uint32Array(1);
+      crypto.getRandomValues(r);
+      state.PICK[0] = JSON.parse(JSON.stringify(opts[r[0] % opts.length]));
+    }
   }
-  const n = parseInt($('pk-player-count')?.value) || 2;
-  state.PICK = new Array(n).fill(null);
-  state.PICK_HUMAN = new Array(n).fill(true);
-  state.PICK_TEAMS = new Array(n).fill(0).map((_, i) => i < n / 2 ? 0 : 1);
-  if (mode !== 'multi') state.PICK_HUMAN[0] = false;
   renderSlots();
   renderModeBar();
 }
@@ -115,7 +114,9 @@ window.addEventListener('lan-room-ready', () => {
 
 export function openPick(count) {
   const n = state.MODE === 'lan' ? (state.LAN?.capacity || 4) : (state.MULTI ? (count || 4) : 2);
-  state.PICK = new Array(n).fill(null);
+  // 保留已有选择（startSkirmish 预选的随机对手/玩家已选角色），LAN 模式重置避免污染
+  const prev = state.MODE === 'lan' ? [] : (state.PICK || []);
+  state.PICK = new Array(n).fill(null).map((_, i) => prev[i] ?? null);
   if (!state.PICK_HUMAN || state.PICK_HUMAN.length !== n) {
     state.PICK_HUMAN = new Array(n).fill(true);
     if (state.GAME_MODE !== 'multi') state.PICK_HUMAN[0] = false;
@@ -134,9 +135,15 @@ export function openPick(count) {
   show('sc-pick');
 }
 
+// LAN 只能操作自己席位；本地多人 CPU 席位锁定；遭遇战两个席位均可选（随机对手可调整/自定义可手动选敌）
+function seatPickable(i) {
+  if (state.MODE === 'lan') return i === state.LAN.side;
+  if (state.MODE === 'local') return !state.PICK_HUMAN || state.PICK_HUMAN[i];
+  return true;
+}
+
 export function pickRole(i) {
-  if (state.MODE === 'lan' && i !== state.LAN.side) return;
-  if (state.PICK_HUMAN && !state.PICK_HUMAN[i]) return;
+  if (!seatPickable(i)) return;
   let all = state.MODE === 'lan' ? DB.subfactions : [...(state.LAN?.hostData?.subfactions || []), ...DB.subfactions];
   if (state.MODE === 'lan' && !state.LAN.mods) {
     const vanillaIds = getDefaultSubfactionIds();
@@ -173,8 +180,7 @@ function getPickGroups(roles) {
 export function closeModal() { $('modal').classList.remove('on'); }
 
 export function setPick(i, j) {
-  if (state.MODE === 'lan' && i !== state.LAN.side) return;
-  if (state.PICK_HUMAN && !state.PICK_HUMAN[i]) return;
+  if (!seatPickable(i)) return;
   const r = JSON.parse(JSON.stringify((state.PICK_OPTIONS[i] || DB.subfactions)[j]));
   state.PICK[i] = r;
   if (state.MODE === 'lan') lanPickPost(i, r);
@@ -184,8 +190,7 @@ export function setPick(i, j) {
 }
 
 export function setPickRandom(i) {
-  if (state.MODE === 'lan' && i !== state.LAN.side) return;
-  if (state.PICK_HUMAN && !state.PICK_HUMAN[i]) return;
+  if (!seatPickable(i)) return;
   const opts = state.PICK_OPTIONS[i] || DB.subfactions;
   const r = new Uint32Array(1);
   crypto.getRandomValues(r);
