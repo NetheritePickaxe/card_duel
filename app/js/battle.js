@@ -96,6 +96,12 @@ function cpuActOnce(b) {
   if (b.mode === 'cpu' && b.humans && !b.humans[b.actor] && !b.winner) setTimeout(() => cpuActOnce(b), 350);
 }
 
+export function startBattleFlow() {
+  const b = state.BATTLE;
+  if (!b || b.winner) return;
+  if (b.mode === 'cpu' && b.humans && !b.humans[b.actor]) setTimeout(() => cpuActOnce(b), 450);
+}
+
 /* ============ LAN 表现事件（Layer 3 表现处理器入口） ============ */
 
 // lan.js 完成公开状态同步后派发；这里只做只读渲染与动画，禁止改状态

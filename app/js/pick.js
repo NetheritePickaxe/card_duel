@@ -5,6 +5,7 @@ import { t } from './i18n.js?v=__VERSION__';
 import { newBattle, logT, buildOrder } from './core.js?v=__VERSION__';
 import { renderBattle, showBattle, renderSlots, slotHTML } from './render.js?v=__VERSION__';
 import { stopRoomList, lanPickPost, lanBase, renderLanPick, startRoomList, renderServerList, scanLan, lanAct } from './lan.js?v=__VERSION__';
+import { startBattleFlow } from './battle.js?v=__VERSION__';
 
 export function startSkirmish() {
   state.GAME_MODE = 'random';
@@ -303,6 +304,7 @@ function startBattleFromDice(first, a, b) {
   state.BATTLE.phase = 'playing';
   logT(state.BATTLE, 'pick.roll_log', { a, b, name: repName });
   showBattle();
+  startBattleFlow();
 }
 
 // 本地模式定义构建（LAN 由服务端从房间选择构建，客户端不再本地组卡）
