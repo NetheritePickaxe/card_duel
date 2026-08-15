@@ -159,6 +159,8 @@ jobs:
         run: npm install
       - name: Init Android project
         run: npx tauri android init
+      - name: Copy custom Android icons
+        run: cp -r src-tauri/icons/android/* src-tauri/gen/android/app/src/main/res/
       - name: Generate gradle settings
         working-directory: src-tauri
         run: |

@@ -1,4 +1,4 @@
-import { $, show, toast, screenFromPath } from './util.js?v=__VERSION__';
+import { $, show, toast, screenFromPath, IS_MOBILE } from './util.js?v=__VERSION__';
 import { state } from './state.js?v=__VERSION__';
 import { t, initLocale, setLocale, getLang } from './i18n.js?v=__VERSION__';
 import { updateBGM } from './sound.js?v=__VERSION__';
@@ -141,9 +141,11 @@ function initSafeArea() {
   const html = document.documentElement;
   function measure() {
     const vb = window.visualViewport;
-    if (vb) {
-      const top = Math.max(0, Math.round(vb.offsetTop));
-      if (top > 0) html.style.setProperty('--safe-top', top + 'px');
+    const top = vb ? Math.max(0, Math.round(vb.offsetTop)) : 0;
+    if (top > 0) {
+      html.style.setProperty('--safe-top', top + 'px');
+    } else if (IS_MOBILE) {
+      html.style.setProperty('--safe-top', '48px');
     }
   }
   measure();
