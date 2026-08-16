@@ -207,9 +207,9 @@ export function renderSlots() {
       slot.style.display = 'none';
     }
   }
-  // Show player count selector for local multi mode
+  // Show player count selector for custom / multi mode
   const multiOpts = $('pk-multi-opts');
-  if (state.MULTI) {
+  if (state.MULTI || state.GAME_MODE === 'custom') {
     multiOpts.style.display = 'flex';
   } else {
     multiOpts.style.display = 'none';

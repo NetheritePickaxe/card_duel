@@ -29,28 +29,22 @@ pub(crate) fn rand_int(rng: &mut impl Rng, n: usize) -> usize {
     rng.gen_range(0..n)
 }
 
-/// 按队伍交替生成行动顺序（队 0 与队 1 交错）
+/// 按队伍交替生成行动顺序（按队伍编号 0..N 轮转，每轮按队伍号各取一名玩家）
 fn build_order(teams: &[usize]) -> Vec<usize> {
-    let team0: Vec<usize> = teams
-        .iter()
-        .enumerate()
-        .filter(|(_, t)| **t == 0)
-        .map(|(i, _)| i)
-        .collect();
-    let team1: Vec<usize> = teams
-        .iter()
-        .enumerate()
-        .filter(|(_, t)| **t == 1)
-        .map(|(i, _)| i)
-        .collect();
-    let mut order = Vec::new();
-    let max_len = team0.len().max(team1.len());
-    for i in 0..max_len {
-        if i < team0.len() {
-            order.push(team0[i]);
+    let group_n = teams.iter().copied().max().map(|m| m + 1).unwrap_or(0);
+    let mut groups: Vec<Vec<usize>> = (0..group_n).map(|_| vec![]).collect();
+    for (i, &t) in teams.iter().enumerate() {
+        if t < group_n {
+            groups[t].push(i);
         }
-        if i < team1.len() {
-            order.push(team1[i]);
+    }
+    let max_len = groups.iter().map(|g| g.len()).max().unwrap_or(0);
+    let mut order = Vec::new();
+    for i in 0..max_len {
+        for g in &groups {
+            if i < g.len() {
+                order.push(g[i]);
+            }
         }
     }
     order

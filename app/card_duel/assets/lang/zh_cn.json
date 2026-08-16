@@ -210,6 +210,7 @@
   "pick.roll_ing": "掷骰中…",
   "pick.roll_result": "{a} : {b}　{name} 先手",
   "pick.roll_log": "骰子 {a} : {b}，{name} 先手",
+  "pick.roll_first": "{name} 先手",
   "pick.random": "随机选择",
   "lan.title": "多人对战",
   "lan.new_game_name": "卡牌对决",

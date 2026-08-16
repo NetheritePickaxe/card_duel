@@ -209,6 +209,7 @@
   "pick.roll_ing": "Rolling…",
   "pick.roll_result": "{a} : {b}　{name} goes first",
   "pick.roll_log": "Dice {a} : {b}, {name} goes first",
+  "pick.roll_first": "{name} goes first",
   "pick.random": "Random",
   "lan.title": "Multiplayer",
   "lan.new_game_name": "Card Duel",

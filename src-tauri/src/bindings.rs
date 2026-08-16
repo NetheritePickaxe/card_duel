@@ -36,6 +36,7 @@ pub fn init_battle(
     humans_json: &str,
     seed: u64,
     first_actor: i32,
+    order_json: &str,
 ) -> Result<String, JsValue> {
     let defs = game::defs_from_json(defs_json).map_err(|e| JsValue::from_str(&e))?;
     let indices: Vec<usize> =
@@ -46,6 +47,16 @@ pub fn init_battle(
         serde_json::from_str(humans_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     let mut b = game::new_battle_teams(mode, &defs, indices, teams, seed);
+    // 可选：传入完整行动顺序（掷骰定先后），覆盖默认队伍交错顺序
+    if !order_json.is_empty() {
+        let order: Vec<usize> =
+            serde_json::from_str(order_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+        if !order.is_empty() {
+            // order 必须覆盖所有玩家索引；首个为默认行动者
+            b.order = order.clone();
+            b.actor = order[0];
+        }
+    }
     if first_actor >= 0 {
         b.actor = first_actor as usize;
     }

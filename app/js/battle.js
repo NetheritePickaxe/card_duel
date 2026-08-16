@@ -50,7 +50,7 @@ export function endTurn(b, pi) {
     lanAct(state.LAN.side, { type: 'endturn' });
     return;
   }
-  coreEndTurn(pi);
+  coreEndTurn(b, pi);
   renderBattle();
   if (b.mode === 'cpu' && b.humans && !b.humans[b.actor] && !b.winner) cpuThink();
 }

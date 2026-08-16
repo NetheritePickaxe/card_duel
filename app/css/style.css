@@ -144,7 +144,20 @@ body{min-height:100%}
 .slot .av{width:80px;height:80px;margin:0 auto 8px;background:var(--p2);border:1px solid var(--ln);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:700;overflow:hidden}
 .slot .av img{width:100%;height:100%;object-fit:cover}
 .slot .av.sm{width:46px;height:46px;font-size:18px;margin:0}
-.dice{display:flex;gap:50px;justify-content:center;align-items:flex-start;padding:40px 0 20px}
+.dice{display:grid;justify-content:center;align-items:center;gap:18px 44px;padding:40px 0 20px}
+#dice-wrap .dice-cell{text-align:center}
+#dice-wrap .dice-cell .dname{margin-top:10px;text-align:center}
+#dice-wrap .dice-vs{font-size:28px;color:var(--dim);text-align:center}
+#dice-wrap[data-n="2"]{grid-template-columns:1fr auto 1fr;grid-template-rows:auto;grid-template-areas:"d0 vs d1";max-width:480px;margin:0 auto}
+#dice-wrap[data-n="3"]{grid-template-columns:1fr 1fr;grid-template-rows:auto auto;grid-template-areas:"d0 d1" "d2 d2";max-width:600px;margin:0 auto}
+#dice-wrap[data-n="4"]{grid-template-columns:1fr auto 1fr;grid-template-rows:auto auto auto;grid-template-areas:". d0 ." "d1 vs d2" ". d3 .";max-width:600px;margin:0 auto}
+#dice-wrap .d0{grid-area:d0}
+#dice-wrap .d1{grid-area:d1}
+#dice-wrap .d2{grid-area:d2}
+#dice-wrap .d3{grid-area:d3}
+#dice-wrap .dice-vs{grid-area:vs}
+.die{width:80px;height:80px;background:#f0ead8;color:#1a1a1a;font-size:40px;font-weight:800;display:flex;align-items:center;justify-content:center;border-radius:8px;margin:0 auto}
+.die.winner{outline:3px solid var(--acc);outline-offset:2px}
 .lan-rooms{border:1px solid var(--ln);background:var(--p);margin-top:4px}
 .lr-hd{padding:8px 12px;border-bottom:1px solid var(--ln);font-weight:600;font-size:13px;display:flex;justify-content:space-between;align-items:center}
 #server-list-section{margin-top:20px}

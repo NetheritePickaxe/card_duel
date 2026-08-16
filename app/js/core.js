@@ -27,21 +27,21 @@ function applyState(json) {
   b._events = s._events || [];
 }
 
-export function newBattle(mode, defs, firstActor) {
+export function newBattle(mode, defs, firstActor, order) {
   const n = defs.subfactions.length;
   const teams = defs.teams || Array.from({ length: n }, (_, i) => i < n / 2 ? 0 : 1);
-  const order = buildOrder(teams);
+  const defaultOrder = buildOrder(teams);
   const humans = defs.humans || (mode === 'cpu' ? Array.from({ length: n }, (_, i) => i !== 0) : Array.from({ length: n }, () => true));
 
   if (mode === 'lan') {
     state.BATTLE = {
-      mode, seq: 0, turn: 1, actor: order[0], phase: 'awaiting', winner: null, defs, log: [],
+      mode, seq: 0, turn: 1, actor: order ? order[0] : defaultOrder[0], phase: 'awaiting', winner: null, defs, log: [],
       players: defs.subfactions.map(r => ({
         role: r, hp: r.hp, def: r.def, energy: 0, buffs: [],
         draw: shuffle([...defs.cards, ...defs.cards]),
         hand: [], discard: [],
       })),
-      teams, order, humans, seatMap: defs.seatMap || [],
+      teams, order: order || defaultOrder, humans, seatMap: defs.seatMap || [],
     };
     return state.BATTLE;
   }
@@ -55,7 +55,8 @@ export function newBattle(mode, defs, firstActor) {
     JSON.stringify(teams),
     JSON.stringify(humans),
     seed,
-    firstActor != null ? firstActor : -1,
+    (order ? order[0] : (firstActor != null ? firstActor : -1)),
+    order,
   );
   state.BATTLE = JSON.parse(json);
   state.BATTLE._events = state.BATTLE._events || [];

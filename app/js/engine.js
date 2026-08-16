@@ -8,8 +8,8 @@ export async function loadEngine() {
   ready = true;
 }
 
-export function newBattle(mode, defsJson, indicesJson, teamsJson, humansJson, seed, firstActor) {
-  return wasm.init_battle(mode, defsJson, indicesJson, teamsJson, humansJson, seed, firstActor != null ? firstActor : -1);
+export function newBattle(mode, defsJson, indicesJson, teamsJson, humansJson, seed, firstActor, order) {
+  return wasm.init_battle(mode, defsJson, indicesJson, teamsJson, humansJson, seed, firstActor != null ? firstActor : -1, order ? JSON.stringify(order) : '');
 }
 
 export function playCard(pi, idx, target) {
