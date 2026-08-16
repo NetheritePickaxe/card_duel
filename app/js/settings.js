@@ -352,7 +352,7 @@ export function initSettings() {
   renderAccentRow();
   initSplashToggle();
   initVolumeSliders();
-  const savedTheme = localStorage.getItem('theme') || 'system';
+  const savedTheme = localStorage.getItem('theme') || 'dark';
   const themeSelect = $('theme-select');
   if (themeSelect) {
     themeSelect.value = savedTheme;

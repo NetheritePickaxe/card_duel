@@ -108,7 +108,7 @@ for dens, launcher_size, fg_size in DENSITIES:
         cx - crop_size // 2, cy - crop_size // 2,
         cx + crop_size // 2, cy + crop_size // 2,
     ))
-    safe = int(fg_size * 2 / 3)
+    safe = int(fg_size * 2 / 5)
     content = resize_nearest(cropped, safe)
     canvas = Image.new('RGBA', (fg_size, fg_size), (0, 0, 0, 0))
     paste_at = (fg_size - safe) // 2
