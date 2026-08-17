@@ -23,7 +23,7 @@ input[type=range]::-moz-range-thumb{width:7px;height:20px;border-radius:0;backgr
 input[type=range]:focus{outline:none}
 html{overflow-y:auto;height:100%}
 body{min-height:100%}
-.screen{display:none;max-width:1080px;margin:0 auto;padding:48px 18px 18px;min-height:100vh}
+.screen{display:none;max-width:1080px;margin:0 auto;padding:48px 18px 18px;min-height:100vh;overflow-x:hidden}
 .screen.on{display:block}
 .hd{display:flex;align-items:center;gap:10px;margin-bottom:28px}
 .hd h1{font-size:20px;font-weight:700;letter-spacing:1px}
@@ -171,7 +171,7 @@ body{min-height:100%}
 #pzone-up{grid-area:up}
 #pzone-dn{grid-area:dn}
 .battle-grid .log{grid-area:log;min-height:0}
-.pzone{padding:12px;background:var(--p);border:1px solid var(--ln)}
+.pzone{padding:12px;background:var(--p);border:1px solid var(--ln);min-width:0}
 .pzone.acting{border-color:var(--acc)}
 .panel{display:flex;gap:12px;align-items:center}
 .avatar{width:52px;height:52px;border:1px solid var(--ln);background:var(--p2);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;flex-shrink:0;position:relative}
@@ -298,9 +298,9 @@ input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--a
 }
 
 /* ============ 多人对战（团队上下布局） ============ */
-.battle-teams{display:flex;flex-direction:column;gap:12px;height:100%}
+.battle-teams{display:flex;flex-direction:column;gap:12px;height:100%;overflow-x:hidden}
 .team-zone{display:flex;flex-direction:row;gap:12px}
-.team-zone .pzone{flex:1}
+.team-zone .pzone{flex:1;min-width:0}
 .pzone.compact .panel{min-height:0}
 .panel.compact{align-items:center}
 .panel.compact .avatar{width:44px;height:44px;font-size:20px}

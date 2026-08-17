@@ -174,7 +174,10 @@ function renderTurnInfo(b, logEl) {
     ? t('battle.win', { name: b.players[b.winner].role.name })
     : (b.phase === 'awaiting' && b.mode === 'lan' ? t('battle.waiting') : t('battle.turn', { n: b.turn, name: b.players[b.actor].role.name }));
   const el = logEl;
-  el.innerHTML = b.log.slice(-80).map(l => `<div class="${l.includes('获胜') || l.includes('回合') || l.includes('wins') || l.includes('Turn') ? 't' : ''}">${formatLog(l)}</div>`).join('');
+  el.innerHTML = b.log.slice(-80).map(l => {
+    const text = formatLog(l);
+    return `<div class="${text.includes('获胜') || text.includes('回合') || text.includes('wins') || text.includes('Turn') ? 't' : ''}">${text}</div>`;
+  }).join('');
   el.scrollTop = el.scrollHeight;
   if (b.winner != null && !state._bannerShown) {
     state._bannerShown = true;

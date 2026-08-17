@@ -64,9 +64,14 @@ export function newBattle(mode, defs, firstActor, order) {
 }
 
 export function playCard(b, pi, idx, target) {
-  const json = engine.playCard(pi, idx, target != null ? target : -1);
-  applyState(json);
-  return b._events;
+  try {
+    const json = engine.playCard(pi, idx, target != null ? target : -1);
+    applyState(json);
+    return b._events;
+  } catch (e) {
+    console.error('[core.playCard] engine error for pi=' + pi + ', idx=' + idx + ':', e);
+    throw e;
+  }
 }
 
 export function endTurn(b, pi) {
@@ -80,8 +85,13 @@ export function startTurn() {
 }
 
 export function cpuStep() {
-  const json = engine.cpuStep();
-  applyState(json);
+  try {
+    const json = engine.cpuStep();
+    applyState(json);
+  } catch (e) {
+    console.error('[core.cpuStep] engine error:', e);
+    throw e;
+  }
 }
 
 export function buildOrder(teams) {

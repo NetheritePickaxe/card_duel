@@ -2,6 +2,7 @@ import { $, show } from './util.js?v=__VERSION__';
 import { setTypeVolume, getTypeVolume, setMasterVolume, getMasterVolume, updateBGM, initAudio } from './sound.js?v=__VERSION__';
 import { renderMenuAddr } from './share.js?v=__VERSION__';
 import { getMods, getModOrder, deleteMod, importModFromUrl, reloadMods } from './modloader.js?v=__VERSION__';
+import { t } from './i18n.js?v=__VERSION__';
 
 // ============================================================================
 // 设置组件：主题 / 主题色（含取色器）/ 设置页签 / 音量 / 标语开关

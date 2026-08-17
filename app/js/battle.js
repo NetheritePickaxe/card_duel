@@ -21,7 +21,19 @@ export function playCard(b, pi, idx, target) {
   const P = b.players[pi];
   const card = P.hand[idx];
   const cost = cardCost(b, pi, card);
-  if (P.energy < cost || b.winner || state.animBusy) return;
+  console.log('[playCard] pi=' + pi + ', idx=' + idx + ', energy=' + P.energy + ', cost=' + cost + ', animBusy=' + state.animBusy + ', winner=' + b.winner);
+  if (P.energy < cost) {
+    console.error('[playCard] energy insufficient:', { pi, energy: P.energy, cost });
+    return;
+  }
+  if (b.winner) {
+    console.error('[playCard] game already won');
+    return;
+  }
+  if (state.animBusy) {
+    console.error('[playCard] animBusy is true');
+    return;
+  }
 
   // LAN：提交意图，服务端权威结算；状态回传后由事件驱动渲染
   if (b.mode === 'lan') {
@@ -34,14 +46,20 @@ export function playCard(b, pi, idx, target) {
   }
 
   state.animBusy = true;
-  const events = corePlayCard(b, pi, idx, target);
-  b.lastPlay = { pi, card, events, atSeq: b.seq + 1 };
-  renderBattle();
-  playCardAnim(pi, card, events, () => {
+  try {
+    const events = corePlayCard(b, pi, idx, target);
+    b.lastPlay = { pi, card, events, atSeq: b.seq + 1 };
+    renderBattle();
+    playCardAnim(pi, card, events, () => {
+      state.animBusy = false;
+      renderBattle();
+      if (b.mode === 'cpu' && b.humans && !b.humans[pi] && !b.winner) setTimeout(() => cpuActOnce(b), 450);
+    });
+  } catch (e) {
+    console.error('[playCard] error:', e);
     state.animBusy = false;
     renderBattle();
-    if (b.mode === 'cpu' && b.humans && !b.humans[pi] && !b.winner) setTimeout(() => cpuActOnce(b), 450);
-  });
+  }
 }
 
 export function endTurn(b, pi) {
@@ -63,9 +81,15 @@ function needsTarget(b, pi, card) {
 }
 
 export function playCardClick(pi, idx) {
-  if (!canOperate(pi)) return;
+  const operable = canOperate(pi);
+  if (!operable) {
+    console.error('[playCardClick] canOperate returned false, pi=' + pi);
+    return;
+  }
   const b = state.BATTLE;
-  const card = b.players[pi].hand[idx];
+  if (!b) { console.error('[playCardClick] state.BATTLE is null'); return; }
+  const card = b.players[pi]?.hand[idx];
+  if (!card) { console.error('[playCardClick] card not found, pi=' + pi + ', idx=' + idx); return; }
   const opps = needsTarget(b, pi, card);
   if (opps) {
     openTargetModal(opps, tgt => playCard(b, pi, idx, tgt));
@@ -83,23 +107,36 @@ function cpuThink() {
   const b = state.BATTLE;
   if (!b || b.winner) return;
   $('bt-turn').textContent = t('battle.thinking');
+  console.log('[cpuThink] scheduling cpuActOnce, actor=' + b.actor);
   setTimeout(() => cpuActOnce(b), 750);
 }
 
 function cpuActOnce(b) {
   if (!b || b.winner) return;
-  const pi = b.actor;
-  const P = b.players[pi];
-  if (P.hand.length === 0) { setTimeout(() => endTurn(b, pi), 350); return; }
-  coreCpuStep();
-  renderBattle();
-  if (b.mode === 'cpu' && b.humans && !b.humans[b.actor] && !b.winner) setTimeout(() => cpuActOnce(b), 350);
+  try {
+    const pi = b.actor;
+    const P = b.players[pi];
+    if (!P) { console.error('[cpuActOnce] player undefined, actor=' + pi); return; }
+    console.log('[cpuActOnce] pi=' + pi + ', hand=' + P.hand.length + ', energy=' + P.energy);
+    if (P.hand.length === 0) { setTimeout(() => endTurn(b, pi), 350); return; }
+    coreCpuStep();
+    renderBattle();
+    if (b.mode === 'cpu' && b.humans && !b.humans[b.actor] && !b.winner) setTimeout(() => cpuActOnce(b), 350);
+  } catch (e) {
+    console.error('[cpuActOnce] error:', e);
+  }
 }
 
 export function startBattleFlow() {
   const b = state.BATTLE;
   if (!b || b.winner) return;
-  if (b.mode === 'cpu' && b.humans && !b.humans[b.actor]) setTimeout(() => cpuActOnce(b), 450);
+  console.log('[startBattleFlow] mode=' + b.mode + ', actor=' + b.actor + ', humans=' + JSON.stringify(b.humans));
+  if (b.mode === 'cpu' && b.humans && !b.humans[b.actor]) {
+    console.log('[startBattleFlow] scheduling cpuActOnce');
+    setTimeout(() => cpuActOnce(b), 450);
+  } else {
+    console.log('[startBattleFlow] NOT scheduling cpuActOnce (mode=' + b.mode + ', hasHumans=' + !!b.humans + ', isActorHuman=' + (b.humans && b.humans[b.actor]) + ')');
+  }
 }
 
 /* ============ LAN 表现事件（Layer 3 表现处理器入口） ============ */

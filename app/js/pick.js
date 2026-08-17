@@ -371,9 +371,11 @@ function startBattleFromDice(fullOrder) {
     order = fullOrder;
     first = order && order.length ? order[0] : 0;
   }
+  console.log('[startBattleFromDice] mode=' + battleMode + ', first=' + first + ', order=' + JSON.stringify(order) + ', humans=' + JSON.stringify(defs.humans) + ', n=' + defs.subfactions.length);
   state.BATTLE = newBattle(battleMode, defs, first, order);
   state.BATTLE.actor = first;
   state.BATTLE.phase = 'playing';
+  console.log('[startBattleFromDice] BATTLE actor=' + state.BATTLE.actor + ', humans=' + JSON.stringify(state.BATTLE.humans) + ', players=' + state.BATTLE.players.length);
   const firstName = defs.subfactions[first]?.name || '队';
   logT(state.BATTLE, 'pick.roll_first', { name: firstName });
   showBattle();
