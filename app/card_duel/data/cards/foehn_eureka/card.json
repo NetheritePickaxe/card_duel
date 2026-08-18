@@ -1,0 +1,1 @@
+{"id":"foehn_eureka","name":"优莱卡","cost":4,"img":"","effects":[{"type":"damage","value":9,"pierce":true,"target":"enemy"}],"desc":"","passive":[{"type":"energy","value":1,"target":"self"}],"hero":true}

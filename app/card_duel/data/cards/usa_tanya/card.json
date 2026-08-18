@@ -1,0 +1,1 @@
+{"id":"usa_tanya","name":"谭雅","cost":3,"img":"","effects":[{"type":"damage","value":10,"pierce":true,"target":"enemy"}],"desc":"","passive":[{"type":"draw","value":1}],"hero":true}

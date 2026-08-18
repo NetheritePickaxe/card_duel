@@ -1,0 +1,17 @@
+{
+  "id": "hh",
+  "name": "狂鲨先锋",
+  "faction": "foehn",
+  "hp": 34,
+  "def": 2,
+  "eng": 4,
+  "intro": "狂鲨出击，毁灭一切",
+  "img": "",
+  "deck": [
+    "hh_fin",
+    "hh_alize",
+    "hh_madm",
+    "hh_mine"
+  ],
+  "heroes": ["hh_fin", "hh_alize"]
+}

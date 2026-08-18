@@ -13,6 +13,7 @@ import { lanCreate, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeSer
 import { renderBattle, renderSlots } from './render.js?v=__VERSION__';
 import { renderEditList } from './editor.js?v=__VERSION__';
 import { settingsActions, initSettings } from './settings.js?v=__VERSION__';
+import { hasPlayerName, savePlayerName } from './profile.js?v=__VERSION__';
 import { renderMenuAddr } from './share.js?v=__VERSION__';
 import { renderModList, initMods } from './mods-ui.js?v=__VERSION__';
 import { initConsole } from './console.js?v=__VERSION__';
@@ -38,6 +39,10 @@ function updateI18nElements() {
 
 window.addEventListener('locale-changed', () => {
   updateI18nElements();
+  const nameInput = $('name-input');
+  if (nameInput) nameInput.placeholder = t('name.input_placeholder');
+  const playerNameInput = $('player-name-input');
+  if (playerNameInput) playerNameInput.placeholder = t('name.input_placeholder');
   // Re-render current screen with new language
   if (state.PHASE_BATTLE && state.BATTLE) {
     renderBattle();
@@ -51,6 +56,11 @@ window.addEventListener('locale-changed', () => {
 /* ============ 事件委托 ============ */
 
 const actionMap = {
+  'save-name': () => {
+    const val = ($('name-input')?.value || '').trim();
+    savePlayerName(val || t('name.default'));
+    show('sc-menu');
+  },
   'start-skirmish': () => startSkirmish(),
   'start-campaign': () => startCampaign(),
   'open-lan': () => openLAN(),
@@ -143,7 +153,7 @@ function initSafeArea() {
     const vb = window.visualViewport;
     const top = vb ? Math.max(0, Math.round(vb.offsetTop)) : 0;
     if (top > 0) {
-      html.style.setProperty('--safe-top', top + 'px');
+      html.style.setProperty('--safe-top', Math.min(120, top) + 'px');
     } else if (IS_MOBILE) {
       html.style.setProperty('--safe-top', '48px');
     }
@@ -188,6 +198,14 @@ const engineLoaded = loadEngine().then(() => {
 Promise.allSettled([initLocaleLoaded, loadModsLoaded]).then(() => {
   updateI18nElements();
   renderMenuAddr();
+  if (!hasPlayerName()) {
+    show('sc-name');
+    const input = $('name-input');
+    input.placeholder = t('name.input_placeholder');
+    input.focus();
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('save-name')?.click(); });
+    return;
+  }
   showInitScreen();
 });
 

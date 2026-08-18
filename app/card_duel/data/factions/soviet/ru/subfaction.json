@@ -1,0 +1,17 @@
+{
+  "id": "ru",
+  "name": "苏俄",
+  "faction": "soviet",
+  "hp": 42,
+  "def": 4,
+  "eng": 3,
+  "intro": "钢铁洪流，重型碾压",
+  "img": "",
+  "deck": [
+    "ru_chitzkoi",
+    "ru_reznov",
+    "ru_apoc2",
+    "ru_heavy"
+  ],
+  "heroes": ["sov_volkov", "ru_chitzkoi", "ru_reznov"]
+}

@@ -128,6 +128,16 @@ fn make_player(r: &SubfactionDef, defs: &GameDefs) -> PlayerState {
                 d.push(c.clone());
             }
         }
+        // merge faction deck for generic cards
+        if let Some(ref faction) = r.faction {
+            if let Some(f) = defs.factions.iter().find(|x| &x.id == faction) {
+                for cid in &f.deck {
+                    if let Some(c) = defs.cards.iter().find(|x| x.id == *cid) {
+                        d.push(c.clone());
+                    }
+                }
+            }
+        }
     } else {
         for c in &defs.cards {
             d.push(c.clone());
@@ -136,6 +146,7 @@ fn make_player(r: &SubfactionDef, defs: &GameDefs) -> PlayerState {
     }
     PlayerState {
         role: r.clone(),
+        name: r.name.clone(),
         hp: r.hp,
         def: r.def,
         energy: 0,
@@ -143,6 +154,15 @@ fn make_player(r: &SubfactionDef, defs: &GameDefs) -> PlayerState {
         draw: d,
         hand: vec![],
         discard: vec![],
+    }
+}
+
+/// 覆盖各席位的显示名（真人玩家名 / 电脑N）。长度不足的席位保持原名。
+pub fn set_player_names(b: &mut Battle, names: Vec<String>) {
+    for (i, n) in names.into_iter().enumerate() {
+        if i < b.players.len() && !n.is_empty() {
+            b.players[i].name = n;
+        }
     }
 }
 
@@ -239,7 +259,7 @@ pub fn start_turn(b: &mut Battle) {
         log_event(
             b,
             "log.blocked",
-            serde_json::json!({ "name": b.players[pi].role.name.clone() }),
+            serde_json::json!({ "name": b.players[pi].name.clone() }),
         );
         advance_actor(b);
         if check_team_winner(b) {
@@ -256,7 +276,7 @@ pub fn start_turn(b: &mut Battle) {
     log_event(
         b,
         "log.turn",
-        serde_json::json!({ "n": b.turn, "name": b.players[pi].role.name.clone() }),
+        serde_json::json!({ "n": b.turn, "name": b.players[pi].name.clone() }),
     );
 }
 
@@ -270,7 +290,7 @@ pub fn end_turn(b: &mut Battle, pi: usize) {
         log_event(
             b,
             "log.haste",
-            serde_json::json!({ "name": b.players[pi].role.name.clone() }),
+            serde_json::json!({ "name": b.players[pi].name.clone() }),
         );
         start_turn(b);
         return;
@@ -320,12 +340,21 @@ pub fn play_card_target(
     };
     let card = b.players[pi].hand.remove(idx);
     b.players[pi].energy -= cost;
-    let events = resolve_effects_target(b, pi, &card, target);
+    let mut events = resolve_effects_target(b, pi, &card, target);
+    if !card.passive.is_empty() {
+        let pe = Card {
+            passive: vec![],
+            effects: card.passive.clone(),
+            ..card.clone()
+        };
+        let p_events = resolve_effects_target(b, pi, &pe, target);
+        events.extend(p_events);
+    }
     let card_name = card.name.clone();
     log_event(
         b,
         "log.play_card",
-        serde_json::json!({ "name": b.players[pi].role.name.clone(), "card": card_name }),
+        serde_json::json!({ "name": b.players[pi].name.clone(), "card": card_name }),
     );
     b.players[pi].discard.push(card);
     Ok(events)
@@ -364,6 +393,7 @@ mod tests {
             intro: "".into(),
             img: "".into(),
             deck: None,
+            heroes: vec![],
         }
     }
     fn mk_card(id: &str, cost: i32, kind: &str, val: i32) -> Card {
@@ -381,6 +411,8 @@ mod tests {
                 target: None,
                 fx: None,
             }],
+            passive: vec![],
+            hero: false,
         }
     }
     fn mk_defs(sub: SubfactionDef, card: Card) -> GameDefs {
@@ -397,6 +429,7 @@ mod tests {
     fn calc_damage_zero_def_no_reduction() {
         let att = PlayerState {
             role: mk_sub("a", 10, 0, 0),
+            name: "a".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -407,6 +440,7 @@ mod tests {
         };
         let tgt = PlayerState {
             role: mk_sub("t", 10, 0, 0),
+            name: "t".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -422,6 +456,7 @@ mod tests {
     fn calc_damage_def_absorbs_partial() {
         let att = PlayerState {
             role: mk_sub("a", 10, 0, 0),
+            name: "a".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -432,6 +467,7 @@ mod tests {
         };
         let tgt = PlayerState {
             role: mk_sub("t", 10, 0, 0),
+            name: "t".into(),
             hp: 10,
             def: 5,
             energy: 0,
@@ -447,6 +483,7 @@ mod tests {
     fn calc_damage_def_absorbs_all() {
         let att = PlayerState {
             role: mk_sub("a", 10, 0, 0),
+            name: "a".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -457,6 +494,7 @@ mod tests {
         };
         let tgt = PlayerState {
             role: mk_sub("t", 10, 0, 0),
+            name: "t".into(),
             hp: 10,
             def: 10,
             energy: 0,
@@ -472,6 +510,7 @@ mod tests {
     fn calc_damage_atk_buff_adds() {
         let att = PlayerState {
             role: mk_sub("a", 10, 0, 0),
+            name: "a".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -486,6 +525,7 @@ mod tests {
         };
         let tgt = PlayerState {
             role: mk_sub("t", 10, 0, 0),
+            name: "t".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -501,6 +541,7 @@ mod tests {
     fn calc_damage_weaken_def_reduces() {
         let att = PlayerState {
             role: mk_sub("a", 10, 0, 0),
+            name: "a".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -511,6 +552,7 @@ mod tests {
         };
         let tgt = PlayerState {
             role: mk_sub("t", 10, 0, 0),
+            name: "t".into(),
             hp: 10,
             def: 4,
             energy: 0,
@@ -530,6 +572,7 @@ mod tests {
     fn calc_damage_dmg_reduce_pct() {
         let att = PlayerState {
             role: mk_sub("a", 10, 0, 0),
+            name: "a".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -540,6 +583,7 @@ mod tests {
         };
         let tgt = PlayerState {
             role: mk_sub("t", 10, 0, 0),
+            name: "t".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -559,6 +603,7 @@ mod tests {
     fn calc_damage_def_floor_at_zero() {
         let att = PlayerState {
             role: mk_sub("a", 10, 0, 0),
+            name: "a".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -569,6 +614,7 @@ mod tests {
         };
         let tgt = PlayerState {
             role: mk_sub("t", 10, 0, 0),
+            name: "t".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -591,6 +637,7 @@ mod tests {
     fn sum_buff_matches_kind() {
         let p = PlayerState {
             role: mk_sub("x", 10, 0, 0),
+            name: "x".into(),
             hp: 10,
             def: 0,
             energy: 0,
@@ -769,6 +816,123 @@ mod tests {
         // First turn draws min(5, draw_pile_count) = min(5, 2) = 2 cards.
         assert_eq!(b.players[0].hand.len(), 2);
         assert!(!b.players[0].hand.is_empty());
+    }
+
+    // ===== play_card passive resolution =====
+
+    #[test]
+    fn play_card_resolves_effects_then_passive() {
+        // hero card: effects=[draw 0 (no-op placeholder)], passive=[damage 4 to enemy]
+        let card = Card {
+            id: "hero".into(),
+            name: "Hero".into(),
+            cost: 1,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: "damage".into(),
+                value: Some(2),
+                duration: None,
+                pierce: None,
+                target: None,
+                fx: None,
+            }],
+            passive: vec![Effect {
+                kind: "damage".into(),
+                value: Some(4),
+                duration: None,
+                pierce: None,
+                target: None,
+                fx: None,
+            }],
+            hero: true,
+        };
+        let d = GameDefs {
+            subfactions: vec![mk_sub("a", 30, 0, 5), mk_sub("b", 30, 0, 5)],
+            cards: vec![card],
+            factions: vec![],
+        };
+        let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
+        start_turn(&mut b);
+        // find hero card in hand
+        let idx = b.players[0]
+            .hand
+            .iter()
+            .position(|c| c.id == "hero")
+            .unwrap();
+        let events = play_card(&mut b, 0, idx).unwrap();
+        // 2 damage effects resolved (effects then passive)
+        let dmg_events = events.iter().filter(|e| e.kind == "damage").count();
+        assert_eq!(dmg_events, 2);
+        assert_eq!(b.players[1].hp, 30 - 2 - 4);
+    }
+
+    #[test]
+    fn set_player_names_overrides_display() {
+        let d = mk_defs(mk_sub("a", 30, 0, 3), mk_card("c", 1, "damage", 1));
+        let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
+        assert_eq!(b.players[0].name, "a");
+        set_player_names(&mut b, vec!["指挥官".into(), "电脑1".into()]);
+        assert_eq!(b.players[0].name, "指挥官");
+        assert_eq!(b.players[1].name, "电脑1");
+        // 短于席位时保持原名
+        set_player_names(&mut b, vec!["only".into()]);
+        assert_eq!(b.players[1].name, "电脑1");
+    }
+
+    #[test]
+    fn make_player_merges_faction_deck() {
+        let faction = FactionDef {
+            id: "f1".into(),
+            name: "F1".into(),
+            desc: "".into(),
+            img: "".into(),
+            deck: vec!["gen".into()],
+        };
+        let card = Card {
+            id: "gen".into(),
+            name: "Gen".into(),
+            cost: 1,
+            img: "".into(),
+            desc: "".into(),
+            effects: vec![Effect {
+                kind: "damage".into(),
+                value: Some(1),
+                duration: None,
+                pierce: None,
+                target: None,
+                fx: None,
+            }],
+            passive: vec![],
+            hero: false,
+        };
+        let sub = SubfactionDef {
+            id: "s".into(),
+            name: "S".into(),
+            faction: Some("f1".into()),
+            hp: 30,
+            def: 0,
+            eng: 3,
+            intro: "".into(),
+            img: "".into(),
+            deck: Some(vec!["spec".into()]),
+            heroes: vec![],
+        };
+        let spec = Card {
+            passive: vec![],
+            hero: false,
+            ..card.clone()
+        };
+        let mut d = GameDefs {
+            subfactions: vec![sub.clone(), sub],
+            cards: vec![card, spec],
+            factions: vec![faction],
+        };
+        d.cards[1].id = "spec".into();
+        let b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
+        let ids: Vec<&str> = b.players[0].draw.iter().map(|c| c.id.as_str()).collect();
+        assert!(ids.contains(&"gen"), "faction generic card merged");
+        assert!(ids.contains(&"spec"), "subfaction specific card present");
     }
 
     // ===== action import for integration tests =====

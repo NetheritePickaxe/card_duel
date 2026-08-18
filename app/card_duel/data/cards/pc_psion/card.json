@@ -1,0 +1,1 @@
+{"id":"pc_psion","name":"心灵精英","cost":1,"img":"","effects":[{"type":"damage","value":3,"target":"enemy"}],"desc":"","passive":[],"hero":false}

@@ -1,0 +1,1 @@
+{"id":"pf_sonic","name":"声波","cost":1,"img":"","effects":[{"type":"damage","value":4,"target":"enemy"}],"desc":"","passive":[],"hero":false}

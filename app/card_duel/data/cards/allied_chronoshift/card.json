@@ -1,0 +1,1 @@
+{"id":"allied_chronoshift","name":"超时空传送","cost":3,"img":"","effects":[{"type":"draw","value":2},{"type":"extra_turn","target":"self"}],"desc":"","passive":[],"hero":false}

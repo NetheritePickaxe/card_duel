@@ -1,0 +1,1 @@
+{"id":"allied_sniper","name":"狙击手","cost":1,"img":"","effects":[{"type":"damage","value":5,"target":"enemy"}],"desc":"","passive":[],"hero":false}

@@ -1,0 +1,1 @@
+{"id":"cn_iron","name":"铁幕装置","cost":2,"img":"","effects":[{"type":"gain_def","value":3,"duration":3,"target":"self"}],"desc":"","passive":[],"hero":false}

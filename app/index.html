@@ -21,6 +21,19 @@
 </head>
 <body>
 
+<div class="screen" id="sc-name">
+  <div class="name-screen">
+    <h1 data-i18n="name.title">设置你的名字</h1>
+    <div class="frow" style="max-width:320px;margin:18px auto 0">
+      <label data-i18n="name.input_label">你的名字</label>
+      <input id="name-input" maxlength="12" autocomplete="off">
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <button class="primary" style="padding:8px 32px;font-size:15px" data-action="save-name" data-i18n="name.save">开始游戏</button>
+    </div>
+  </div>
+</div>
+
 <div class="screen" id="sc-menu">
   <div class="menu">
     <button class="m-title" id="menu-title">
@@ -44,6 +57,10 @@
   </div>
   <div id="settings-lang">
     <div style="max-width:400px;margin:10px auto">
+      <div class="frow">
+        <label data-i18n="settings.player_name">名字</label>
+        <input id="player-name-input" maxlength="12" placeholder="">
+      </div>
       <div class="frow">
         <label data-i18n="settings.lang">语言</label>
         <select id="lang-select">

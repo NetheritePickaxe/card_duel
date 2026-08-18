@@ -1,0 +1,1 @@
+{"id":"allied_paladin","name":"圣骑士猎杀坦克","cost":3,"img":"","effects":[{"type":"damage","value":10,"target":"enemy"}],"desc":"","passive":[],"hero":false}

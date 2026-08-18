@@ -1,0 +1,1 @@
+{"id":"eps_itch","name":"心灵控制塔","cost":2,"img":"","effects":[{"type":"skip_turn","target":"enemy"}],"desc":"","passive":[],"hero":false}

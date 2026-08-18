@@ -1,0 +1,1 @@
+{"id":"wc_furnace","name":"爆裂熔炉","cost":2,"img":"","effects":[{"type":"damage","value":6,"target":"enemy"}],"desc":"","passive":[],"hero":false}

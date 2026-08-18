@@ -1,0 +1,1 @@
+{"id":"pc_yuri","name":"尤里","cost":3,"img":"","effects":[{"type":"skip_turn","target":"enemy"},{"type":"damage","value":5,"target":"enemy"}],"desc":"","passive":[{"type":"force_discard","value":1,"target":"enemy"}],"hero":true}

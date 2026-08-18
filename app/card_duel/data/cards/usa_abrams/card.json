@@ -1,0 +1,1 @@
+{"id":"usa_abrams","name":"艾布拉姆斯坦克","cost":3,"img":"","effects":[{"type":"damage","value":9,"target":"enemy"},{"type":"gain_def","value":1,"duration":2,"target":"self"}],"desc":"","passive":[],"hero":false}

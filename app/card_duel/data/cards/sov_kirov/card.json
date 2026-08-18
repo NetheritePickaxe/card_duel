@@ -1,0 +1,1 @@
+{"id":"sov_kirov","name":"基洛夫空艇","cost":3,"img":"","effects":[{"type":"aoe_damage","value":8,"target":"enemy"}],"desc":"","passive":[],"hero":false}

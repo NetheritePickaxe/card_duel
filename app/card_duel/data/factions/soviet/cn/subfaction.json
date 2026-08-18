@@ -1,0 +1,17 @@
+{
+  "id": "cn",
+  "name": "中国",
+  "faction": "soviet",
+  "hp": 38,
+  "def": 3,
+  "eng": 4,
+  "intro": "铁幕科技，坚不可摧",
+  "img": "",
+  "deck": [
+    "cn_yunru",
+    "cn_centurion",
+    "cn_dragon",
+    "cn_iron"
+  ],
+  "heroes": ["cn_yunru"]
+}

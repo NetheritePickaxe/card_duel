@@ -1,0 +1,17 @@
+{
+  "id": "wc",
+  "name": "科洛尼亚侧翼",
+  "faction": "foehn",
+  "hp": 32,
+  "def": 2,
+  "eng": 4,
+  "intro": "天空之翼，速战速决",
+  "img": "",
+  "deck": [
+    "wc_furnace",
+    "wc_trench",
+    "wc_storm2",
+    "wc_wall"
+  ],
+  "heroes": ["foehn_eureka"]
+}

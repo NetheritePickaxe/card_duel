@@ -1,0 +1,1 @@
+{"id":"eps_ghost","name":"恶灵战机","cost":2,"img":"","effects":[{"type":"damage","value":7,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

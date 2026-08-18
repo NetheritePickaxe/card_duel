@@ -1,0 +1,16 @@
+{
+  "id": "epsilon",
+  "name": "厄普西隆军",
+  "desc": "心灵控制，诡秘莫测",
+  "img": "",
+  "deck": [
+    "eps_brute",
+    "eps_ghost",
+    "eps_queen",
+    "eps_raider",
+    "eps_itch",
+    "eps_dominator",
+    "eps_storm",
+    "eps_libra"
+  ]
+}

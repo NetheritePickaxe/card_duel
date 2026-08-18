@@ -1,0 +1,1 @@
+{"id":"hh_alize","name":"阿莉兹","cost":3,"img":"","effects":[{"type":"damage","value":8,"pierce":true,"target":"enemy"}],"desc":"","passive":[{"type":"heal","value":2,"target":"self"}],"hero":true}

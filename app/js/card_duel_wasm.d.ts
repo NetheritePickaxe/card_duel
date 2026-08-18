@@ -9,7 +9,7 @@ export function cpu_step(): string;
 
 export function end_turn(pi: number): string;
 
-export function init_battle(mode: string, defs_json: string, indices_json: string, teams_json: string, humans_json: string, seed: bigint, first_actor: number, order_json: string): string;
+export function init_battle(mode: string, defs_json: string, indices_json: string, teams_json: string, humans_json: string, seed: bigint, first_actor: number, order_json: string, names_json: string): string;
 
 export function list_effects(): string;
 
@@ -25,7 +25,7 @@ export interface InitOutput {
     readonly card_cost: (a: number, b: number) => number;
     readonly cpu_step: (a: number) => void;
     readonly end_turn: (a: number, b: number) => void;
-    readonly init_battle: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: bigint, m: number, n: number, o: number) => void;
+    readonly init_battle: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: bigint, m: number, n: number, o: number, p: number, q: number) => void;
     readonly list_effects: (a: number) => void;
     readonly play_card: (a: number, b: number, c: number, d: number) => void;
     readonly start_turn: (a: number) => void;

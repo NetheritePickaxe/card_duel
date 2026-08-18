@@ -1,0 +1,1 @@
+{"id":"foehn_bull","name":"蛮牛角斗坦克","cost":2,"img":"","effects":[{"type":"damage","value":7,"target":"enemy"}],"desc":"","passive":[],"hero":false}

@@ -1,0 +1,1 @@
+{"id":"lc_morales","name":"莫拉莱斯","cost":3,"img":"","effects":[{"type":"damage","value":8,"pierce":true,"target":"enemy"}],"desc":"","passive":[{"type":"damage","value":3,"pierce":true,"target":"enemy"}],"hero":true}

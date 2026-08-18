@@ -1,0 +1,1 @@
+{"id":"ru_heavy","name":"重型坦克","cost":2,"img":"","effects":[{"type":"damage","value":6,"target":"enemy"},{"type":"gain_def","value":1,"duration":2,"target":"self"}],"desc":"","passive":[],"hero":false}

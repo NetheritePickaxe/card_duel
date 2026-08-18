@@ -1,8 +1,8 @@
 {
   "factions": [
-    "f_allied",
-    "f_epsilon",
-    "f_foehn",
-    "f_soviet"
+    "allied",
+    "epsilon",
+    "foehn",
+    "soviet"
   ]
 }

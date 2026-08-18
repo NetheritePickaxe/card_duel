@@ -2,6 +2,7 @@ import { $, show, toast, esc, rollOnce, shuffle } from './util.js?v=__VERSION__'
 import { state } from './state.js?v=__VERSION__';
 import { DB, getDefaultSubfactionIds, getFaction } from './data.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
+import { getPlayerName, cpuLabel } from './profile.js?v=__VERSION__';
 import { newBattle, logT } from './core.js?v=__VERSION__';
 import { renderBattle, showBattle, renderSlots, slotHTML } from './render.js?v=__VERSION__';
 import { stopRoomList, lanPickPost, lanBase, renderLanPick, startRoomList, renderServerList, scanLan, lanAct } from './lan.js?v=__VERSION__';
@@ -319,14 +320,15 @@ export async function goDice() {
   if (state.MODE === 'lan') {
     const teams = state.LAN.teams.map((t, i) => t ?? 0);
     const reps = [...new Set(teams)].map(team => teams.indexOf(team));
-    names = reps.map(r => state.LAN.picks?.[r]?.role?.name || ('队 ' + (teams[r] + 1)));
+    names = reps.map(r => state.LAN.picks?.[r]?.name || state.LAN.picks?.[r]?.role?.name || ('队 ' + (teams[r] + 1)));
     seatOf = reps;
   } else if (state.GAME_MODE === 'random') {
-    names = [state.PICK[0]?.name || t('pick.you'), t('pick.cpu_label')];
+    names = [getPlayerName(), t('battle.cpu_name', { n: 1 })];
     seatOf = [0, 1];
   } else {
     const n = state.PICK ? state.PICK.length : 2;
-    names = state.PICK.map((p, i) => p?.name || ('P' + (i + 1)));
+    const humans = state.PICK_HUMAN || state.PICK.map((p, i) => state.MODE === 'cpu' ? i !== 0 : true);
+    names = buildNames(humans);
     seatOf = [...Array(n).keys()];
   }
   renderDiceWrap(names);
@@ -372,7 +374,7 @@ function startBattleFromDice(fullOrder) {
     first = order && order.length ? order[0] : 0;
   }
   console.log('[startBattleFromDice] mode=' + battleMode + ', first=' + first + ', order=' + JSON.stringify(order) + ', humans=' + JSON.stringify(defs.humans) + ', n=' + defs.subfactions.length);
-  state.BATTLE = newBattle(battleMode, defs, first, order);
+  state.BATTLE = newBattle(battleMode, defs, first, order, defs.names);
   state.BATTLE.actor = first;
   state.BATTLE.phase = 'playing';
   console.log('[startBattleFromDice] BATTLE actor=' + state.BATTLE.actor + ', humans=' + JSON.stringify(state.BATTLE.humans) + ', players=' + state.BATTLE.players.length);
@@ -380,6 +382,12 @@ function startBattleFromDice(fullOrder) {
   logT(state.BATTLE, 'pick.roll_first', { name: firstName });
   showBattle();
   startBattleFlow();
+}
+
+// 按席位生成显示名：真人席位用玩家名，电脑席位按顺序显示电脑1/电脑2…
+function buildNames(humans) {
+  let cpuN = 0;
+  return humans.map(isHuman => (isHuman ? getPlayerName() : cpuLabel(++cpuN)));
 }
 
 // 遭遇战：玩家 + 随机 1~3 个 AI（不重复），AI 全归队 1
@@ -396,7 +404,7 @@ function buildSkirmishDefs() {
   const subfactions = [player, ...ais];
   const teams = subfactions.map((_, i) => i === 0 ? 0 : 1);
   const humans = subfactions.map((_, i) => i === 0);
-  return { subfactions, cards: DB.cards, factions: DB.factions, teams, humans };
+  return { subfactions, cards: DB.cards, factions: DB.factions, teams, humans, names: buildNames(humans) };
 }
 
 // 本地模式定义构建（LAN 由服务端从房间选择构建，客户端不再本地组卡）
@@ -404,5 +412,5 @@ function buildDefs() {
   const subfactions = [...state.PICK];
   const teams = subfactions.length === 2 ? [0, 1] : (state.PICK_TEAMS || subfactions.map((_, i) => i < subfactions.length / 2 ? 0 : 1));
   const humans = state.PICK_HUMAN || subfactions.map((_, i) => state.MODE === 'cpu' ? i !== 0 : true);
-  return { subfactions, cards: DB.cards, factions: DB.factions, teams, humans };
+  return { subfactions, cards: DB.cards, factions: DB.factions, teams, humans, names: buildNames(humans) };
 }

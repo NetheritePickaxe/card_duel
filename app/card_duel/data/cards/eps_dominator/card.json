@@ -1,0 +1,1 @@
+{"id":"eps_dominator","name":"心灵支配","cost":5,"img":"","effects":[{"type":"aoe_damage","value":10,"pierce":true,"target":"enemy"},{"type":"skip_turn","target":"enemy"}],"desc":"","passive":[],"hero":false}

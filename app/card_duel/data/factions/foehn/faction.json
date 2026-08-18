@@ -1,0 +1,16 @@
+{
+  "id": "foehn",
+  "name": "焚风反抗军",
+  "desc": "焚风反抗，游击科技",
+  "img": "",
+  "deck": [
+    "foehn_bee",
+    "foehn_mecha",
+    "foehn_grid",
+    "foehn_bull",
+    "foehn_phoenix",
+    "foehn_tempest",
+    "foehn_barrier",
+    "foehn_eureka"
+  ]
+}

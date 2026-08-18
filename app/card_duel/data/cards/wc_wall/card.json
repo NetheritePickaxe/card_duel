@@ -1,0 +1,1 @@
+{"id":"wc_wall","name":"气墙","cost":1,"img":"","effects":[{"type":"gain_def","value":2,"duration":2,"target":"self"}],"desc":"","passive":[],"hero":false}

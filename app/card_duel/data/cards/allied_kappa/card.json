@@ -1,0 +1,1 @@
+{"id":"allied_kappa","name":"河童悬浮坦克","cost":2,"img":"","effects":[{"type":"damage","value":5,"target":"enemy"},{"type":"draw","value":1}],"desc":"","passive":[],"hero":false}

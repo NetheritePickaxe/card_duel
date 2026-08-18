@@ -1,0 +1,1 @@
+{"id":"cn_centurion","name":"百夫长攻城机甲","cost":3,"img":"","effects":[{"type":"damage","value":10,"target":"enemy"}],"desc":"","passive":[],"hero":false}

@@ -1,0 +1,1 @@
+{"id":"pc_iten","name":"心灵信标","cost":2,"img":"","effects":[{"type":"skip_turn","target":"enemy"}],"desc":"","passive":[],"hero":false}

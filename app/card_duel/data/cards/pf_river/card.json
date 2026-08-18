@@ -1,0 +1,1 @@
+{"id":"pf_river","name":"河童坦克","cost":2,"img":"","effects":[{"type":"damage","value":6,"target":"enemy"}],"desc":"","passive":[],"hero":false}

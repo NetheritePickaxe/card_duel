@@ -1,0 +1,1 @@
+{"id":"foehn_bee","name":"爆裂蜂","cost":1,"img":"","effects":[{"type":"damage","value":5,"target":"enemy"}],"desc":"","passive":[],"hero":false}

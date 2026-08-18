@@ -31,6 +31,8 @@ pub struct Pick {
     pub effects: Vec<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_human: Option<bool>,
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 impl ServerState {
@@ -277,6 +279,10 @@ impl ServerState {
                 cards,
                 effects,
                 is_human: data.get("is_human").and_then(|v| v.as_bool()),
+                name: data
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
             };
             r.picks[side as usize] = Some(pick);
             if let Some(team) = data.get("team").and_then(|v| v.as_u64()) {

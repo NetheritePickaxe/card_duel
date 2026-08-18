@@ -1,0 +1,1 @@
+{"id":"allied_prism","name":"光棱重装兵","cost":2,"img":"","effects":[{"type":"damage","value":7,"target":"enemy"}],"desc":"","passive":[],"hero":false}

@@ -1,0 +1,1 @@
+{"id":"lb_ion","name":"离子要塞炮","cost":3,"img":"","effects":[{"type":"damage","value":9,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

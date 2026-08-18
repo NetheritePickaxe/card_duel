@@ -1,0 +1,1 @@
+{"id":"foehn_mecha","name":"机械造物","cost":3,"img":"","effects":[{"type":"damage","value":10,"target":"enemy"}],"desc":"","passive":[],"hero":false}

@@ -114,14 +114,14 @@ function saveEditState() {
 
 function newSubfaction(el) {
   const faction = el ? el.dataset.faction || null : null;
-  const r = { id: 'r' + Date.now(), name: t('edit.default_subfaction_name'), faction, hp: 40, def: 2, eng: 3, intro: '', img: '', deck: [] };
+  const r = { id: 'r' + Date.now(), name: t('edit.default_subfaction_name'), faction, hp: 40, def: 2, eng: 3, intro: '', img: '', deck: [], heroes: [] };
   DB.subfactions.push(r);
   state.EDIT.sel = r.id;
   renderEditList();
 }
 
 function newCard() {
-  const c = { id: 'c' + Date.now(), name: t('edit.default_card_name'), cost: 1, img: '', effects: [{ type: 'damage', value: 5, target: 'enemy' }], desc: '' };
+  const c = { id: 'c' + Date.now(), name: t('edit.default_card_name'), cost: 1, img: '', effects: [{ type: 'damage', value: 5, target: 'enemy' }], desc: '', passive: [], hero: false };
   DB.cards.push(c);
   state.EDIT.sel = c.id;
   renderEditList();
@@ -165,6 +165,7 @@ function renderSubfactionForm(r) {
     <div class="frow"><label>${t('edit.def')}</label><input id="rf-def" type="number" min="0" value="${r.def}"></div>
     <div class="frow"><label>${t('edit.energy')}</label><input id="rf-eng" type="number" min="1" value="${r.eng}"></div>
     <div class="frow"><label>${t('edit.intro')}</label><textarea id="rf-intro" rows="2">${esc(r.intro || '')}</textarea></div>
+    <div class="frow"><label>${t('edit.heroes')}</label><input id="rf-heroes" placeholder="${t('edit.heroes_hint')}" value="${(r.heroes || []).join(',')}"><span class="dim" style="font-size:11px">${t('edit.heroes_hint')}</span></div>
     <div class="frow"><label>${t('edit.img')}</label><input id="rf-img" placeholder="${t('edit.img_placeholder')}" value="${esc(r.img || '')}"><input type="file" accept="image/*" data-action="load-img-subfaction"></div>
     <div class="frow"><label>${t('edit.deck')}</label><span class="dim" style="font-size:11px">${t('edit.deck_hint')}</span></div>
     <div class="deck-box" id="deck-box"></div>
@@ -206,16 +207,20 @@ function renderCardForm(c) {
   $('card-form').innerHTML = `
     <div class="frow"><label>${t('edit.name')}</label><input id="cf-name" value="${esc(c.name)}"></div>
     <div class="frow"><label>${t('edit.cost')}</label><input id="cf-cost" type="number" min="0" value="${c.cost}" style="width:90px"></div>
+    <div class="frow"><label>${t('edit.hero')}</label><input id="cf-hero" type="checkbox" ${c.hero ? 'checked' : ''}></div>
     <div class="frow"><label>${t('edit.img')}</label><input id="cf-img" placeholder="${t('edit.img_placeholder')}" value="${esc(c.img || '')}"><input type="file" accept="image/*" data-action="load-img-card"></div>
     <div class="frow"><label>${t('edit.effects')}</label><button data-action="add-eff">${t('edit.add_eff')}</button><span class="dim" style="font-size:11px">${t('edit.eff_hint')}</span></div>
     <div id="eff-list"></div>
+    <div class="frow"><label>${t('edit.passive')}</label><button data-action="add-passive">${t('edit.add_eff')}</button><span class="dim" style="font-size:11px">${t('edit.eff_hint')}</span></div>
+    <div id="passive-list"></div>
     <div class="frow"><label>${t('edit.desc')}</label><textarea id="cf-desc" rows="2" placeholder="${t('edit.desc_placeholder')}">${esc(c.desc || '')}</textarea></div>
     <div class="frow"><button class="primary" data-action="save-card">${t('edit.save_card')}</button><button style="color:var(--red)" data-action="del-card">${t('edit.del_card_btn')}</button></div>`;
-  c.effects.forEach(e => addEffRow(e));
+  c.effects.forEach(e => addEffRow(e, 'eff-list'));
+  (c.passive || []).forEach(e => addEffRow(e, 'passive-list'));
   autoGrow($('cf-desc'));
 }
 
-function addEffRow(e) {
+function addEffRow(e, containerId) {
   const d = defaultFx(e ? e.type : 'damage');
   const box = document.createElement('div');
   box.className = 'eff-row';
@@ -231,10 +236,12 @@ function addEffRow(e) {
   box.querySelector('.eff-del').onclick = () => box.remove();
   box.querySelector('.et').onchange = () => updateEffRow(box);
   updateEffRow(box);
-  $('eff-list').appendChild(box);
+  const cid = containerId || 'eff-list';
+  $(cid).appendChild(box);
 }
 
-function addEff() { addEffRow(null); }
+function addEff() { addEffRow(null, 'eff-list'); }
+function addPassive() { addEffRow(null, 'passive-list'); }
 
 function updateEffRow(box) {
   const t = box.querySelector('.et').value;
@@ -246,8 +253,8 @@ function updateEffRow(box) {
   box.querySelector('.ep').style.display = t === 'damage' ? '' : 'none';
 }
 
-function collectEffs() {
-  return [...$('eff-list').children].map(box => ({
+function collectEffs(containerId) {
+  return [...$(containerId || 'eff-list').children].map(box => ({
     type: box.querySelector('.et').value,
     value: box.querySelector('.ev').value === '' ? undefined : parseInt(box.querySelector('.ev').value),
     duration: box.querySelector('.ed').value === '' ? undefined : parseInt(box.querySelector('.ed').value),
@@ -266,6 +273,7 @@ function saveSubfaction() {
   r.def = Math.max(0, parseInt($('rf-def').value) || 0);
   r.eng = Math.max(1, parseInt($('rf-eng').value) || 1);
   r.intro = $('rf-intro').value;
+  r.heroes = $('rf-heroes').value ? $('rf-heroes').value.split(',').map(s => s.trim()).filter(Boolean) : [];
   r.img = $('rf-img').value.trim();
   r.deck = r.deck || [];
   saveDB();
@@ -278,8 +286,10 @@ function saveCard() {
   if (!c) return;
   c.name = $('cf-name').value.trim() || t('edit.fallback_name');
   c.cost = Math.max(0, parseInt($('cf-cost').value) || 0);
+  c.hero = $('cf-hero').checked;
   c.img = $('cf-img').value.trim();
-  c.effects = collectEffs();
+  c.effects = collectEffs('eff-list');
+  c.passive = collectEffs('passive-list');
   const manual = $('cf-desc').value.trim();
   c.desc = manual || genDesc(c.effects);
   saveDB();
@@ -380,6 +390,7 @@ export const editorActions = {
   'deck-dec': (el) => deckAdj(el.dataset.card, -1),
   'deck-inc': (el) => deckAdj(el.dataset.card, 1),
   'add-eff': () => addEff(),
+  'add-passive': () => addPassive(),
   'load-img-subfaction': (el) => { el.addEventListener('change', () => loadImg('subfaction'), { once: true }); },
   'load-img-card': (el) => { el.addEventListener('change', () => loadImg('card'), { once: true }); },
   'load-img-faction': (el) => { el.addEventListener('change', () => loadImgFaction(), { once: true }); },

@@ -1,0 +1,1 @@
+{"id":"hh_madm","name":"M.A.D.M.A.N.","cost":3,"img":"","effects":[{"type":"aoe_damage","value":10,"target":"enemy"}],"desc":"","passive":[],"hero":false}

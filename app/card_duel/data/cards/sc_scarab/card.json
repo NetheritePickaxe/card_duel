@@ -1,0 +1,1 @@
+{"id":"sc_scarab","name":"圣甲虫","cost":2,"img":"","effects":[{"type":"damage","value":6,"target":"enemy"}],"desc":"","passive":[],"hero":false}

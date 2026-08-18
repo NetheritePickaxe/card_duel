@@ -1,0 +1,17 @@
+{
+  "id": "usa",
+  "name": "美利坚合众国",
+  "faction": "allied",
+  "hp": 34,
+  "def": 2,
+  "eng": 4,
+  "intro": "全球霸主，高科技空军",
+  "img": "",
+  "deck": [
+    "usa_gi",
+    "usa_seal",
+    "usa_abrams",
+    "usa_paradrop"
+  ],
+  "heroes": ["usa_tanya"]
+}

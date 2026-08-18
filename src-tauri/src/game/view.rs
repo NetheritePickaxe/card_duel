@@ -14,7 +14,7 @@ pub fn format_battle_state_for(b: &Battle, local_player: usize) -> String {
     let mut s = String::new();
     s.push_str(&format!(
         "=== 回合 {} — {} 行动 ===\n\n",
-        b.turn, b.players[b.actor].role.name
+        b.turn, b.players[b.actor].name
     ));
 
     for (i, p) in b.players.iter().enumerate() {
@@ -26,7 +26,7 @@ pub fn format_battle_state_for(b: &Battle, local_player: usize) -> String {
         if i == local_player {
             s.push_str(&format!(
                 "你 {} {}: HP {}/{}  DEF {}  能量 {}/{}\n",
-                p.role.name, team_label, p.hp, p.role.hp, p.def, p.energy, p.role.eng
+                p.name, team_label, p.hp, p.role.hp, p.def, p.energy, p.role.eng
             ));
             let hand: Vec<String> = p
                 .hand
@@ -45,7 +45,7 @@ pub fn format_battle_state_for(b: &Battle, local_player: usize) -> String {
         } else {
             s.push_str(&format!(
                 "{} {}: HP {}/{}  DEF {}  能量 {}/{}\n",
-                p.role.name, team_label, p.hp, p.role.hp, p.def, p.energy, p.role.eng
+                p.name, team_label, p.hp, p.role.hp, p.def, p.energy, p.role.eng
             ));
             if !p.hand.is_empty() {
                 s.push_str(&format!("手牌: {} 张\n", p.hand.len()));
@@ -65,7 +65,7 @@ pub fn format_battle_state_for(b: &Battle, local_player: usize) -> String {
 
     if let Some(w) = b.winner {
         if w < b.players.len() {
-            s.push_str(&format!("{} 获胜！\n", b.players[w].role.name));
+            s.push_str(&format!("{} 获胜！\n", b.players[w].name));
         }
     }
     s
@@ -150,6 +150,12 @@ fn render_log(e: &LogEvent) -> String {
             p["target"].as_str().unwrap_or("?"),
             p["value"].as_i64().unwrap_or(0)
         ),
+        "log.aoe_damage" => format!(
+            "{} 对 {} 造成 {} 点群体伤害",
+            p["attacker"].as_str().unwrap_or("?"),
+            p["target"].as_str().unwrap_or("?"),
+            p["dmg"].as_i64().unwrap_or(0)
+        ),
         "log.energy" => format!(
             "{} 能量{}{}",
             p["target"].as_str().unwrap_or("?"),
@@ -192,6 +198,7 @@ mod tests {
             intro: "".into(),
             img: "".into(),
             deck: None,
+            heroes: vec![],
         };
         let card = Card {
             id: "s".into(),
@@ -207,6 +214,8 @@ mod tests {
                 target: None,
                 fx: None,
             }],
+            passive: vec![],
+            hero: false,
         };
         GameDefs {
             subfactions: vec![sub; 2],
@@ -269,6 +278,7 @@ mod tests {
             "log.draw",
             "log.force_discard",
             "log.energy",
+            "log.aoe_damage",
             "log.blocked",
             "log.turn",
             "log.play_card",

@@ -28,6 +28,7 @@ pub fn default_fx_form(kind: &str) -> String {
         "gain_atk" => "pulse".into(),
         "dmg_reduce" => "overlay".into(),
         "extra_turn" => "pulse".into(),
+        "aoe_damage" => "flash".into(),
         "weaken_def" => "overlay".into(),
         "cost_up" => "overlay".into(),
         "force_discard" => "overlay".into(),
@@ -50,7 +51,8 @@ pub fn effect_metadata_map() -> serde_json::Value {
         "extra_turn": { "hasValue": false, "hasDuration": false, "hasPierce": false, "fx": {"form":"pulse","color":"#e6b800"}, "descKey":"desc.extra_turn", "descKeyPierce": null, "buffKey":"buff.extra_turn", "cpuWeight": 4.0 },
         "draw": { "hasValue": true, "hasDuration": false, "hasPierce": false, "fx": {"form":"flash","color":"#0a84ff"}, "descKey":"desc.draw", "descKeyPierce": null, "buffKey": null, "cpuWeight": 1.6 },
         "force_discard": { "hasValue": true, "hasDuration": false, "hasPierce": false, "fx": {"form":"overlay","color":"#bf5af2"}, "descKey":"desc.force_discard", "descKeyPierce": null, "buffKey": null, "cpuWeight": 1.2 },
-        "energy": { "hasValue": true, "hasDuration": false, "hasPierce": false, "fx": {"form":"flash","color":"#0a84ff"}, "descKey":"desc.energy", "descKeyPierce": null, "buffKey": null, "cpuWeight": 0.5 }
+        "energy": { "hasValue": true, "hasDuration": false, "hasPierce": false, "fx": {"form":"flash","color":"#0a84ff"}, "descKey":"desc.energy", "descKeyPierce": null, "buffKey": null, "cpuWeight": 0.5 },
+        "aoe_damage": { "hasValue": true, "hasDuration": false, "hasPierce": true, "fx": {"form":"flash","color":"#ff3b30"}, "descKey":"desc.aoe_damage", "descKeyPierce": "desc.aoe_damage", "buffKey": null, "cpuWeight": 2.5 }
     })
 }
 
@@ -103,6 +105,7 @@ fn apply_effect(b: &mut Battle, a: usize, tp: usize, e: &Effect) {
         "draw" => apply_draw(b, a, e),
         "force_discard" => apply_force_discard(b, tp, e),
         "energy" => apply_energy(b, a, e),
+        "aoe_damage" => apply_aoe_damage(b, a, e),
         _ => {}
     }
 }
@@ -118,13 +121,13 @@ fn apply_damage(b: &mut Battle, a: usize, tp: usize, e: &Effect) {
         log_event(
             b,
             "log.damage_pierce",
-            serde_json::json!({ "attacker": b.players[a].role.name.clone(), "target": b.players[tp].role.name.clone(), "dmg": dmg }),
+            serde_json::json!({ "attacker": b.players[a].name.clone(), "target": b.players[tp].name.clone(), "dmg": dmg }),
         );
     } else {
         log_event(
             b,
             "log.damage",
-            serde_json::json!({ "attacker": b.players[a].role.name.clone(), "target": b.players[tp].role.name.clone(), "dmg": dmg }),
+            serde_json::json!({ "attacker": b.players[a].name.clone(), "target": b.players[tp].name.clone(), "dmg": dmg }),
         );
     }
     if b.players[tp].hp <= 0 {
@@ -134,7 +137,7 @@ fn apply_damage(b: &mut Battle, a: usize, tp: usize, e: &Effect) {
             log_event(
                 b,
                 "log.win",
-                serde_json::json!({ "winner": b.players[w].role.name.clone(), "loser": b.players[tp].role.name.clone() }),
+                serde_json::json!({ "winner": b.players[w].name.clone(), "loser": b.players[tp].name.clone() }),
             );
         }
     }
@@ -147,7 +150,7 @@ fn apply_heal(b: &mut Battle, tp: usize, e: &Effect) {
     log_event(
         b,
         "log.heal",
-        serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v }),
+        serde_json::json!({ "target": b.players[tp].name.clone(), "value": v }),
     );
 }
 
@@ -163,7 +166,7 @@ fn apply_gain_def(b: &mut Battle, tp: usize, e: &Effect) {
     log_event(
         b,
         "log.def_up",
-        serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v }),
+        serde_json::json!({ "target": b.players[tp].name.clone(), "value": v }),
     );
 }
 
@@ -178,7 +181,7 @@ fn apply_gain_atk(b: &mut Battle, tp: usize, e: &Effect) {
     log_event(
         b,
         "log.atk_up",
-        serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v }),
+        serde_json::json!({ "target": b.players[tp].name.clone(), "value": v }),
     );
 }
 
@@ -193,7 +196,7 @@ fn apply_weaken_def(b: &mut Battle, tp: usize, e: &Effect) {
     log_event(
         b,
         "log.def_down",
-        serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v, "dur": dur }),
+        serde_json::json!({ "target": b.players[tp].name.clone(), "value": v, "dur": dur }),
     );
 }
 
@@ -208,7 +211,7 @@ fn apply_cost_up(b: &mut Battle, tp: usize, e: &Effect) {
     log_event(
         b,
         "log.cost_up",
-        serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v, "dur": dur }),
+        serde_json::json!({ "target": b.players[tp].name.clone(), "value": v, "dur": dur }),
     );
 }
 
@@ -223,7 +226,7 @@ fn apply_dmg_reduce(b: &mut Battle, tp: usize, e: &Effect) {
     log_event(
         b,
         "log.dmg_reduce",
-        serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v, "dur": dur }),
+        serde_json::json!({ "target": b.players[tp].name.clone(), "value": v, "dur": dur }),
     );
 }
 
@@ -236,7 +239,7 @@ fn apply_skip_turn(b: &mut Battle, tp: usize) {
     log_event(
         b,
         "log.skip_turn",
-        serde_json::json!({ "target": b.players[tp].role.name.clone() }),
+        serde_json::json!({ "target": b.players[tp].name.clone() }),
     );
 }
 
@@ -249,7 +252,7 @@ fn apply_extra_turn(b: &mut Battle, a: usize) {
     log_event(
         b,
         "log.extra_turn",
-        serde_json::json!({ "target": b.players[a].role.name.clone() }),
+        serde_json::json!({ "target": b.players[a].name.clone() }),
     );
 }
 
@@ -259,7 +262,7 @@ fn apply_draw(b: &mut Battle, a: usize, e: &Effect) {
     log_event(
         b,
         "log.draw",
-        serde_json::json!({ "target": b.players[a].role.name.clone(), "value": v }),
+        serde_json::json!({ "target": b.players[a].name.clone(), "value": v }),
     );
 }
 
@@ -269,8 +272,41 @@ fn apply_force_discard(b: &mut Battle, tp: usize, e: &Effect) {
     log_event(
         b,
         "log.force_discard",
-        serde_json::json!({ "target": b.players[tp].role.name.clone(), "value": v }),
+        serde_json::json!({ "target": b.players[tp].name.clone(), "value": v }),
     );
+}
+
+fn apply_aoe_damage(b: &mut Battle, a: usize, e: &Effect) {
+    let my_team = b.teams[a];
+    let val = e.value.unwrap_or(0);
+    let pierce = e.pierce.unwrap_or(false);
+    let att_name = b.players[a].name.clone();
+    let targets: Vec<(usize, i32)> = {
+        let att = &b.players[a];
+        b.players
+            .iter()
+            .enumerate()
+            .filter(|(i, p)| *i != a && b.teams[*i] != my_team && p.hp > 0)
+            .map(|(i, p)| {
+                let dmg = calc_damage(att, p, val, pierce);
+                (i, dmg)
+            })
+            .collect()
+    };
+    for (i, dmg) in &targets {
+        let tgt_name = b.players[*i].name.clone();
+        b.players[*i].hp = (b.players[*i].hp - dmg).max(0);
+        log_event(
+            b,
+            "log.aoe_damage",
+            serde_json::json!({
+                "attacker": att_name.clone(),
+                "target": tgt_name,
+                "dmg": dmg
+            }),
+        );
+    }
+    check_team_winner(b);
 }
 
 fn apply_energy(b: &mut Battle, a: usize, e: &Effect) {
@@ -280,7 +316,7 @@ fn apply_energy(b: &mut Battle, a: usize, e: &Effect) {
     log_event(
         b,
         "log.energy",
-        serde_json::json!({ "target": b.players[a].role.name.clone(), "sign": sign, "value": v }),
+        serde_json::json!({ "target": b.players[a].name.clone(), "sign": sign, "value": v }),
     );
 }
 
@@ -300,6 +336,7 @@ mod tests {
             intro: "".into(),
             img: "".into(),
             deck: None,
+            heroes: vec![],
         }
     }
     fn mk_card_with_effect(kind: &str, val: i32) -> Card {
@@ -317,6 +354,8 @@ mod tests {
                 target: None,
                 fx: None,
             }],
+            passive: vec![],
+            hero: false,
         }
     }
     fn mk_card_with_pierce(kind: &str, val: i32, pierce: bool) -> Card {
@@ -334,6 +373,8 @@ mod tests {
                 target: None,
                 fx: None,
             }],
+            passive: vec![],
+            hero: false,
         }
     }
     fn defs() -> GameDefs {
@@ -470,6 +511,8 @@ mod tests {
                 target: None,
                 fx: None,
             }],
+            passive: vec![],
+            hero: false,
         });
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
@@ -495,6 +538,8 @@ mod tests {
                 target: None,
                 fx: None,
             }],
+            passive: vec![],
+            hero: false,
         });
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
@@ -538,6 +583,8 @@ mod tests {
                 target: None,
                 fx: None,
             }],
+            passive: vec![],
+            hero: false,
         });
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);
@@ -573,6 +620,8 @@ mod tests {
                 target: Some("self".into()),
                 fx: None,
             }],
+            passive: vec![],
+            hero: false,
         });
         let mut b = new_battle_teams("cpu", &d, vec![0, 1], vec![0, 1], 1);
         start_turn(&mut b);

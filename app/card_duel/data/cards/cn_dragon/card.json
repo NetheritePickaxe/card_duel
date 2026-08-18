@@ -1,0 +1,1 @@
+{"id":"cn_dragon","name":"铁龙坦克","cost":2,"img":"","effects":[{"type":"damage","value":7,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

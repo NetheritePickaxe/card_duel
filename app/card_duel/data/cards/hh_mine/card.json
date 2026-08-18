@@ -1,0 +1,1 @@
+{"id":"hh_mine","name":"M.A.D.地雷","cost":1,"img":"","effects":[{"type":"damage","value":5,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

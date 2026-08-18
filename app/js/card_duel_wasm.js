@@ -96,11 +96,12 @@ export function end_turn(pi) {
  * @param {bigint} seed
  * @param {number} first_actor
  * @param {string} order_json
+ * @param {string} names_json
  * @returns {string}
  */
-export function init_battle(mode, defs_json, indices_json, teams_json, humans_json, seed, first_actor, order_json) {
-    let deferred8_0;
-    let deferred8_1;
+export function init_battle(mode, defs_json, indices_json, teams_json, humans_json, seed, first_actor, order_json, names_json) {
+    let deferred9_0;
+    let deferred9_1;
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
         const ptr0 = passStringToWasm0(mode, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
@@ -115,23 +116,25 @@ export function init_battle(mode, defs_json, indices_json, teams_json, humans_js
         const len4 = WASM_VECTOR_LEN;
         const ptr5 = passStringToWasm0(order_json, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
         const len5 = WASM_VECTOR_LEN;
-        wasm.init_battle(retptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, seed, first_actor, ptr5, len5);
+        const ptr6 = passStringToWasm0(names_json, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+        const len6 = WASM_VECTOR_LEN;
+        wasm.init_battle(retptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, ptr4, len4, seed, first_actor, ptr5, len5, ptr6, len6);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
         var r3 = getDataViewMemory0().getInt32(retptr + 4 * 3, true);
-        var ptr7 = r0;
-        var len7 = r1;
+        var ptr8 = r0;
+        var len8 = r1;
         if (r3) {
-            ptr7 = 0; len7 = 0;
+            ptr8 = 0; len8 = 0;
             throw takeObject(r2);
         }
-        deferred8_0 = ptr7;
-        deferred8_1 = len7;
-        return getStringFromWasm0(ptr7, len7);
+        deferred9_0 = ptr8;
+        deferred9_1 = len8;
+        return getStringFromWasm0(ptr8, len8);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
-        wasm.__wbindgen_export(deferred8_0, deferred8_1, 1);
+        wasm.__wbindgen_export(deferred9_0, deferred9_1, 1);
     }
 }
 

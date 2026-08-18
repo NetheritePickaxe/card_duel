@@ -28,6 +28,7 @@ pub struct State {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayerState {
+    pub name: String,
     pub hp: u32,
     pub def: i32,
     pub energy: u32,
@@ -230,6 +231,26 @@ impl ServerState {
             .iter()
             .map(|&i| r.picks[i].as_ref().unwrap().is_human != Some(false))
             .collect();
+        let names: Vec<String> = seats
+            .iter()
+            .map(|&i| {
+                r.picks[i]
+                    .as_ref()
+                    .and_then(|p| p.name.clone())
+                    .filter(|n| !n.is_empty())
+                    .unwrap_or_else(|| {
+                        r.picks[i]
+                            .as_ref()
+                            .and_then(|p| {
+                                p.subfaction
+                                    .get("name")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string())
+                            })
+                            .unwrap_or_default()
+                    })
+            })
+            .collect();
 
         let defs = game::GameDefs {
             subfactions,
@@ -242,6 +263,7 @@ impl ServerState {
             .as_nanos() as u64;
 
         let mut b = game::new_battle_teams("lan", &defs, seats.clone(), teams, seed);
+        game::set_player_names(&mut b, names);
         if first < b.order.len() {
             b.actor = b.order[first];
         }
@@ -451,6 +473,7 @@ pub(crate) fn project_state(rb: &RoomBattle, viewer_seat: Option<usize>) -> Stat
             .map(|(seat, p)| {
                 let discard_start = p.discard.len().saturating_sub(14);
                 PlayerState {
+                    name: p.name.clone(),
                     hp: p.hp.max(0) as u32,
                     def: p.def,
                     energy: p.energy.max(0) as u32,

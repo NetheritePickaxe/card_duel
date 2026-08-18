@@ -1,0 +1,1 @@
+{"id":"ea_prismtank","name":"光棱坦克","cost":3,"img":"","effects":[{"type":"damage","value":8,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

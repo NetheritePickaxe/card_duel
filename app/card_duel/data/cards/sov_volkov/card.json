@@ -1,0 +1,1 @@
+{"id":"sov_volkov","name":"沃尔科夫","cost":4,"img":"","effects":[{"type":"damage","value":10,"pierce":true,"target":"enemy"},{"type":"heal","value":4,"target":"self"}],"desc":"","passive":[{"type":"gain_atk","value":2,"duration":999,"target":"self"}],"hero":true}

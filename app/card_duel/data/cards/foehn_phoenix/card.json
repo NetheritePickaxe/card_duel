@@ -1,0 +1,1 @@
+{"id":"foehn_phoenix","name":"长生鸟空中哨站","cost":2,"img":"","effects":[{"type":"damage","value":6,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

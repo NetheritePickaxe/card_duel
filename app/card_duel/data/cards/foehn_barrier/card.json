@@ -1,0 +1,1 @@
+{"id":"foehn_barrier","name":"爆裂屏障","cost":3,"img":"","effects":[{"type":"dmg_reduce","value":50,"duration":2,"target":"self"}],"desc":"","passive":[],"hero":false}

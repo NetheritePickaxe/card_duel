@@ -1,0 +1,16 @@
+{
+  "id": "allied",
+  "name": "同盟国联军",
+  "desc": "高科技空军，机动灵活",
+  "img": "",
+  "deck": [
+    "allied_chrono",
+    "allied_sniper",
+    "allied_paladin",
+    "allied_prism",
+    "allied_kappa",
+    "allied_lightning",
+    "allied_chronoshift",
+    "allied_siegfried"
+  ]
+}

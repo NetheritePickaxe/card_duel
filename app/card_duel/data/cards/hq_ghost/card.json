@@ -1,0 +1,1 @@
+{"id":"hq_ghost","name":"幽灵","cost":1,"img":"","effects":[{"type":"damage","value":4,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

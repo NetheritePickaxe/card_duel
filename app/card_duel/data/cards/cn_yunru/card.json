@@ -1,0 +1,1 @@
+{"id":"cn_yunru","name":"云茹","cost":3,"img":"","effects":[{"type":"damage","value":6,"pierce":true,"target":"enemy"},{"type":"heal","value":4,"target":"self"}],"desc":"","passive":[{"type":"heal","value":2,"target":"self"}],"hero":true}

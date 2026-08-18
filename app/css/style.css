@@ -5,7 +5,7 @@
 *::-webkit-scrollbar-track{background:transparent}
 *::-webkit-scrollbar-thumb{background:var(--ln);border-radius:3px}
 *::-webkit-scrollbar-thumb:hover{background:var(--dim)}
-body{background:var(--bg);color:var(--tx);font:14px/1.5 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;min-height:100vh;touch-action:manipulation}
+body{background:var(--bg);color:var(--tx);font:14px/1.5 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;min-height:100vh;min-height:100dvh;touch-action:manipulation}
 button{font:inherit;background:var(--p2);color:var(--tx);border:1px solid var(--ln);padding:8px 14px;cursor:pointer}
 button:hover{border-color:var(--acc);color:var(--acc)}
 button:active{transform:scale(.97)}
@@ -23,13 +23,15 @@ input[type=range]::-moz-range-thumb{width:7px;height:20px;border-radius:0;backgr
 input[type=range]:focus{outline:none}
 html{overflow-y:auto;height:100%}
 body{min-height:100%}
-.screen{display:none;max-width:1080px;margin:0 auto;padding:48px 18px 18px;min-height:100vh;overflow-x:hidden}
+.screen{display:none;max-width:1080px;margin:0 auto;padding:48px 18px 18px;min-height:100vh;min-height:100dvh;overflow-x:hidden}
 .screen.on{display:block}
 .hd{display:flex;align-items:center;gap:10px;margin-bottom:28px}
 .hd h1{font-size:20px;font-weight:700;letter-spacing:1px}
 .hd .sp{flex:1}
 .dim{color:var(--dim)}
 .menu{max-width:440px;margin:40px auto;display:flex;flex-direction:column;gap:12px}
+.name-screen{max-width:440px;margin:25vh auto 0;text-align:center}
+.name-screen h1{font-size:20px;letter-spacing:2px;color:var(--tx)}
 .m-title{display:inline-block;width:auto;background:transparent;border:none;color:var(--tx);font-size:26px;letter-spacing:4px;font-weight:700;padding:0;margin:28px auto 44px;cursor:pointer;transition:transform .5s cubic-bezier(.2,.7,.2,1);position:relative;text-align:center}
 .m-title:hover{border:none}
 .m-title .tt-l{color:var(--tt)}

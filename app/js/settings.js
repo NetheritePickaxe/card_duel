@@ -1,12 +1,26 @@
-import { $, show } from './util.js?v=__VERSION__';
+import { $, show, toast } from './util.js?v=__VERSION__';
 import { setTypeVolume, getTypeVolume, setMasterVolume, getMasterVolume, updateBGM, initAudio } from './sound.js?v=__VERSION__';
 import { renderMenuAddr } from './share.js?v=__VERSION__';
 import { getMods, getModOrder, deleteMod, importModFromUrl, reloadMods } from './modloader.js?v=__VERSION__';
+import { getPlayerName, savePlayerName } from './profile.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
 
 // ============================================================================
 // 设置组件：主题 / 主题色（含取色器）/ 设置页签 / 音量 / 标语开关
 // ============================================================================
+
+/* 玩家名字 */
+function initNameInput() {
+  const input = $('player-name-input');
+  if (!input) return;
+  input.value = getPlayerName();
+  input.placeholder = t('name.input_placeholder');
+  input.addEventListener('change', () => {
+    savePlayerName(input.value);
+    input.value = getPlayerName();
+    toast(t('name.changed'));
+  });
+}
 
 /* 主题切换 */
 function setTheme(theme) {
@@ -352,6 +366,7 @@ export function initSettings() {
   applyAccent();
   renderAccentRow();
   initSplashToggle();
+  initNameInput();
   initVolumeSliders();
   const savedTheme = localStorage.getItem('theme') || 'dark';
   const themeSelect = $('theme-select');

@@ -1,0 +1,1 @@
+{"id":"wc_storm2","name":"风暴","cost":2,"img":"","effects":[{"type":"damage","value":7,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

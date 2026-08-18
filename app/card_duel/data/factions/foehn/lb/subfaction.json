@@ -1,0 +1,17 @@
+{
+  "id": "lb",
+  "name": "最后堡垒",
+  "faction": "foehn",
+  "hp": 38,
+  "def": 3,
+  "eng": 3,
+  "intro": "钢铁壁垒，坚守阵地",
+  "img": "",
+  "deck": [
+    "lb_uragan",
+    "lb_ion",
+    "lb_mecha2",
+    "lb_shield"
+  ],
+  "heroes": ["lb_uragan"]
+}

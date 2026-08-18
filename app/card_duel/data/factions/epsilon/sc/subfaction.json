@@ -1,0 +1,17 @@
+{
+  "id": "sc",
+  "name": "天蝎组织",
+  "faction": "epsilon",
+  "hp": 34,
+  "def": 2,
+  "eng": 4,
+  "intro": "生化武器，毒蝎蛰伏",
+  "img": "",
+  "deck": [
+    "sc_rahn",
+    "sc_poison",
+    "sc_scarab",
+    "sc_virus"
+  ],
+  "heroes": ["sc_rahn"]
+}

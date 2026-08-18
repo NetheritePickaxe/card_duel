@@ -1,0 +1,1 @@
+{"id":"hh_fin","name":"菲因","cost":3,"img":"","effects":[{"type":"damage","value":7,"pierce":true,"target":"enemy"}],"desc":"","passive":[{"type":"damage","value":2,"target":"enemy"}],"hero":true}

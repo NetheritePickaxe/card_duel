@@ -122,7 +122,8 @@ export function renderMenuAddr() {
   const el = $('maddr');
   if (!el) return;
   el.classList.remove('open');
-  el.innerHTML = '<div class="addr-label">' + t('menu.addr') + '</div><div class="addr-body"></div>';
+  const isApp = !!(window.__TAURI__ && window.__TAURI__.core);
+  el.innerHTML = '<div class="addr-label">' + t('menu.addr') + '</div>' + (isApp ? '' : '<div class="addr-body"></div>');
   const label = el.querySelector('.addr-label');
   if (localStorage.getItem('_show_splash') !== '0') {
     el.style.display = '';
@@ -131,6 +132,15 @@ export function renderMenuAddr() {
     el.style.display = 'none';
     return;
   }
+  if (isApp) {
+    // 应用端：点击标语刷新标语
+    label.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showSplash(label);
+    });
+    return;
+  }
+  // Web 端：点击标语展开 IP 地址
   el.querySelector('.addr-label').addEventListener('click', (e) => {
     e.stopPropagation();
     el.classList.toggle('open');

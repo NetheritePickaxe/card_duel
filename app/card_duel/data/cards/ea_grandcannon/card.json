@@ -1,0 +1,1 @@
+{"id":"ea_grandcannon","name":"巨炮","cost":2,"img":"","effects":[{"type":"damage","value":9,"target":"enemy"}],"desc":"","passive":[],"hero":false}

@@ -1,0 +1,17 @@
+{
+  "id": "pc",
+  "name": "心灵军团",
+  "faction": "epsilon",
+  "hp": 28,
+  "def": 2,
+  "eng": 4,
+  "intro": "心灵之力，主宰一切",
+  "img": "",
+  "deck": [
+    "pc_yuri",
+    "pc_iten",
+    "pc_dominator2",
+    "pc_psion"
+  ],
+  "heroes": ["eps_libra", "pc_yuri"]
+}

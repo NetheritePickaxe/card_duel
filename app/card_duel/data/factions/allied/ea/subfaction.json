@@ -1,0 +1,17 @@
+{
+  "id": "ea",
+  "name": "欧洲联盟",
+  "faction": "allied",
+  "hp": 38,
+  "def": 3,
+  "eng": 3,
+  "intro": "科技先锋，超时空作战",
+  "img": "",
+  "deck": [
+    "ea_prismtank",
+    "ea_grandcannon",
+    "ea_chronoprison",
+    "ea_peacemaker"
+  ],
+  "heroes": ["allied_siegfried"]
+}

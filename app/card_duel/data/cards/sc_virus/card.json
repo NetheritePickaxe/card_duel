@@ -1,0 +1,1 @@
+{"id":"sc_virus","name":"病毒狙击手","cost":2,"img":"","effects":[{"type":"damage","value":5,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

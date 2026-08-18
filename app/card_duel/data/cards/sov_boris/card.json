@@ -1,0 +1,1 @@
+{"id":"sov_boris","name":"鲍里斯","cost":2,"img":"","effects":[{"type":"damage","value":7,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

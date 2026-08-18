@@ -3,6 +3,7 @@ import { state } from './state.js?v=__VERSION__';
 import { genDesc, buffName, effFx } from './data.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
 import { cardCost, canOperate, lanMyIndex } from './core.js?v=__VERSION__';
+import { seatName, seatRole } from './core.js?v=__VERSION__';
 import { updateBGM } from './sound.js?v=__VERSION__';
 
 export function flyCardHTML(c) {
@@ -57,12 +58,14 @@ export function renderP(pi, el) {
   } else {
     handHTML = `<div class="card back" style="opacity:.35">${t('battle.no_hand')}</div>`;
   }
+  const dispName = seatName(b, pi);
+  const roleName = seatRole(b, pi);
   const cpuLabel = b.mode === 'cpu' && !b.humans[pi] ? `<span class="dim" style="font-size:10px">（${t('battle.mode_cpu')}）</span>` : '';
   el.innerHTML = `
     <div class="panel">
       <div class="avatar">${P.role.img ? `<img src="${P.role.img}">` : esc((P.role.name || '?')[0])}</div>
       <div style="flex:1">
-        <div style="display:flex;gap:8px;align-items:baseline"><b>${esc(P.role.name)}</b>${cpuLabel}<span class="dim" style="font-size:11px">${esc(P.role.intro || '')}</span></div>
+        <div style="display:flex;gap:8px;align-items:baseline"><b>${esc(dispName)}</b>${cpuLabel}<span class="dim" style="font-size:11px">${esc(roleName + (P.role.intro ? ' · ' + P.role.intro : ''))}</span></div>
         <div class="bar"><i style="width:${Math.max(0, P.hp) / P.role.hp * 100}%"></i></div>
         <div class="stat">
           <span>${t('battle.hp')} <b>${P.hp}/${P.role.hp}</b></span>
@@ -79,7 +82,7 @@ export function renderP(pi, el) {
     ${canAct && !state.animBusy ? `<div style="margin-top:8px;text-align:right"><button class="primary" data-action="end-turn" data-pi="${pi}">${t('battle.end_turn')}</button></div>` : ''}`;
 }
 
-function formatLog(entry) {
+function formatLog(b, entry) {
   if (typeof entry === 'string') return esc(entry);
   return esc(t(entry.key, entry.params));
 }
@@ -137,7 +140,7 @@ export function renderBattle() {
     div.innerHTML = `<div class="panel compact">
       <div class="avatar">${P.role.img ? `<img src="${P.role.img}">` : esc((P.role.name || '?')[0])}</div>
       <div class="cp-info">
-        <b>${esc(P.role.name)}</b>
+        <b>${esc(seatName(b, pi))}</b> <span class="dim" style="font-size:11px">${esc(seatRole(b, pi))}</span>
         <div class="bar"><i style="width:${Math.max(0, P.hp) / P.role.hp * 100}%"></i></div>
         <div class="stat tiny">
           <span>${t('battle.hp')} ${P.hp}/${P.role.hp}</span>
@@ -171,17 +174,21 @@ function modeLabel(b) {
 
 function renderTurnInfo(b, logEl) {
   $('bt-turn').textContent = b.winner != null
-    ? t('battle.win', { name: b.players[b.winner].role.name })
-    : (b.phase === 'awaiting' && b.mode === 'lan' ? t('battle.waiting') : t('battle.turn', { n: b.turn, name: b.players[b.actor].role.name }));
+    ? t('battle.win', { name: seatName(b, b.winner) })
+    : (b.phase === 'awaiting' && b.mode === 'lan' ? t('battle.waiting') : t('battle.turn', { n: b.turn, name: seatName(b, b.actor) }));
   const el = logEl;
   el.innerHTML = b.log.slice(-80).map(l => {
-    const text = formatLog(l);
+    const text = formatLog(b, l);
     return `<div class="${text.includes('获胜') || text.includes('回合') || text.includes('wins') || text.includes('Turn') ? 't' : ''}">${text}</div>`;
   }).join('');
   el.scrollTop = el.scrollHeight;
   if (b.winner != null && !state._bannerShown) {
     state._bannerShown = true;
-    const winnerNames = b.players.filter((p, i) => b.teams[i] === b.teams[b.winner]).map(p => p.role.name).join(' / ');
+    const winnerNames = b.players
+      .map((_, i) => i)
+      .filter(i => b.teams[i] === b.teams[b.winner])
+      .map(i => seatName(b, i))
+      .join(' / ');
     el.insertAdjacentHTML('beforeend', `<div class="win-banner">${t('battle.winner', { name: winnerNames })}</div>`);
   }
 }
@@ -191,10 +198,12 @@ export function showBattle() {
   renderBattle();
 }
 
-export function slotHTML(r) {
-  return r
-    ? `<div class="av">${r.img ? `<img src="${r.img}">` : esc((r.name || '?')[0])}</div><b>${esc(r.name)}</b><div class="dim" style="font-size:12px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div>${r.intro ? `<div class="dim" style="font-size:11px;margin-top:4px">${esc(r.intro)}</div>` : ''}`
-    : `<div class="av" style="opacity:.4">?</div><div class="dim">${t('pick.click_to_choose')}</div>`;
+export function slotHTML(r, dispName) {
+  if (!r) return `<div class="av" style="opacity:.4">?</div><div class="dim">${t('pick.click_to_choose')}</div>`;
+  const main = dispName || r.name;
+  return `<div class="av">${r.img ? `<img src="${r.img}">` : esc((r.name || '?')[0])}</div>
+    <div><b>${esc(main)}</b>${dispName ? `<span class="dim" style="font-size:11px">${esc(' · ' + r.name)}</span>` : ''}
+    <div class="dim" style="font-size:12px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div>${r.intro ? `<div class="dim" style="font-size:11px;margin-top:4px">${esc(r.intro)}</div>` : ''}</div>`;
 }
 
 export function renderSlots() {
@@ -226,10 +235,11 @@ export function openTargetModal(opponents, callback) {
   const box = $('target-box');
   box.innerHTML = `<div class="mhead">${t('battle.select_target')}</div>
     ${opponents.map(i => {
-      const P = state.BATTLE.players[i];
+      const b = state.BATTLE;
+      const P = b.players[i];
       return `<div class="mrole" data-target="${i}">
         <div class="av sm">${P.role.img ? `<img src="${P.role.img}">` : esc((P.role.name || '?')[0])}</div>
-        <div><b>${esc(P.role.name)}</b><div class="dim" style="font-size:11px">${t('battle.hp')}${P.hp}/${P.role.hp}</div></div>
+        <div><b>${esc(seatName(b, i))}</b><div class="dim" style="font-size:11px">${esc(seatRole(b, i))} · ${t('battle.hp')}${P.hp}/${P.role.hp}</div></div>
       </div>`;
     }).join('')}`;
   box.onclick = e => {

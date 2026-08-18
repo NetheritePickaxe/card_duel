@@ -37,6 +37,7 @@ pub fn init_battle(
     seed: u64,
     first_actor: i32,
     order_json: &str,
+    names_json: &str,
 ) -> Result<String, JsValue> {
     let defs = game::defs_from_json(defs_json).map_err(|e| JsValue::from_str(&e))?;
     let indices: Vec<usize> =
@@ -45,8 +46,11 @@ pub fn init_battle(
         serde_json::from_str(teams_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
     let humans: Vec<bool> =
         serde_json::from_str(humans_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let names: Vec<String> =
+        serde_json::from_str(names_json).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     let mut b = game::new_battle_teams(mode, &defs, indices, teams, seed);
+    game::set_player_names(&mut b, names);
     // 可选：传入完整行动顺序（掷骰定先后），覆盖默认队伍交错顺序
     if !order_json.is_empty() {
         let order: Vec<usize> =
@@ -93,6 +97,7 @@ pub fn battle_state_json() -> String {
     let players: Vec<serde_json::Value> = b.players.iter().map(|p| {
         serde_json::json!({
             "role": serde_json::to_value(&p.role).unwrap_or_default(),
+            "name": p.name,
             "hp": p.hp,
             "def": p.def,
             "energy": p.energy,

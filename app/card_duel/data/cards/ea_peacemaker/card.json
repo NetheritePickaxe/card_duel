@@ -1,0 +1,1 @@
+{"id":"ea_peacemaker","name":"和平使者","cost":1,"img":"","effects":[{"type":"heal","value":5,"target":"self"}],"desc":"","passive":[],"hero":false}

@@ -1,4 +1,17 @@
 {
+  "aoe_damage": {
+    "hasValue": true,
+    "hasDuration": false,
+    "hasPierce": true,
+    "fx": {
+      "form": "flash",
+      "color": "#ff3b30"
+    },
+    "descKey": "desc.aoe_damage",
+    "descKeyPierce": "desc.aoe_damage",
+    "buffKey": null,
+    "cpuWeight": 2.5
+  },
   "damage": {
     "hasValue": true,
     "hasDuration": false,

@@ -1,0 +1,1 @@
+{"id":"sc_rahn","name":"拉恩","cost":3,"img":"","effects":[{"type":"damage","value":7,"pierce":true,"target":"enemy"},{"type":"heal","value":3,"target":"self"}],"desc":"","passive":[{"type":"damage","value":2,"target":"enemy"}],"hero":true}

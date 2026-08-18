@@ -1,0 +1,1 @@
+{"id":"lc_flame","name":"火焰","cost":1,"img":"","effects":[{"type":"damage","value":4,"target":"enemy"}],"desc":"","passive":[],"hero":false}

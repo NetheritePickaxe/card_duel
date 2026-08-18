@@ -1,0 +1,1 @@
+{"id":"pc_dominator2","name":"支配仪","cost":3,"img":"","effects":[{"type":"damage","value":8,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

@@ -1,0 +1,1 @@
+{"id":"ea_chronoprison","name":"超时空监狱","cost":2,"img":"","effects":[{"type":"skip_turn","target":"enemy"}],"desc":"","passive":[],"hero":false}

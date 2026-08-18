@@ -1,0 +1,1 @@
+{"id":"pf_future","name":"未来坦克","cost":3,"img":"","effects":[{"type":"damage","value":11,"target":"enemy"}],"desc":"","passive":[],"hero":false}

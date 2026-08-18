@@ -1,0 +1,1 @@
+{"id":"sov_nuke","name":"战术核弹攻击","cost":5,"img":"","effects":[{"type":"aoe_damage","value":15,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

@@ -119,6 +119,7 @@ mod tests {
             intro: "".into(),
             img: "".into(),
             deck: None,
+            heroes: vec![],
         };
         let card = Card {
             id: "atk".into(),
@@ -134,6 +135,8 @@ mod tests {
                 target: None,
                 fx: None,
             }],
+            passive: vec![],
+            hero: false,
         };
         GameDefs {
             subfactions: vec![sub; 2],

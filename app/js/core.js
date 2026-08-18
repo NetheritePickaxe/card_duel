@@ -27,7 +27,7 @@ function applyState(json) {
   b._events = s._events || [];
 }
 
-export function newBattle(mode, defs, firstActor, order) {
+export function newBattle(mode, defs, firstActor, order, names) {
   const n = defs.subfactions.length;
   const teams = defs.teams || Array.from({ length: n }, (_, i) => i < n / 2 ? 0 : 1);
   const defaultOrder = buildOrder(teams);
@@ -36,8 +36,8 @@ export function newBattle(mode, defs, firstActor, order) {
   if (mode === 'lan') {
     state.BATTLE = {
       mode, seq: 0, turn: 1, actor: order ? order[0] : defaultOrder[0], phase: 'awaiting', winner: null, defs, log: [],
-      players: defs.subfactions.map(r => ({
-        role: r, hp: r.hp, def: r.def, energy: 0, buffs: [],
+      players: defs.subfactions.map((r, i) => ({
+        role: r, name: (names && names[i]) || r.name, hp: r.hp, def: r.def, energy: 0, buffs: [],
         draw: shuffle([...defs.cards, ...defs.cards]),
         hand: [], discard: [],
       })),
@@ -57,9 +57,11 @@ export function newBattle(mode, defs, firstActor, order) {
     seed,
     (order ? order[0] : (firstActor != null ? firstActor : -1)),
     order,
+    names,
   );
   state.BATTLE = JSON.parse(json);
   state.BATTLE._events = state.BATTLE._events || [];
+  // 兼容：role.name 用于副标题，name 用于主标题；引擎已提供 name
   return state.BATTLE;
 }
 
@@ -92,6 +94,19 @@ export function cpuStep() {
     console.error('[core.cpuStep] engine error:', e);
     throw e;
   }
+}
+
+/** 席位显示名：优先引擎注入的玩家名/电脑N，回退子阵营名 */
+export function seatName(b, i) {
+  const p = b.players && b.players[i];
+  if (!p) return '';
+  return p.name || p.role?.name || '';
+}
+
+/** 席位副标题：所选阵营名 */
+export function seatRole(b, i) {
+  const p = b.players && b.players[i];
+  return p?.role?.name || '';
 }
 
 export function buildOrder(teams) {

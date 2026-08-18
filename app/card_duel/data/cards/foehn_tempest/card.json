@@ -1,0 +1,1 @@
+{"id":"foehn_tempest","name":"顶点暴风","cost":4,"img":"","effects":[{"type":"aoe_damage","value":9,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

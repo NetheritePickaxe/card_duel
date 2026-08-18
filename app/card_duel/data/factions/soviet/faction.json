@@ -1,0 +1,16 @@
+{
+  "id": "soviet",
+  "name": "苏维埃联盟",
+  "desc": "赤色钢铁洪流，重装碾压",
+  "img": "",
+  "deck": [
+    "sov_apoc",
+    "sov_magnet",
+    "sov_cyborg",
+    "sov_boris",
+    "sov_kirov",
+    "sov_nuke",
+    "sov_iron",
+    "sov_volkov"
+  ]
+}

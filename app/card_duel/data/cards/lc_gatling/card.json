@@ -1,0 +1,1 @@
+{"id":"lc_gatling","name":"加特林","cost":2,"img":"","effects":[{"type":"damage","value":6,"target":"enemy"}],"desc":"","passive":[],"hero":false}

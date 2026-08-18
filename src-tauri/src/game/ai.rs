@@ -46,6 +46,14 @@ fn score_card(b: &Battle, pi: usize, c: &Card) -> f64 {
             "draw" => v * 1.6,
             "force_discard" => v * 1.2,
             "energy" => v * 0.5,
+            "aoe_damage" => {
+                let n = b
+                    .players
+                    .iter()
+                    .filter(|p| p.hp > 0 && b.players[pi].hp > 0)
+                    .count() as f64;
+                v * if e.pierce.unwrap_or(false) { 1.4 } else { 1.0 } * n
+            }
             _ => 0.0,
         };
     }
@@ -95,6 +103,7 @@ mod tests {
             intro: "".into(),
             img: "".into(),
             deck: None,
+            heroes: vec![],
         }
     }
     fn dmg_card(cost: i32, val: i32) -> Card {
@@ -112,6 +121,8 @@ mod tests {
                 target: None,
                 fx: None,
             }],
+            passive: vec![],
+            hero: false,
         }
     }
     fn defs() -> GameDefs {

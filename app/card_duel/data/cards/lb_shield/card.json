@@ -1,0 +1,1 @@
+{"id":"lb_shield","name":"纳米护盾","cost":2,"img":"","effects":[{"type":"dmg_reduce","value":30,"duration":2,"target":"self"}],"desc":"","passive":[],"hero":false}

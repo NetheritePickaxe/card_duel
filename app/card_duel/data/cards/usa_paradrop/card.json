@@ -1,0 +1,1 @@
+{"id":"usa_paradrop","name":"空降","cost":2,"img":"","effects":[{"type":"damage","value":5,"target":"enemy"},{"type":"draw","value":1}],"desc":"","passive":[],"hero":false}

@@ -1,0 +1,1 @@
+{"id":"sov_magnet","name":"磁能巡航坦克","cost":2,"img":"","effects":[{"type":"damage","value":8,"target":"enemy"},{"type":"weaken_def","value":2,"duration":2,"target":"enemy"}],"desc":"","passive":[],"hero":false}

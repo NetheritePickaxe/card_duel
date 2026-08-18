@@ -1,0 +1,1 @@
+{"id":"lc_brute2","name":"狂兽人","cost":1,"img":"","effects":[{"type":"damage","value":5,"target":"enemy"}],"desc":"","passive":[],"hero":false}

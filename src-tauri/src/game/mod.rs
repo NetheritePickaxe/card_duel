@@ -48,6 +48,7 @@ mod tests {
             "weaken_def",
             "cost_up",
             "dmg_reduce",
+            "aoe_damage",
         ] {
             assert!(meta.get(kind).is_some(), "metadata missing for {}", kind);
             // default_fx_form should return a non-empty string for known kinds

@@ -1,0 +1,1 @@
+{"id":"sov_apoc","name":"天启坦克","cost":3,"img":"","effects":[{"type":"damage","value":12,"target":"enemy"}],"desc":"","passive":[],"hero":false}

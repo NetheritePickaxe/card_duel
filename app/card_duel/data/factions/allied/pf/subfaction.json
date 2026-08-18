@@ -1,0 +1,17 @@
+{
+  "id": "pf",
+  "name": "太平洋阵线",
+  "faction": "allied",
+  "hp": 32,
+  "def": 2,
+  "eng": 4,
+  "intro": "自然之力，天气掌控",
+  "img": "",
+  "deck": [
+    "pf_future",
+    "pf_river",
+    "pf_skyray",
+    "pf_sonic"
+  ],
+  "heroes": ["pf_norio"]
+}

@@ -16,6 +16,10 @@ pub struct Card {
     pub img: String,
     pub effects: Vec<Effect>,
     pub desc: String,
+    #[serde(default)]
+    pub passive: Vec<Effect>,
+    #[serde(default)]
+    pub hero: bool,
 }
 
 /// 单个效果定义
@@ -49,6 +53,8 @@ pub struct SubfactionDef {
     pub intro: String,
     pub img: String,
     pub deck: Option<Vec<String>>,
+    #[serde(default)]
+    pub heroes: Vec<String>,
 }
 
 /// 阵营定义（来自 faction.json）
@@ -73,6 +79,8 @@ pub struct Buff {
 #[derive(Debug, Clone)]
 pub struct PlayerState {
     pub role: SubfactionDef,
+    /// 显示名（真人玩家名 / 电脑N），默认等于子阵营名
+    pub name: String,
     pub hp: i32,
     pub def: i32,
     pub energy: i32,
@@ -148,6 +156,7 @@ mod tests {
                 intro: "intro".into(),
                 img: "".into(),
                 deck: Some(vec!["c1".into(), "c2".into()]),
+                heroes: vec![],
             }],
             cards: vec![Card {
                 id: "c1".into(),
@@ -163,6 +172,8 @@ mod tests {
                     fx: None,
                 }],
                 desc: "".into(),
+                passive: vec![],
+                hero: false,
             }],
             factions: vec![FactionDef {
                 id: "f1".into(),

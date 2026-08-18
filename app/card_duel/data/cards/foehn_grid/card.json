@@ -1,0 +1,1 @@
+{"id":"foehn_grid","name":"迷幻网格","cost":2,"img":"","effects":[{"type":"weaken_def","value":2,"duration":2,"target":"enemy"}],"desc":"","passive":[],"hero":false}

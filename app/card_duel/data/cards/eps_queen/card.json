@@ -1,0 +1,1 @@
+{"id":"eps_queen","name":"虫群女王","cost":3,"img":"","effects":[{"type":"damage","value":9,"target":"enemy"}],"desc":"","passive":[],"hero":false}

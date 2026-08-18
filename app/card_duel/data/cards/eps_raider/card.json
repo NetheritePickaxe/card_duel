@@ -1,0 +1,1 @@
+{"id":"eps_raider","name":"掠夺者坦克","cost":2,"img":"","effects":[{"type":"damage","value":6,"target":"enemy"},{"type":"draw","value":1}],"desc":"","passive":[],"hero":false}

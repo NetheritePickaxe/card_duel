@@ -1,0 +1,1 @@
+{"id":"usa_seal","name":"海豹突击队","cost":2,"img":"","effects":[{"type":"damage","value":6,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

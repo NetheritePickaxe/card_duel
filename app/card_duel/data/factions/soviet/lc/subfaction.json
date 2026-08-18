@@ -1,0 +1,17 @@
+{
+  "id": "lc",
+  "name": "拉丁同盟",
+  "faction": "soviet",
+  "hp": 36,
+  "def": 3,
+  "eng": 3,
+  "intro": "烈火燎原，游击消耗",
+  "img": "",
+  "deck": [
+    "lc_morales",
+    "lc_brute2",
+    "lc_gatling",
+    "lc_flame"
+  ],
+  "heroes": ["lc_morales"]
+}

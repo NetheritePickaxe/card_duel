@@ -1,0 +1,1 @@
+{"id":"hq_guardian","name":"守卫者","cost":2,"img":"","effects":[{"type":"damage","value":5,"target":"enemy"},{"type":"gain_def","value":1,"duration":2,"target":"self"}],"desc":"","passive":[],"hero":false}

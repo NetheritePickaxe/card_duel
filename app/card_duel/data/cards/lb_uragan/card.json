@@ -1,0 +1,1 @@
+{"id":"lb_uragan","name":"乌拉甘","cost":4,"img":"","effects":[{"type":"damage","value":10,"target":"enemy"},{"type":"gain_def","value":2,"duration":2,"target":"self"}],"desc":"","passive":[{"type":"dmg_reduce","value":20,"duration":999,"target":"self"}],"hero":true}

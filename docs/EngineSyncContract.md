@@ -15,7 +15,7 @@
 
 | Rust 导出 | engine.js 包装 | 参数 | 返回 | 说明 |
 |-----------|----------------|------|------|------|
-| `init_battle` | `newBattle` | `(mode, defs_json, indices_json, teams_json, humans_json, seed, first_actor)` | `Result<String, JsValue>` | 创建对局并开始首回合 |
+| `init_battle` | `newBattle` | `(mode, defs_json, indices_json, teams_json, humans_json, seed, first_actor, order_json, names_json)` | `Result<String, JsValue>` | 创建对局并开始首回合，`names_json` 为各席位显示名数组（真人名/电脑N），空时节模型 |
 | `battle_state_json` | `battleStateJson` | 无 | `String` | 完整对局状态 JSON |
 | `play_card` | `playCard` | `(pi, idx, target)` | `Result<String, JsValue>` | 玩家 `pi` 打出第 `idx` 张手牌，`target` 为 -1 表示无目标 |
 | `end_turn` | `endTurn` | `(pi)` | `Result<String, JsValue>` | 玩家 `pi` 结束回合；非本人回合（`not your turn`）或对局已结束时报错 |
@@ -38,12 +38,14 @@
 | `actor` | 当前行动方 |
 | `phase` | 阶段（`playing` / `over`） |
 | `winner` | 胜者，未决为 `null` |
-| `players` | 玩家数组（`role`/`hp`/`def`/`energy`/`buffs`/`draw`/`hand`/`discard`） |
+| `players` | 玩家数组（`role`/`name`/`hp`/`def`/`energy`/`buffs`/`draw`/`hand`/`discard`），`name` 为显示名（玩家名/电脑N） |
 | `teams` | 队伍划分 |
 | `order` | 行动顺序 |
 | `humans` | 各席位是否人类 |
 | `seatMap` | 席位映射 |
 | `defs` | 游戏定义（`GameDefs` 反序列化） |
+| `players[].role.heroes` | 子阵营绑定的英雄卡 id 列表 |
+| `players[].hand[]` | 卡牌含 `passive`（被动效果）与 `hero`（是否英雄卡）字段 |
 | `log` | 对战日志 |
 | `_events` | 最近一次操作的事件（`target` + `fx`） |
 
@@ -56,6 +58,16 @@
 - 所有可失败操作（`init_battle`/`play_card`/`end_turn`/`start_turn`/`cpu_step`）返回 `Result<String, JsValue>`，错误时 JS 侧必须 `console.error` 并停止操作，禁止猜测默认状态继续。
 - 每次操作后调用方必须重新读取返回的状态 JSON，禁止在 JS 侧缓存旧状态后自行增量修改。
 - `core.js` 的 `applyState` 是全量重建快照，不做局部补丁。
+
+## 支持的效果类型
+
+`list_effects()` 返回的元数据（`effect_metadata_map`）当前包含：
+
+`damage` / `heal` / `gain_def` / `gain_atk` / `weaken_def` / `cost_up` / `dmg_reduce` / `skip_turn` / `extra_turn` / `draw` / `force_discard` / `energy` / **`aoe_damage`**
+
+- `aoe_damage`：对己方之外的所有存活敌军结算伤害，支持 `pierce` 真伤，`descKey: desc.aoe_damage`，`cpuWeight` 按敌方存活数加权。
+- 卡牌的 `passive` 字段与 `effects` 同构；打出时先结算 `effects` 再结算 `passive`（英雄卡多一个附加触发）。
+- 牌组构建：`make_player` 将 `sub.deck`（专属）+ `faction.deck`（阵营通用）合并。
 
 ## 修改流程
 

@@ -3,6 +3,7 @@ import { state } from './state.js?v=__VERSION__';
 import { DB, getDefaultCardIds } from './data.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
 import { newBattle, lanMyIndex } from './core.js?v=__VERSION__';
+import { getPlayerName, cpuLabel } from './profile.js?v=__VERSION__';
 import { renderSlots, slotHTML } from './render.js?v=__VERSION__';
 
 // ============================================================================
@@ -180,6 +181,19 @@ function initLan() {
   };
 }
 
+/** 该席位之前由电脑占位的个数（用于 电脑1/电脑2… 编号），房主视角）
+ */
+function cpuOf(side) {
+  const picks = state.LAN && state.LAN.picks ? state.LAN.picks : [];
+  const teamsArr = state.LAN && state.LAN.teams ? state.LAN.teams : [];
+  let n = 0;
+  for (let i = 0; i < side; i++) {
+    const isCpu = picks[i] && picks[i].is_human === false;
+    if (isCpu) n++;
+  }
+  return n + 1;
+}
+
 function lanMeta() {
   // 从 LAN 状态合并 meta（picks/teams/ready），供选择界面使用
   state.LAN.teamsArr = state.LAN.teams || new Array(CAPACITY).fill(null);
@@ -311,6 +325,7 @@ function applyPublic(pub) {
   b.players.forEach((P, i) => {
     const s = pub.p[i];
     if (!s) return;
+    P.name = s.name || P.name || P.role?.name;
     P.hp = s.hp; P.def = s.def; P.energy = s.energy; P.buffs = s.buffs;
     P.drawCount = s.draw_count; P.handCount = s.hand_count; P.discard = s.discard;
     if (i === myIdx) {
@@ -352,13 +367,14 @@ export function renderLanPick() {
     if (!slot) continue;
     const pick = mySide === i ? state.PICK[i] : (picks[i] ? picks[i].role : null);
     const isHuman = picks[i] ? picks[i].is_human !== false : (mySide === i);
+    const seatName = picks[i] && picks[i].name ? picks[i].name : (mySide === i ? getPlayerName() : (isHuman ? '' : cpuLabel(cpuOf(i))));
     const team = teams[i];
     const teamLabel = team != null ? `<span class="team-badge t${team}">${t('pick.team')} ${(team + 1)}</span>` : '';
     const cpuLabel = isHuman ? '' : `<span class="dim" style="font-size:10px">${t('pick.cpu_label')}</span>`;
     const readyLabel = (i !== 0 && ready[i]) ? `<span class="dim" style="font-size:10px;color:var(--green)">✓ ${t('pick.ready')}</span>` : '';
     let body;
     if (pick) {
-      body = slotHTML(pick) + `<div style="display:flex;align-items:center;gap:4px;margin-top:4px">${teamLabel}${cpuLabel}${readyLabel}</div>`;
+      body = slotHTML(pick, seatName) + `<div style="display:flex;align-items:center;gap:4px;margin-top:4px">${teamLabel}${cpuLabel}${readyLabel}</div>`;
     } else if (!isHuman && i !== 0) {
       body = `<div class="av" style="opacity:.4">?</div><div class="dim" style="font-size:11px">${t('pick.slot_empty')}</div>`;
     } else {
@@ -435,9 +451,11 @@ export function lanPickPost(side, role, isHuman) {
   }
   const effectTypes = [...new Set(cards.flatMap(c => (c.effects || []).map(e => e.type)))];
   const team = state.LAN.teams ? state.LAN.teams[side] : null;
+  // 真人席位携带自己的昵称；电脑席位由房主发对应 电脑N 标签
+  const name = isHuman === false ? cpuLabel(cpuOf(side)) : getPlayerName();
   fetch(state.LAN.base + '/pick', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ room: state.LAN.room, side, role, cards, effects: effectTypes, is_human: isHuman !== false, team }),
+    body: JSON.stringify({ room: state.LAN.room, side, role, cards, effects: effectTypes, is_human: isHuman !== false, team, name }),
   }).then(r => r.json()).then(d => {
     if (d && !d.ok) alert(t('lan.alert_upload_fail', { err: d.err }));
   }).catch(() => alert(t('lan.alert_upload_fail2')));

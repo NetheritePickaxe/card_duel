@@ -1,0 +1,1 @@
+{"id":"allied_chrono","name":"超时空军团兵","cost":2,"img":"","effects":[{"type":"damage","value":8,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}

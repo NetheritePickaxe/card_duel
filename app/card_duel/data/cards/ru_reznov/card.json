@@ -1,0 +1,1 @@
+{"id":"ru_reznov","name":"雷泽诺夫","cost":3,"img":"","effects":[{"type":"damage","value":8,"target":"enemy"}],"desc":"","passive":[{"type":"energy","value":1,"target":"self"}],"hero":true}

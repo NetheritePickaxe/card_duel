@@ -1,0 +1,17 @@
+{
+  "id": "hq",
+  "name": "厄普西隆总部守卫",
+  "faction": "epsilon",
+  "hp": 36,
+  "def": 3,
+  "eng": 3,
+  "intro": "精英护卫，钢铁意志",
+  "img": "",
+  "deck": [
+    "hq_malver",
+    "hq_guardian",
+    "hq_elite",
+    "hq_ghost"
+  ],
+  "heroes": ["hq_malver"]
+}

@@ -1,0 +1,1 @@
+{"id":"allied_lightning","name":"闪电风暴","cost":5,"img":"","effects":[{"type":"aoe_damage","value":12,"pierce":true,"target":"enemy"}],"desc":"","passive":[],"hero":false}
