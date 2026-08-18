@@ -7,6 +7,7 @@
   "name.changed": "Name saved",
   "name.default": "Commander",
   "settings.player_name": "Name",
+  "settings.rotate": "Allow Landscape",
   "battle.cpu_name": "CPU {n}",
   "menu.title_l": "Card",
   "menu.title_r": "Duel",

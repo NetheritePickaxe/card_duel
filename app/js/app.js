@@ -168,6 +168,38 @@ initSettings();
 initMods();
 initConsole();
 
+/* ============ 横屏旋转控制 ============ */
+function applyOrientation() {
+  const allow = localStorage.getItem('_allow_rotate') === '1';
+  const isTauri = !!(window.__TAURI__ && window.__TAURI__.core);
+  try {
+    if (allow) {
+      if (isTauri) {
+        screen.orientation?.unlock();
+      } else {
+        screen.orientation?.lock('landscape');
+      }
+    } else {
+      screen.orientation?.lock('portrait');
+    }
+  } catch(e) {}
+  const isLandscape = window.innerWidth > window.innerHeight;
+  document.body.classList.toggle('landscape', allow && (isTauri ? isLandscape : true));
+}
+
+function initOrientation() {
+  applyOrientation();
+  window.addEventListener('orientationchange', () => setTimeout(applyOrientation, 300));
+  window.addEventListener('resize', () => {
+    if (localStorage.getItem('_allow_rotate') === '1' && !!(window.__TAURI__ && window.__TAURI__.core)) {
+      applyOrientation();
+    }
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) applyOrientation(); });
+}
+window.__applyOrientation = applyOrientation;
+initOrientation();
+
 function showInitScreen() {
   const initScreen = screenFromPath(location.pathname);
   if (initScreen === 'sc-settings') {

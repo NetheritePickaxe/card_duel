@@ -7,6 +7,7 @@
   "name.changed": "名字已保存",
   "name.default": "指挥官",
   "settings.player_name": "名字",
+  "settings.rotate": "允许横屏",
   "battle.cpu_name": "电脑{n}",
   "menu.title_l": "卡牌",
   "menu.title_r": "对决",

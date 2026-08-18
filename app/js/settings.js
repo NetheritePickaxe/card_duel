@@ -46,6 +46,19 @@ function initSplashToggle() {
   });
 }
 
+/* 横屏切换（仅手机端） */
+function initRotateToggle() {
+  const row = $('rotate-row');
+  if (!row || !IS_MOBILE) { row.style.display = 'none'; return; }
+  row.style.display = '';
+  const toggle = $('rotate-toggle');
+  toggle.checked = localStorage.getItem('_allow_rotate') === '1';
+  toggle.addEventListener('change', () => {
+    localStorage.setItem('_allow_rotate', toggle.checked ? '1' : '0');
+    if (window.__applyOrientation) window.__applyOrientation();
+  });
+}
+
 /* ============ 主题色 ============ */
 const ACCENTS = ['#d9a441', '#e8833f', '#6fae4e', '#4d8fd4', '#9a6fd6', '#e96ba3', '#37a3a0'];
 const ACCENT_NAMES = {
@@ -367,6 +380,7 @@ export function initSettings() {
   renderAccentRow();
   initSplashToggle();
   initNameInput();
+  initRotateToggle();
   initVolumeSliders();
   const savedTheme = localStorage.getItem('theme') || 'dark';
   const themeSelect = $('theme-select');

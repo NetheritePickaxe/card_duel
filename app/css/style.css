@@ -327,6 +327,19 @@ input[type="checkbox"]{width:20px;height:20px;flex-shrink:0;accent-color:var(--a
 #target-modal{position:fixed;inset:0;z-index:100}
 #target-modal .mbox{max-width:380px}
 
+/* ============ 手机横屏布局 ============ */
+body.landscape .battle-grid{grid-template-columns:2fr 1fr;grid-template-areas:"up log" "dn log"}
+body.landscape .battle-grid .log{min-height:0;max-height:none}
+body.landscape .hand{min-height:140px}
+body.landscape .card{width:90px;height:144px}
+body.landscape .card .cdesc{height:36px;font-size:9px}
+body.landscape .pzone{padding:6px}
+body.landscape .avatar{width:38px;height:38px;font-size:17px}
+body.landscape .stat{font-size:10px;gap:6px}
+body.landscape .panel{gap:6px}
+body.landscape .hd{margin-bottom:16px}
+body.landscape .menu{margin:12px auto}
+
 /* ============ 开发者控制台 ============ */
 #dev-console{position:fixed;bottom:-320px;left:0;right:0;height:320px;background:#0d1117;border-top:2px solid var(--acc);z-index:90;transition:bottom .25s ease;display:flex;flex-direction:column;font-family:"Consolas","Monaco",monospace}
 #dev-console.on{bottom:0}
