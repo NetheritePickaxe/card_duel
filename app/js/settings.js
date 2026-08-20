@@ -1,4 +1,4 @@
-import { $, show, toast } from './util.js?v=__VERSION__';
+import { $, show, toast, IS_MOBILE } from './util.js?v=__VERSION__';
 import { setTypeVolume, getTypeVolume, setMasterVolume, getMasterVolume, updateBGM, initAudio } from './sound.js?v=__VERSION__';
 import { renderMenuAddr } from './share.js?v=__VERSION__';
 import { getMods, getModOrder, deleteMod, importModFromUrl, reloadMods } from './modloader.js?v=__VERSION__';
