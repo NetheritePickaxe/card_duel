@@ -13,8 +13,14 @@ import { t } from './i18n.js?v=__VERSION__';
 function initNameInput() {
   const input = $('player-name-input');
   if (!input) return;
-  input.value = getPlayerName();
-  input.placeholder = t('name.input_placeholder');
+  // locale-changed 时重同步：initSettings 早于 i18n 加载完成，
+  // 首次填充的默认名需在翻译就绪后刷新
+  const refresh = () => {
+    input.value = getPlayerName();
+    input.placeholder = t('name.input_placeholder');
+  };
+  refresh();
+  window.addEventListener('locale-changed', refresh);
   input.addEventListener('change', () => {
     savePlayerName(input.value);
     input.value = getPlayerName();
@@ -425,6 +431,7 @@ export function initSettings() {
       }
     });
     window.addEventListener('mods-reloaded', refreshMusicBtn);
+    window.addEventListener('locale-changed', refreshMusicBtn);
     refreshMusicBtn();
   }
 }

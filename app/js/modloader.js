@@ -1,6 +1,6 @@
 import { registerTrack, deregisterTrack } from './sound.js?v=__VERSION__';
 import { addTranslation, clearTranslations } from './i18n.js?v=__VERSION__';
-import { setDefaultData } from './data.js?v=__VERSION__';
+import { setDefaultData, DB } from './data.js?v=__VERSION__';
 
 const DB_NAME = 'card_duel_mods';
 const STORE = 'mods';
@@ -86,7 +86,7 @@ async function loadVanillaMod() {
     'data/effects.json',
   ];
   for (const f of fileList) {
-    try { files[f] = await fetchText(`${modBaseUrl(VANILLA)}${f}`); } catch (e) { files[f] = '{}'; }
+    try { files[f] = await fetchText(`${modBaseUrl(VANILLA)}${f}`); } catch (e) { files[f] = '{}'; console.error(`[modloader] 原版文件加载失败: ${f}`, e); }
   }
   // 从文件夹结构聚合 cards / factions / subfactions（通过 _index.json 清单，不依赖 HTTP 目录列表）
   try {
@@ -95,7 +95,7 @@ async function loadVanillaMod() {
     const factionsIdx = JSON.parse(await fetchText(base + 'factions/_index.json'));
     const cards = [], factions = [], subs = [];
     for (const id of (cardsIdx.cards || [])) {
-      try { cards.push(JSON.parse(await fetchText(base + 'cards/' + id + '/card.json'))); } catch (e) {}
+      try { cards.push(JSON.parse(await fetchText(base + 'cards/' + id + '/card.json'))); } catch (e) { console.error(`[modloader] 卡牌加载失败: ${id}`, e); }
     }
     files['data/cards.json'] = JSON.stringify(cards);
     for (const fid of (factionsIdx.factions || [])) {
@@ -103,13 +103,13 @@ async function loadVanillaMod() {
         factions.push(JSON.parse(await fetchText(base + 'factions/' + fid + '/faction.json')));
         const idx = JSON.parse(await fetchText(base + 'factions/' + fid + '/_index.json'));
         for (const sid of (idx.subfactions || [])) {
-          try { subs.push(JSON.parse(await fetchText(base + 'factions/' + fid + '/' + sid + '/subfaction.json'))); } catch (e) {}
+          try { subs.push(JSON.parse(await fetchText(base + 'factions/' + fid + '/' + sid + '/subfaction.json'))); } catch (e) { console.error(`[modloader] 子阵营加载失败: ${fid}/${sid}`, e); }
         }
-      } catch (e) {}
+      } catch (e) { console.error(`[modloader] 阵营加载失败: ${fid}`, e); }
     }
     files['data/factions.json'] = JSON.stringify(factions);
     files['data/subfactions.json'] = JSON.stringify(subs);
-  } catch (e) { /* ignore */ }
+  } catch (e) { console.error('[modloader] 原版数据聚合失败', e); }
   return { id: VANILLA, meta, builtin: true, files, enabled: true };
 }
 
@@ -125,7 +125,7 @@ async function loadPlayerMods() {
       mods.push({ id, meta: rec.meta, builtin: false, files: rec.files, enabled });
     }
     return mods;
-  } catch (e) { return []; }
+} catch (e) { console.error('[modloader] 玩家模组读取失败', e); return []; }
 }
 
 function getPriorityOrder() {
@@ -170,6 +170,7 @@ export async function loadMods() {
     if (!mod.enabled) continue;
     await applyMod(mod);
   }
+  console.log(`[modloader] 加载完成: factions=${DB.factions.length}, subfactions=${DB.subfactions.length}, cards=${DB.cards.length}`);
 }
 
 async function applyMod(mod) {
@@ -178,7 +179,7 @@ async function applyMod(mod) {
   for (const f of langFiles) {
     const content = mod.files[f];
     if (content) {
-      try { addTranslation(f.includes('zh_cn') ? 'zh_cn' : 'en_us', JSON.parse(content)); } catch (e) { /* ignore */ }
+      try { addTranslation(f.includes('zh_cn') ? 'zh_cn' : 'en_us', JSON.parse(content)); } catch (e) { console.error(`[modloader] 翻译解析失败: ${f}`, e); }
     }
   }
   // 数据
@@ -187,16 +188,16 @@ async function applyMod(mod) {
     const cards = JSON.parse(mod.files['data/cards.json'] || '[]');
     const factions = JSON.parse(mod.files['data/factions.json'] || '[]');
     setDefaultData(subfactions, cards, factions);
-  } catch (e) { /* ignore */ }
+  } catch (e) { console.error(`[modloader] 数据解析失败: ${mod.id}`, e); }
   // 声音（二进制安全：oggs 存在 files 中时生成 Blob URL）
   const soundContent = mod.files['assets/sound/sound.json'];
   if (soundContent) {
-    try { registerSoundRegistry(JSON.parse(soundContent), mod); } catch (e) { /* ignore */ }
+    try { registerSoundRegistry(JSON.parse(soundContent), mod); } catch (e) { console.error(`[modloader] 音效注册失败: ${mod.id}`, e); }
   }
   // 配置
   const cfgContent = mod.files['config.json'];
   if (cfgContent) {
-    try { loadModConfig(mod.id, JSON.parse(cfgContent)); } catch (e) { /* ignore */ }
+    try { loadModConfig(mod.id, JSON.parse(cfgContent)); } catch (e) { console.error(`[modloader] 配置加载失败: ${mod.id}`, e); }
   }
 }
 

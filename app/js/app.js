@@ -2,14 +2,14 @@ import { $, show, toast, screenFromPath, IS_MOBILE } from './util.js?v=__VERSION
 import { state } from './state.js?v=__VERSION__';
 import { t, initLocale, setLocale, getLang } from './i18n.js?v=__VERSION__';
 import { updateBGM } from './sound.js?v=__VERSION__';
-import { loadMods, reloadMods } from './modloader.js?v=__VERSION__';
+import { loadMods, reloadMods, importModFromUrl, importMod, getMods } from './modloader.js?v=__VERSION__';
 import { initEffectMeta } from './data.js?v=__VERSION__';
 import { loadEngine } from './engine.js?v=__VERSION__';
-import { startSkirmish, startCampaign, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice, updatePlayerCount, updateGameMode, togglePickTeam, togglePickHuman } from './pick.js?v=__VERSION__';
+import { startSkirmish, startCampaign, openLAN, backMenu, quitBattle, pickRole, closeModal, setPick, setPickRandom, goDice, updatePlayerCount, updateGameMode, pickTeamModal, pickHumanModal, setTeam, setHuman } from './pick.js?v=__VERSION__';
 import { openEditor, setTab, editorActions } from './editor.js?v=__VERSION__';
 import { openLibrary, libraryActions } from './library.js?v=__VERSION__';
 import { playCardClick, endTurnClick } from './battle.js?v=__VERSION__';
-import { lanCreate, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeServer, renderServerList, normalizeServerUrl, scanLan, lanSetTeam, lanSetReady, lanAddCpu } from './lan.js?v=__VERSION__';
+import { lanCreate, lanJoinRoom, lanConnect, lanDisconnect, addServer, removeServer, renderServerList, normalizeServerUrl, scanLan, lanSetTeam, lanSetReady, lanAddCpu, openAddServerModal } from './lan.js?v=__VERSION__';
 import { renderBattle, renderSlots } from './render.js?v=__VERSION__';
 import { renderEditList } from './editor.js?v=__VERSION__';
 import { settingsActions, initSettings } from './settings.js?v=__VERSION__';
@@ -41,8 +41,6 @@ window.addEventListener('locale-changed', () => {
   updateI18nElements();
   const nameInput = $('name-input');
   if (nameInput) nameInput.placeholder = t('name.input_placeholder');
-  const playerNameInput = $('player-name-input');
-  if (playerNameInput) playerNameInput.placeholder = t('name.input_placeholder');
   // Re-render current screen with new language
   if (state.PHASE_BATTLE && state.BATTLE) {
     renderBattle();
@@ -79,12 +77,8 @@ const actionMap = {
   'play-card': (el) => playCardClick(parseInt(el.dataset.pi), parseInt(el.dataset.index)),
   'end-turn': (el) => endTurnClick(parseInt(el.dataset.pi)),
   'lan-join-room': (el) => lanJoinRoom(el.dataset.room),
-  'server-add': () => {
-    const val = $('server-input').value;
-    if (val && addServer(val)) { renderServerList(); $('server-input').value = ''; }
-  },
+  'open-add-server-modal': () => openAddServerModal(),
   'server-connect': (el) => lanConnect(el.dataset.url),
-  'server-connect-input': () => lanConnect($('server-input').value),
   'server-del': (el) => removeServer(el.dataset.url),
   'lan-scan': () => scanLan(),
   'lan-disconnect': () => lanDisconnect(),
@@ -97,6 +91,10 @@ const actionMap = {
   },
   'set-pick': (el) => setPick(parseInt(el.dataset.slot), parseInt(el.dataset.index)),
   'pick-random': (el) => setPickRandom(parseInt(el.dataset.slot)),
+  'pick-team': (el) => pickTeamModal(parseInt(el.dataset.slot)),
+  'pick-human': (el) => pickHumanModal(parseInt(el.dataset.slot)),
+  'set-team': (el) => setTeam(parseInt(el.dataset.slot), parseInt(el.dataset.team)),
+  'set-human': (el) => setHuman(parseInt(el.dataset.slot), parseInt(el.dataset.human)),
   ...settingsActions,
   ...editorActions,
   ...libraryActions,
@@ -132,17 +130,6 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', e => {
   if (e.target.id === 'pk-player-count') {
     updatePlayerCount();
-  }
-});
-
-document.addEventListener('click', e => {
-  if (e.target.closest('[data-action="toggle-pick-team"]')) {
-    const el = e.target.closest('[data-action="toggle-pick-team"]');
-    togglePickTeam(parseInt(el.dataset.slot));
-  }
-  if (e.target.closest('[data-action="toggle-pick-human"]')) {
-    const el = e.target.closest('[data-action="toggle-pick-human"]');
-    togglePickHuman(parseInt(el.dataset.slot));
   }
 });
 
@@ -208,6 +195,10 @@ function showInitScreen() {
     const savedEdit = JSON.parse(localStorage.getItem('saved_edit') || '{}');
     if (savedEdit.tab) setTab(savedEdit.tab);
     show('sc-edit');
+    renderEditList();
+  } else if (initScreen === 'sc-library') {
+    show('sc-library');
+    openLibrary();
   } else if (initScreen === 'sc-pick') {
     show('sc-pick');
     renderSlots();
@@ -220,7 +211,7 @@ const initLocaleLoaded = initLocale();
 const loadModsLoaded = loadMods().then(() => {
   updateBGM();
   renderModList();
-});
+}).catch(e => console.error('[app] loadMods 失败', e));
 const engineLoaded = loadEngine().then(() => {
   initEffectMeta();
 });
@@ -236,10 +227,89 @@ Promise.allSettled([initLocaleLoaded, loadModsLoaded]).then(() => {
     input.placeholder = t('name.input_placeholder');
     input.focus();
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('save-name')?.click(); });
+    initMusicDownload();
     return;
   }
   showInitScreen();
 });
+
+function initMusicDownload() {
+  const btn = $('music-dl-btn');
+  if (!btn) return;
+  const wrap = $('music-progress-wrap');
+  const bar = $('music-progress-bar');
+  const ptext = $('music-progress-text');
+  const MUSIC_URLS = [
+    'https://github.com/NetheritePickaxe/card_duel/releases/download/music-pack/music-pack.zip',
+    'https://mirror.ghproxy.com/https://github.com/NetheritePickaxe/card_duel/releases/download/music-pack/music-pack.zip',
+  ];
+  async function setProgress(pct, msg) {
+    if (bar) bar.style.width = (pct || 0) + '%';
+    if (ptext) ptext.textContent = msg || '';
+  }
+  async function downloadWithProgress(url) {
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const total = parseInt(res.headers.get('Content-Length')) || 0;
+    const reader = res.body.getReader();
+    const chunks = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (total > 0) setProgress(Math.round(received / total * 100));
+    }
+    const blob = new Blob(chunks);
+    const file = new File([blob], 'music-pack.zip', { type: blob.type });
+    return file;
+  }
+  async function refresh() {
+    const mods = getMods();
+    const installed = mods.some(m => m.id === 'card_duel_music');
+    if (installed) {
+      btn.textContent = t('settings.music_downloaded');
+      btn.disabled = true;
+    } else {
+      btn.textContent = t('settings.music_download_btn');
+      btn.disabled = false;
+    }
+  }
+  btn.addEventListener('click', async () => {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = t('settings.music_downloading');
+    if (wrap) wrap.style.display = '';
+    setProgress(0, t('settings.music_downloading'));
+    let lastErr;
+    for (const url of MUSIC_URLS) {
+      try {
+        const file = await downloadWithProgress(url);
+        setProgress(100, t('settings.music_downloading'));
+        await importMod(file);
+        await reloadMods();
+        if (wrap) wrap.style.display = 'none';
+        setProgress(0, '');
+        btn.textContent = t('settings.music_downloaded');
+        btn.title = '';
+        return;
+      } catch (e) {
+        lastErr = e;
+        setProgress(0, '下载失败，尝试镜像…');
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+    btn.textContent = t('settings.music_download_btn');
+    btn.disabled = false;
+    if (wrap) wrap.style.display = 'none';
+    setProgress(0, '');
+    alert(t('settings.music_download_fail') + ': ' + lastErr.message);
+  });
+  window.addEventListener('mods-reloaded', refresh);
+  window.addEventListener('locale-changed', refresh);
+  refresh();
+}
 
 window.addEventListener('mods-reloaded', () => {
   initEffectMeta();

@@ -161,13 +161,11 @@ export function lanDisconnect() {
 function showServerPanel() {
   $('server-panel').style.display = 'block';
   $('server-list-section').style.display = 'none';
-  $('add-server-section').style.display = 'none';
 }
 
 function hideServerPanel() {
   $('server-panel').style.display = 'none';
   $('server-list-section').style.display = 'block';
-  $('add-server-section').style.display = 'block';
 }
 
 /* ============ 房间操作 ============ */
@@ -520,4 +518,38 @@ function roomListTick() {
       </div>`;
     }).join('');
   }).catch(() => { });
+}
+
+export function openAddServerModal() {
+  const mbox = $('mbox');
+  mbox.innerHTML = `<div class="mhead" data-i18n="lan.add_server">添加服务器</div>
+    <div class="frow" style="margin-bottom:10px">
+      <label data-i18n="lan.server_addr">服务器地址</label>
+      <input id="modal-server-input" placeholder="192.168.1.100" value="">
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="primary" id="modal-server-add" data-i18n="lan.add_server">添加服务器</button>
+      <button id="modal-server-connect" data-i18n="lan.connect_input">直接连接</button>
+    </div>`;
+  $('modal').classList.add('on');
+  const input = $('modal-server-input');
+  input.focus();
+  input.addEventListener('keydown', function handler(e) {
+    if (e.key === 'Enter') {
+      const val = input.value.trim();
+      if (val && addServer(normalizeServerUrl(val))) renderServerList();
+      $('modal').classList.remove('on');
+      input.removeEventListener('keydown', handler);
+    }
+  });
+  $('modal-server-add').addEventListener('click', () => {
+    const val = input.value.trim();
+    if (val && addServer(normalizeServerUrl(val))) renderServerList();
+    $('modal').classList.remove('on');
+  });
+  $('modal-server-connect').addEventListener('click', () => {
+    const val = input.value.trim();
+    $('modal').classList.remove('on');
+    if (val) lanConnect(normalizeServerUrl(val));
+  });
 }

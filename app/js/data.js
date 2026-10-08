@@ -12,11 +12,16 @@ export function setDefaultData(subfactions, cards, factions) {
   defaultSubfactions = subfactions;
   defaultCards = cards;
   defaultFactions = factions || [];
-  // 首次加载时（DB 从空默认创建），把 modloader 加载的默认数据填入 DB
+  // 首次加载时（DB 从空默认创建），把 modloader 加载的默认数据填入 DB。
+  // 各数据集独立填充：某个数据集为空不影响其余数据集生效。
   if (DB.subfactions.length === 0 && subfactions.length > 0) {
     DB.subfactions.splice(0, DB.subfactions.length, ...subfactions);
+  }
+  if (DB.cards.length === 0 && cards.length > 0) {
     DB.cards.splice(0, DB.cards.length, ...cards);
-    DB.factions.splice(0, DB.factions.length, ...(factions || []));
+  }
+  if (DB.factions.length === 0 && factions.length > 0) {
+    DB.factions.splice(0, DB.factions.length, ...factions);
   }
 }
 
@@ -44,6 +49,22 @@ export function getFaction(id) {
   return DB.factions.find(f => f.id === id);
 }
 
+/** 2025-08-18 迁移：去掉 f_/r_ 前缀，更新 subfaction.faction 引用 */
+function migrateLegacyIds(db) {
+  const stripF = (s) => s && s.startsWith('f_') ? s.slice(2) : s;
+  const stripR = (s) => s && s.startsWith('r_') ? s.slice(2) : s;
+  // 重建 factions：id 去前缀
+  const oldFactionIds = new Set(db.factions.map(f => f.id));
+  db.factions = db.factions.map(f => f.id !== stripF(f.id) ? { ...f, id: stripF(f.id) } : f);
+  // 重建 subfactions：id 去前缀，faction 字段映射到新 ID
+  const newFactionIds = new Set(db.factions.map(f => f.id));
+  db.subfactions = db.subfactions.map(s => {
+    const newId = stripR(s.id);
+    const mappedFaction = stripF(s.faction || '').startsWith('f_') ? stripF(s.faction) : (newFactionIds.has(stripF(s.faction || '')) ? stripF(s.faction || '') : s.faction);
+    return s.id !== newId || s.faction !== mappedFaction ? { ...s, id: newId, faction: mappedFaction } : s;
+  });
+}
+
 function loadDB() {
   let db;
   try {
@@ -53,13 +74,15 @@ function loadDB() {
   if (!db) {
     db = { subfactions: defaultSubfactions, cards: defaultCards, factions: defaultFactions };
   } else {
-// 兼容旧存档：迁移 roles → subfactions
+    // 兼容旧存档：迁移 roles → subfactions
     if (db.roles) {
       db.subfactions = db.roles;
       delete db.roles;
     }
     if (!Array.isArray(db.subfactions)) db.subfactions = defaultSubfactions;
     if (!Array.isArray(db.factions)) db.factions = defaultFactions;
+    // 2025-08-18 阵营结构重构：f_* → 无前缀，r_* → 无前缀
+    migrateLegacyIds(db);
   }
   return db;
 }

@@ -7,7 +7,7 @@ import { seatName, seatRole } from './core.js?v=__VERSION__';
 import { updateBGM } from './sound.js?v=__VERSION__';
 
 export function flyCardHTML(c) {
-  return `<div class="cost">${c.cost}</div><div class="cname">${esc(c.name)}</div>
+  return `<div class="cost">${esc(t('battle.energy'))} ${c.cost}</div><div class="cname">${esc(c.name)}</div>
     <div class="cimg">${c.img ? `<img src="${c.img}">` : esc((c.name || '?')[0])}</div>
     <div class="cdesc">${esc(c.desc || genDesc(c.effects))}</div>`;
 }
@@ -50,7 +50,7 @@ export function renderP(pi, el) {
   let handHTML;
   if (reveal) {
     handHTML = P.hand.map((c, i) => `<div class="card ${canAct && !state.animBusy && cardCost(b, pi, c) <= P.energy ? '' : 'locked'}" ${canAct && !state.animBusy && cardCost(b, pi, c) <= P.energy ? `data-action="play-card" data-pi="${pi}" data-index="${i}"` : ''}>
-      <div class="cost">${cardCost(b, pi, c)}</div><div class="cname">${esc(c.name)}</div>
+      <div class="cost">${esc(t('battle.energy'))} ${cardCost(b, pi, c)}</div><div class="cname">${esc(c.name)}</div>
       <div class="cimg">${c.img ? `<img src="${c.img}">` : esc((c.name || '?')[0])}</div>
       <div class="cdesc">${esc(c.desc || genDesc(c.effects))}</div></div>`).join('');
   } else if (handN > 0) {
@@ -206,15 +206,30 @@ export function slotHTML(r, dispName) {
     <div class="dim" style="font-size:12px">${t('edit.stat_hp')}${r.hp} · ${t('edit.stat_def')}${r.def} · ${t('edit.stat_eng')}${r.eng} · ${t('edit.stat_deck')}${(r.deck || []).length}${t('edit.stat_count')}</div>${r.intro ? `<div class="dim" style="font-size:11px;margin-top:4px">${esc(r.intro)}</div>` : ''}</div>`;
 }
 
+function slotFootHTML(i) {
+  const n = state.PICK ? state.PICK.length : 2;
+  const team = state.PICK_TEAMS ? state.PICK_TEAMS[i] : (i < n / 2 ? 0 : 1);
+  const isHuman = !state.PICK_HUMAN || state.PICK_HUMAN[i];
+  const seatName = 'P' + (i + 1);
+  return `<div class="slot-seat-name dim">${esc(seatName)}</div>
+    <div class="slot-foot">
+      <button class="team-badge t${team % 4}" data-action="pick-team" data-slot="${i}">${t('pick.team')} ${(team % 4) + 1}</button>
+      <button data-action="pick-human" data-slot="${i}">${isHuman ? t('pick.you') : t('pick.cpu_label')}</button>
+    </div>`;
+}
+
 export function renderSlots() {
   let n = state.PICK ? state.PICK.length : 2;
   if (state.MODE === 'lan' && state.LAN?.capacity) n = state.LAN.capacity;
+  const wrap = $('pk-wrap');
+  if (wrap) wrap.dataset.n = String(n);
+  const showFoot = state.GAME_MODE !== 'random' && state.MODE !== 'lan' && state.MODE !== 'skirmish';
   for (let i = 0; i < 4; i++) {
     const slot = $('slot-' + i);
     if (!slot) continue;
     if (i < n) {
       slot.style.display = '';
-      slot.innerHTML = slotHTML(state.PICK[i]);
+      slot.innerHTML = slotHTML(state.PICK[i]) + (showFoot ? slotFootHTML(i) : '');
     } else {
       slot.style.display = 'none';
     }

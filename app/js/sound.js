@@ -1,4 +1,5 @@
 import { state } from './state.js?v=__VERSION__';
+import { resolveBgmUrl } from './bgm.js?v=__VERSION__';
 
 const VOL_KEYS = { master: 'vol_master', bgm: 'vol_bgm', sfx: 'vol_sfx', voice: 'vol_voice' };
 const VOL_DEFAULTS = { master: 1.0, bgm: 0.3, sfx: 0.8, voice: 0.8 };
@@ -7,6 +8,7 @@ const TRACKS = {};
 let audio = null;
 let currentId = null;
 let currentTrackIdx = null;
+let factionBgmUrl = null; // 缓存当前阵营 BGM 解析结果
 
 export function registerTrack(id, config) {
   if (typeof config === 'string') {
@@ -102,9 +104,36 @@ export function updateBGM() {
   }
   const inBattle = document.getElementById('sc-battle').classList.contains('on');
   if (inBattle) {
-    if (currentId !== 'bgm/battle') playTrack('bgm/battle');
+    // 优先使用阵营 BGM
+    if (factionBgmUrl) {
+      if (currentId !== 'bgm/faction') {
+        currentId = 'bgm/faction';
+        audio.src = factionBgmUrl;
+        applyVolume();
+        audio.play().catch(() => {});
+      }
+    } else if (currentId !== 'bgm/battle') {
+      playTrack('bgm/battle');
+    }
   } else {
     if (currentId !== 'bgm/menu') playTrack('bgm/menu');
   }
   audio.play().catch(() => { });
+}
+
+/**
+ * 设置阵营 BGM（在战斗开始时调用）
+ * @param {string} bgmUrl - 子阵营或阵营的 bgm 字段值（直链或 B站链接）
+ */
+export async function setFactionBgm(bgmUrl) {
+  if (!bgmUrl) {
+    factionBgmUrl = null;
+    return;
+  }
+  try {
+    factionBgmUrl = await resolveBgmUrl(bgmUrl);
+  } catch (e) {
+    console.error('[sound] 阵营BGM解析失败', e);
+    factionBgmUrl = null;
+  }
 }

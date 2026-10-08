@@ -3,6 +3,7 @@ import { state } from './state.js?v=__VERSION__';
 import { DB, saveDB, EFF_TYPES, FX_FORMS, defaultFx, compressImage, genDesc, getFaction, effMeta } from './data.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
 import { show } from './util.js?v=__VERSION__';
+import { resolveBgmUrl } from './bgm.js?v=__VERSION__';
 
 function autoGrow(el) {
   if (!el) return;
@@ -167,6 +168,7 @@ function renderSubfactionForm(r) {
     <div class="frow"><label>${t('edit.intro')}</label><textarea id="rf-intro" rows="2">${esc(r.intro || '')}</textarea></div>
     <div class="frow"><label>${t('edit.heroes')}</label><input id="rf-heroes" placeholder="${t('edit.heroes_hint')}" value="${(r.heroes || []).join(',')}"><span class="dim" style="font-size:11px">${t('edit.heroes_hint')}</span></div>
     <div class="frow"><label>${t('edit.img')}</label><input id="rf-img" placeholder="${t('edit.img_placeholder')}" value="${esc(r.img || '')}"><input type="file" accept="image/*" data-action="load-img-subfaction"></div>
+    <div class="frow"><label>BGM</label><input id="rf-bgm" placeholder="音频直链或B站视频链接" value="${esc(r.bgm || '')}" style="font-size:12px"><button id="rf-bgm-preview" data-action="bgm-preview" style="padding:2px 8px;font-size:11px">▶ 试听</button></div>
     <div class="frow"><label>${t('edit.deck')}</label><span class="dim" style="font-size:11px">${t('edit.deck_hint')}</span></div>
     <div class="deck-box" id="deck-box"></div>
     <div class="frow"><button class="primary" data-action="save-subfaction">${t('edit.save_subfaction')}</button><button style="color:var(--red)" data-action="del-subfaction">${t('edit.del_subfaction_btn')}</button></div>`;
@@ -275,6 +277,7 @@ function saveSubfaction() {
   r.intro = $('rf-intro').value;
   r.heroes = $('rf-heroes').value ? $('rf-heroes').value.split(',').map(s => s.trim()).filter(Boolean) : [];
   r.img = $('rf-img').value.trim();
+  r.bgm = $('rf-bgm').value.trim() || '';
   r.deck = r.deck || [];
   saveDB();
   renderEditList();
@@ -335,6 +338,7 @@ function renderFactionForm(f) {
     <div class="frow"><label>${t('edit.faction_name')}</label><input id="ff-name" value="${esc(f.name)}"></div>
     <div class="frow"><label>${t('edit.faction_desc')}</label><textarea id="ff-desc" rows="2">${esc(f.desc || '')}</textarea></div>
     <div class="frow"><label>${t('edit.img')}</label><input id="ff-img" placeholder="${t('edit.img_placeholder')}" value="${esc(f.img || '')}"><input type="file" accept="image/*" data-action="load-img-faction"></div>
+    <div class="frow"><label>BGM</label><input id="ff-bgm" placeholder="音频直链或B站视频链接" value="${esc(f.bgm || '')}" style="font-size:12px"><button id="ff-bgm-preview" data-action="bgm-preview" style="padding:2px 8px;font-size:11px">▶ 试听</button></div>
     <div class="frow"><button class="primary" data-action="save-faction">${t('edit.save_faction')}</button><button style="color:var(--red)" data-action="del-faction">${t('edit.del_faction_btn')}</button></div>`;
   autoGrow($('ff-desc'));
 }
@@ -345,6 +349,7 @@ function saveFaction() {
   f.name = $('ff-name').value.trim() || t('edit.fallback_name');
   f.desc = $('ff-desc').value;
   f.img = $('ff-img').value.trim();
+  f.bgm = $('ff-bgm').value.trim() || '';
   saveDB();
   renderEditList();
   toast(t('edit.saved'));
@@ -394,4 +399,33 @@ export const editorActions = {
   'load-img-subfaction': (el) => { el.addEventListener('change', () => loadImg('subfaction'), { once: true }); },
   'load-img-card': (el) => { el.addEventListener('change', () => loadImg('card'), { once: true }); },
   'load-img-faction': (el) => { el.addEventListener('change', () => loadImgFaction(), { once: true }); },
+  'bgm-preview': async (el) => {
+    const prefix = el.id.startsWith('rf-') ? 'rf' : 'ff';
+    const input = $(prefix + '-bgm');
+    if (!input || !input.value.trim()) { toast('请输入BGM链接'); return; }
+    const btn = el;
+    const orig = btn.textContent;
+    btn.textContent = '解析中…';
+    btn.disabled = true;
+    try {
+      const audioUrl = await resolveBgmUrl(input.value.trim());
+      const audio = new Audio();
+      audio.addEventListener('ended', () => { btn.textContent = orig; btn.disabled = false; });
+      audio.addEventListener('error', () => { toast('播放失败，链接可能无效'); btn.textContent = orig; btn.disabled = false; });
+      audio.src = audioUrl;
+      audio.volume = 0.3;
+      audio.play().then(() => {
+        btn.textContent = '播放中…';
+        toast('BGM 解析成功，正在试听');
+      }).catch(() => {
+        btn.textContent = orig;
+        btn.disabled = false;
+        toast('播放失败');
+      });
+    } catch (e) {
+      btn.textContent = orig;
+      btn.disabled = false;
+      toast('BGM 解析失败: ' + e.message);
+    }
+  },
 };

@@ -7,6 +7,7 @@ import { newBattle, logT } from './core.js?v=__VERSION__';
 import { renderBattle, showBattle, renderSlots, slotHTML } from './render.js?v=__VERSION__';
 import { stopRoomList, lanPickPost, lanBase, renderLanPick, startRoomList, renderServerList, scanLan, lanAct } from './lan.js?v=__VERSION__';
 import { startBattleFlow } from './battle.js?v=__VERSION__';
+import { setFactionBgm } from './sound.js?v=__VERSION__';
 
 export function startSkirmish() {
   state.GAME_MODE = 'random';
@@ -69,8 +70,7 @@ export function updatePlayerCount() {
   state.PICK_TEAMS = new Array(n).fill(0).map((_, i) => i < n / 2 ? 0 : 1);
   renderSlots();
   renderModeBar();
-  renderTeamSelect();
-}
+} 
 
 export function openLAN() {
   show('sc-lan');
@@ -78,7 +78,6 @@ export function openLAN() {
   $('mixed-content-warning').style.display = 'none';
   $('server-panel').style.display = 'none';
   $('server-list-section').style.display = 'block';
-  $('add-server-section').style.display = 'block';
   setTimeout(() => scanLan(), 500);
 }
 
@@ -131,7 +130,6 @@ export function openPick(count) {
   $('lan-hint').innerHTML = '';
   renderSlots();
   renderModeBar();
-  renderTeamSelect();
   show('sc-pick');
 }
 
@@ -192,7 +190,7 @@ export function setPick(i, j) {
 
 export function setPickRandom(i) {
   if (!seatPickable(i)) return;
-  const opts = state.PICK_OPTIONS[i] || DB.subfactions;
+  const opts = (state.PICK_OPTIONS[i] && state.PICK_OPTIONS[i].length) ? state.PICK_OPTIONS[i] : DB.subfactions;
   const r = new Uint32Array(1);
   crypto.getRandomValues(r);
   state.PICK[i] = JSON.parse(JSON.stringify(opts[r[0] % opts.length]));
@@ -202,51 +200,41 @@ export function setPickRandom(i) {
   if (state.MODE === 'lan') renderLanPick();
 }
 
-export function renderTeamRows(wrap, n) {
-  if (!wrap) return;
-  if (n <= 0) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
-  wrap.style.display = 'flex';
-  wrap.innerHTML = '';
-  for (let i = 0; i < n; i++) {
-    const team = state.PICK_TEAMS ? state.PICK_TEAMS[i] : (i < n / 2 ? 0 : 1);
-    const isHuman = !state.PICK_HUMAN || state.PICK_HUMAN[i];
-    const name = state.PICK[i]?.name || 'P' + (i + 1);
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px';
-    row.innerHTML = `<span class="dim">${esc(name)}</span>
-      <button data-action="toggle-pick-team" data-slot="${i}" style="padding:2px 8px;font-size:11px">${t('pick.team')} ${team + 1}</button>
-      <button data-action="toggle-pick-human" data-slot="${i}" style="padding:2px 8px;font-size:11px">${isHuman ? t('pick.you') : t('pick.cpu_label')}</button>`;
-    wrap.appendChild(row);
-  }
+export function pickTeamModal(i) {
+  const m = $('mbox');
+  if (!m) return;
+  m.innerHTML = `<div class="mhead">${t('pick.side', { n: i + 1 })} · ${t('pick.team')}</div>
+    ${[0, 1, 2, 3].map(ti => `<div class="mrole" data-action="set-team" data-slot="${i}" data-team="${ti}">
+      <span class="team-badge t${ti}" style="font-size:13px;padding:4px 12px">${t('pick.team')} ${ti + 1}</span>
+    </div>`).join('')}`;
+  $('modal').classList.add('on');
 }
 
-export function renderTeamSelect() {
-  const wrap = $('pk-team-select');
-  if (!wrap) return;
-  const n = state.PICK ? state.PICK.length : 0;
-  // 遭遇战（random）不显示队伍/人电切换；自定义与本地多人在 openPick 时显示（隐藏由 mode bar / player count 触发）
-  if (state.GAME_MODE === 'random' || state.MODE === 'lan' || state.MODE === 'skirmish') { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
-  renderTeamRows(wrap, n);
+export function pickHumanModal(i) {
+  const m = $('mbox');
+  if (!m) return;
+  const isHuman = !state.PICK_HUMAN || state.PICK_HUMAN[i];
+  m.innerHTML = `<div class="mhead">${t('pick.side', { n: i + 1 })}</div>
+    <div class="mrole ${isHuman ? 'sel' : ''}" data-action="set-human" data-slot="${i}" data-human="1"><span>${t('pick.you')}</span></div>
+    <div class="mrole ${!isHuman ? 'sel' : ''}" data-action="set-human" data-slot="${i}" data-human="0"><span>${t('pick.cpu_label')}</span></div>`;
+  $('modal').classList.add('on');
 }
 
-export function togglePickTeam(i) {
-  // 队伍 0~3 循环
-  state.PICK_TEAMS[i] = ((state.PICK_TEAMS[i] ?? 0) + 1) % 4;
-  renderTeamSelect();
+export function setTeam(i, team) {
+  state.PICK_TEAMS[i] = team;
+  closeModal();
   renderSlots();
 }
 
-export function togglePickHuman(i) {
-  state.PICK_HUMAN[i] = !state.PICK_HUMAN[i];
-  if (!state.PICK_HUMAN[i]) {
-    if (!state.PICK[i]) {
-      const opts = state.PICK_OPTIONS[i] || DB.subfactions;
-      const r = new Uint32Array(1);
-      crypto.getRandomValues(r);
-      state.PICK[i] = JSON.parse(JSON.stringify(opts[r[0] % opts.length]));
-    }
+export function setHuman(i, isHuman) {
+  state.PICK_HUMAN[i] = !!isHuman;
+  if (!isHuman && !state.PICK[i]) {
+    const opts = (state.PICK_OPTIONS[i] && state.PICK_OPTIONS[i].length) ? state.PICK_OPTIONS[i] : DB.subfactions;
+    const r = new Uint32Array(1);
+    crypto.getRandomValues(r);
+    state.PICK[i] = JSON.parse(JSON.stringify(opts[r[0] % opts.length]));
   }
-  renderTeamSelect();
+  closeModal();
   renderSlots();
 }
 
@@ -380,6 +368,11 @@ function startBattleFromDice(fullOrder) {
   console.log('[startBattleFromDice] BATTLE actor=' + state.BATTLE.actor + ', humans=' + JSON.stringify(state.BATTLE.humans) + ', players=' + state.BATTLE.players.length);
   const firstName = defs.subfactions[first]?.name || '队';
   logT(state.BATTLE, 'pick.roll_first', { name: firstName });
+  // 设置阵营 BGM
+  const playerSub = state.PICK && state.PICK[0];
+  const playerBgm = playerSub?.bgm || (playerSub?.faction ? getFaction(playerSub.faction)?.bgm : null);
+  if (playerBgm) setFactionBgm(playerBgm);
+  else setFactionBgm(null);
   showBattle();
   startBattleFlow();
 }

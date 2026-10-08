@@ -24,12 +24,18 @@
 <div class="screen" id="sc-name">
   <div class="name-screen">
     <h1 data-i18n="name.title">设置你的名字</h1>
-    <div class="frow" style="max-width:320px;margin:18px auto 0">
-      <label data-i18n="name.input_label">你的名字</label>
+    <div style="max-width:320px;margin:18px auto 0">
       <input id="name-input" maxlength="12" autocomplete="off">
     </div>
     <div style="text-align:center;margin-top:20px">
-      <button class="primary" style="padding:8px 32px;font-size:15px" data-action="save-name" data-i18n="name.save">开始游戏</button>
+      <button id="save-name" class="primary" style="padding:8px 32px;font-size:15px" data-action="save-name" data-i18n="name.save">开始游戏</button>
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <button id="music-dl-btn" style="padding:6px 16px;font-size:13px" data-i18n="settings.music_download_btn">获取音乐</button>
+      <div id="music-progress-wrap" style="display:none;margin-top:8px;height:6px;background:var(--p2);border:1px solid var(--ln);border-radius:3px;overflow:hidden;max-width:240px;margin-left:auto;margin-right:auto">
+        <div id="music-progress-bar" style="height:100%;width:0%;background:var(--acc);transition:width .15s ease"></div>
+      </div>
+      <div id="music-progress-text" class="dim" style="font-size:11px;margin-top:4px"></div>
     </div>
   </div>
 </div>
@@ -51,6 +57,7 @@
 
 <div class="screen" id="sc-settings">
   <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="settings.title">设置</h1></div>
+  <div class="sc-body">
   <div class="tabs">
     <button class="tab on" data-action="settings-tab" data-tab="lang" data-i18n="settings.basic">基础设置</button>
     <button class="tab" data-action="settings-tab" data-tab="sound" data-i18n="settings.sound">声音</button>
@@ -109,7 +116,7 @@
 
 <div class="screen" id="sc-mods">
   <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="menu.mods">模组</h1></div>
-  <div style="max-width:500px;margin:10px auto">
+  <div class="sc-body" style="max-width:500px">
     <div id="mod-list"></div>
     <div style="display:flex;gap:8px;margin-top:12px">
       <button class="primary" id="mod-import-btn" data-i18n="settings.mods_import">导入模组</button>
@@ -131,6 +138,7 @@
     </div>
     <div class="deck-editor" id="deck-editor" style="display:none"></div>
   </div>
+  <div class="lib-sheet-back" id="lib-sheet-back" data-action="close-lib-sheet"></div>
 </div>
 
 <div class="screen" id="sc-edit">
@@ -153,6 +161,9 @@
 <div class="screen" id="sc-pick">
   <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 id="pk-title">选择子阵营</h1></div>
   <div id="pk-mode-bar" class="pk-mode-bar" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;justify-content:center"></div>
+  <div id="pk-multi-opts" style="display:none;margin-bottom:10px;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center">
+    <label><span data-i18n="pick.player_count">人数</span> <select id="pk-player-count"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
+  </div>
   <div class="dim" style="text-align:center;margin-bottom:12px;font-size:14px" id="lan-hint"></div>
   <div class="pick-wrap" id="pk-wrap">
     <div class="slot" data-action="pick-role" data-slot="0" id="slot-0"></div>
@@ -161,12 +172,8 @@
     <div class="slot" data-action="pick-role" data-slot="3" id="slot-3"></div>
   </div>
   <div class="pk-controls">
-    <div id="pk-multi-opts" style="display:none;margin-bottom:8px;gap:8px;align-items:center;flex-wrap:wrap">
-      <label><span data-i18n="pick.player_count">人数</span> <select id="pk-player-count"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
-    </div>
     <button class="primary" id="pk-go" style="display:none" data-action="go-dice" data-i18n="pick.roll">掷骰子决定先手</button>
   </div>
-  <div id="pk-team-select" style="display:none;text-align:center;margin-top:8px;gap:8px;flex-wrap:wrap"></div>
 </div>
 
 <div class="screen" id="sc-dice">
@@ -177,7 +184,7 @@
 
 <div class="screen" id="sc-lan">
   <div class="hd"><button data-action="back-menu"><span data-i18n="back">← 返回</span></button><h1 data-i18n="lan.title">联机对战</h1></div>
-  <div style="max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:10px;padding-top:20px">
+  <div class="sc-body" style="max-width:480px;display:flex;flex-direction:column;gap:10px">
 
     <div id="mixed-content-warning" style="display:none;background:var(--p);border:1px solid var(--red);padding:10px;font-size:12px;color:var(--red)">
       <b>⚠ <span data-i18n="lan.mixed_content_warning">当前页面是 HTTPS 连接，但服务器是 HTTP。浏览器可能阻止连接。请手动放行：</span></b><br>
@@ -187,16 +194,8 @@
     </div>
 
     <div id="server-list-section">
-      <div class="lr-hd"><span data-i18n="lan.server_list">服务器列表</span><button data-action="lan-scan" style="padding:2px 8px;font-size:11px" data-i18n="lan.scan">扫描网络</button></div>
+      <div class="lr-hd"><span data-i18n="lan.server_list">服务器列表</span><button data-action="lan-scan" style="padding:2px 8px;font-size:11px" data-i18n="lan.scan">扫描网络</button><button data-action="open-add-server-modal" class="primary" style="padding:2px 8px;font-size:11px;margin-left:auto" data-i18n="lan.add_server">添加服务器</button></div>
       <div id="server-list"></div>
-    </div>
-
-    <div id="add-server-section">
-      <div class="frow"><label data-i18n="lan.server_addr">服务器地址</label><input id="server-input" placeholder="192.168.1.100" value=""></div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-        <button class="primary" data-action="server-add" style="padding:5px 16px" data-i18n="lan.add_server">添加服务器</button>
-        <button data-action="server-connect-input" style="padding:5px 16px" data-i18n="lan.connect_input">直接连接</button>
-      </div>
     </div>
 
     <div id="server-panel" style="display:none">

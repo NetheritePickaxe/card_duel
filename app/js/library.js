@@ -1,5 +1,5 @@
 import { $, esc, toast, show } from './util.js?v=__VERSION__';
-import { DB, getSubfactionPool, genDesc, DECK_TOTAL, fillToDeckTotal } from './data.js?v=__VERSION__';
+import { DB, getSubfactionPool, genDesc, effMeta, DECK_TOTAL, fillToDeckTotal } from './data.js?v=__VERSION__';
 import { t } from './i18n.js?v=__VERSION__';
 
 const lib = {
@@ -17,9 +17,16 @@ export function openLibrary() {
   lib.editingSubId = null;
   const ed = $('deck-editor');
   if (ed) ed.style.display = 'none';
+  setDeckEditing(false);
+  hideLibSheet();
   renderFilter();
   renderFlatCards();
   renderCardDetail(null);
+}
+
+function setDeckEditing(on) {
+  const main = $('lib-main');
+  if (main) main.style.display = on ? 'none' : 'flex';
 }
 
 function customDeckOf(subId) {
@@ -112,7 +119,7 @@ export function renderFlatCards() {
   const cards = flatFilteredCards();
   grid.innerHTML = cards.length ? cards.map(c => `
     <button class="flat-card ${lib.selCard === c.id ? 'sel' : ''}" data-action="select-card" data-card="${c.id}">
-      <div class="fc-cost">${c.cost}</div>
+      <div class="fc-cost">${esc(t('battle.energy'))} ${c.cost}</div>
       <div class="fc-img">${c.img ? `<img src="${c.img}">` : esc((c.name || '?')[0])}</div>
       <div class="fc-name">${esc(c.name)}</div>
     </button>`).join('') : `<div class="dim">${t('library.empty')}</div>`;
@@ -120,23 +127,69 @@ export function renderFlatCards() {
 
 /* ============ 右侧：卡牌详�?/ 子阵营卡池构�?============ */
 
+const isSheetLayout = () => window.matchMedia('(max-width:768px)').matches;
+
+function showLibSheet() {
+  const det = $('lib-detail');
+  const back = $('lib-sheet-back');
+  if (det) det.classList.add('show');
+  if (back) back.classList.add('on');
+}
+
+function hideLibSheet() {
+  const det = $('lib-detail');
+  const back = $('lib-sheet-back');
+  if (det) det.classList.remove('show');
+  if (back) back.classList.remove('on');
+}
+
+function effDetailLine(e) {
+  const meta = effMeta(e.type);
+  const name = t('effect.' + e.type);
+  const tgt = e.target === 'self' ? t('edit.eff_target_self') : t('edit.eff_target_enemy');
+  const pierce = e.pierce && meta && meta.hasPierce ? `<span class="lib-eff-tag">${esc(t('edit.eff_pierce'))}</span>` : '';
+  const detail = genDesc([e]);
+  return `<div class="lib-eff">
+    <div class="lib-eff-hd"><b>${esc(name)}</b><span class="lib-eff-tgt">${esc(tgt)}</span>${pierce}</div>
+    ${detail ? `<div class="lib-eff-desc">${esc(detail)}</div>` : ''}
+  </div>`;
+}
+
+function effList(effs, titleKey) {
+  if (!effs || !effs.length) return '';
+  return `<div class="lib-section-title">${esc(t(titleKey))}</div>${effs.map(effDetailLine).join('')}`;
+}
+
 export function renderCardDetail(card) {
   const det = $('lib-detail');
   if (!det) return;
-  if (!card) { det.innerHTML = `<div class="lib-placeholder">${t('library.placeholder')}</div>`; return; }
+  if (!card) {
+    det.innerHTML = `<div class="lib-placeholder">${t('library.placeholder')}</div>`;
+    hideLibSheet();
+    return;
+  }
+  const hero = card.hero ? `<span class="lib-hero-tag">${esc(t('edit.hero'))}</span>` : '';
   det.innerHTML = `
     <div class="lib-card-big">
-      <div class="lib-card-cost">${card.cost}</div>
+      <div class="lib-card-cost">${esc(t('battle.energy'))} ${card.cost}</div>
       <div class="lib-card-name">${esc(card.name)}</div>
+      ${hero}
       <div class="lib-card-img">${card.img ? `<img src="${card.img}">` : esc((card.name || '?')[0])}</div>
-      <div class="lib-card-desc">${esc(card.desc || genDesc(card.effects))}</div>
-    </div>`;
+      ${card.desc ? `<div class="lib-card-desc">${esc(card.desc)}</div>` : ''}
+    </div>
+    ${effList(card.effects, 'edit.effects')}
+    ${effList(card.passive, 'edit.passive')}`;
+  if (isSheetLayout()) showLibSheet();
 }
 
 function renderSubDetail(subId) {
   const det = $('lib-detail');
   if (!det) return;
-  if (!subId) { det.innerHTML = `<div class="lib-placeholder">${t('library.placeholder')}</div>`; return; }
+  if (!subId) {
+    det.innerHTML = `<div class="lib-placeholder">${t('library.placeholder')}</div>`;
+    hideLibSheet();
+    return;
+  }
   const sub = DB.subfactions.find(x => x.id === subId);
   if (!sub) return;
   const pool = getSubfactionPool(sub);
@@ -151,6 +204,7 @@ function renderSubDetail(subId) {
       const c = DB.cards.find(x => x.id === id);
       return c ? `<div class="lib-row lib-card-row"><span class="lib-dot"></span><span>${esc(c.name)}</span><span class="lib-count">x${n}</span></div>` : '';
     }).join('')}`;
+  if (isSheetLayout()) showLibSheet();
 }
 
 function selectCard(id) {
@@ -166,6 +220,7 @@ function editCustomDeck(rid) {
   const sub = DB.subfactions.find(x => x.id === rid);
   if (!sub) return;
   lib.editingSubId = rid;
+  hideLibSheet();
   renderDeckEditor(sub);
 }
 
@@ -173,6 +228,7 @@ function renderDeckEditor(sub) {
   const ed = $('deck-editor');
   if (!ed) return;
   ed.style.display = 'block';
+  setDeckEditing(true);
   let deck = customDeckOf(sub.id);
   if (!deck) deck = (sub.presetDeck || []).slice();
   const poolIds = getSubfactionPool(sub);
@@ -183,6 +239,7 @@ function renderDeckEditor(sub) {
   const poolCards = [...new Set(poolIds)].map(id => DB.cards.find(c => c.id === id)).filter(Boolean);
   const total = deck.length;
   ed.innerHTML = `
+    <div class="frow" style="justify-content:space-between"><span class="dim">${t('library.edit_deck')}</span><button data-action="close-deck-editor">${t('back')}</button></div>
     <div class="frow"><label>${t('edit.name')}</label><span>${esc(sub.name)} ${t('edit.preset_deck')}</span></div>
     <div class="lib-deck-total">${total}/${DECK_TOTAL}</div>
     <div class="lib-deck-cards">${(DB.cards.length === poolCards.length
@@ -257,9 +314,23 @@ function customSave(rid) {
   toast(t('edit.saved'));
 }
 
+function closeDeckEditor() {
+  const ed = $('deck-editor');
+  if (ed) ed.style.display = 'none';
+  setDeckEditing(false);
+  if (lib.selSub) renderSubDetail(lib.selSub);
+  else renderCardDetail(null);
+}
+
+function closeLibSheet() {
+  hideLibSheet();
+}
+
 export const libraryActions = {
   'select-card': (el) => selectCard(el.dataset.card),
   'edit-custom-deck': (el) => editCustomDeck(el.dataset.rid),
+  'close-deck-editor': () => closeDeckEditor(),
+  'close-lib-sheet': () => closeLibSheet(),
   'deck-adj2': (el) => deckAdj2(el.dataset.rid, el.dataset.card, parseInt(el.dataset.delta)),
   'custom-auto-fill': (el) => customAutoFill(el.dataset.rid),
   'custom-reset': (el) => customReset(el.dataset.rid),

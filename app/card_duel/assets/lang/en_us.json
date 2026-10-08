@@ -1,7 +1,6 @@
 {
   "menu.title": "Card Duel",
   "name.title": "Set your name",
-  "name.input_label": "Your name",
   "name.input_placeholder": "Enter your name…",
   "name.save": "Start Game",
   "name.changed": "Name saved",
@@ -314,6 +313,7 @@
   "settings.basic": "Basic",
   "console.prompt": "Type a command (type help for help)",
   "console.dev_enabled": "Developer mode enabled. The editor button now appears in the main menu.",
+  "console.dev_disabled": "Developer mode disabled.",
   "console.unknown_cmd": "Unknown command. Type help for available commands.",
-  "console.help": "Available: admin dev (enable dev mode), clear (clear output), help (this help)"
+  "console.help": "Available: op (enable dev mode), deop (disable dev mode), clear (clear output), help (this help)"
 }
